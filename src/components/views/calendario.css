@@ -1,0 +1,151 @@
+/* FullCalendar con tema shadcn */
+.fc {
+  font-family: inherit;
+}
+
+/* Toolbar */
+.fc .fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.fc .fc-button {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  text-transform: capitalize;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: calc(var(--radius) - 2px);
+  transition: all 0.2s;
+}
+
+.fc .fc-button:hover {
+  background-color: hsl(var(--primary) / 0.9);
+  border-color: hsl(var(--primary) / 0.9);
+}
+
+.fc .fc-button:disabled {
+  background-color: hsl(var(--muted));
+  border-color: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+}
+
+.fc .fc-button-active {
+  background-color: hsl(var(--primary) / 0.9);
+  border-color: hsl(var(--primary) / 0.9);
+}
+
+/* Grid y celdas */
+.fc .fc-scrollgrid {
+  border-color: hsl(var(--border));
+}
+
+.fc th,
+.fc td {
+  border-color: hsl(var(--border));
+}
+
+.fc .fc-col-header-cell {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  padding: 0.75rem 0.5rem;
+}
+
+.fc .fc-daygrid-day-number,
+.fc .fc-timegrid-slot-label {
+  color: hsl(var(--foreground));
+}
+
+.fc .fc-day-today {
+  background-color: hsl(var(--accent)) !important;
+}
+
+/* Eventos */
+.fc-event {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  border-radius: calc(var(--radius) - 4px);
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.fc-event:hover {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.fc-event-title {
+  font-weight: 500;
+}
+
+/* Slots de tiempo */
+.fc .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.fc .fc-timegrid-slot-minor {
+  border-top-style: dotted;
+}
+
+/* Now indicator */
+.fc .fc-timegrid-now-indicator-line {
+  border-color: hsl(var(--destructive));
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-color: hsl(var(--destructive));
+}
+
+/* Hover states */
+.fc .fc-daygrid-day:hover,
+.fc .fc-timegrid-col:hover {
+  background-color: hsl(var(--accent) / 0.5);
+}
+
+/* More link */
+.fc .fc-more-link {
+  color: hsl(var(--primary));
+  font-weight: 500;
+}
+
+.fc .fc-more-link:hover {
+  color: hsl(var(--primary) / 0.8);
+}
+
+/* Popover */
+.fc .fc-popover {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.fc .fc-popover-header {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 0.75rem 1rem;
+}
+
+/* Scrollbars */
+.fc-scroller::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.fc-scroller::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+}
+
+.fc-scroller::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 4px;
+}
+
+.fc-scroller::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
