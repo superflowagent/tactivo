@@ -253,17 +253,6 @@ export function ProfesionalesView() {
                         <Pencil className="h-4 w-4" />
                       </Button>
                     )}
-                    {/* No puede eliminar su propio perfil */}
-                    {profesional.id !== user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(profesional.id)}
-                        className="hover:bg-slate-200 dark:hover:bg-slate-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
                   </div>
                 </TableCell>
               </TableRow>
