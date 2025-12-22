@@ -341,7 +341,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                         <div className="space-y-2">
                             <Label htmlFor="notes">Notas</Label>
                             <RichTextEditor
-                                content={formData.notes || ''}
+                                value={formData.notes || ''}
                                 onChange={(html) => handleChange('notes', html)}
                                 placeholder="Añade notas sobre el profesional..."
                             />
