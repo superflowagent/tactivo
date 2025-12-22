@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CalendarPlus, Plus } from "lucide-react"
+import { CalendarPlus } from "lucide-react"
 import pb from '@/lib/pocketbase'
 import type { Event } from '@/types/event'
 import type { Cliente } from '@/types/cliente'
@@ -27,6 +27,7 @@ export function CalendarioView() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
+  const [clickedDateTime, setClickedDateTime] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all')
   const [professionals, setProfessionals] = useState<any[]>([])
@@ -148,7 +149,10 @@ export function CalendarioView() {
   }
 
   const handleDateClick = (arg: any) => {
-    console.log('Fecha clickeada:', arg.dateStr)
+    // Abrir modal de crear evento con la fecha/hora clickeada
+    setClickedDateTime(arg.dateStr)
+    setSelectedEvent(null)
+    setDialogOpen(true)
   }
 
   const handleEventClick = async (clickInfo: any) => {
@@ -168,6 +172,7 @@ export function CalendarioView() {
   }
 
   const handleAdd = () => {
+    setClickedDateTime(null)
     setSelectedEvent(null)
     setDialogOpen(true)
   }
@@ -208,7 +213,7 @@ export function CalendarioView() {
         </Button>
         <div className="flex-1" />
         <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
+          <CalendarPlus className="mr-2 h-4 w-4" />
           Crear Evento
         </Button>
       </div>
@@ -252,6 +257,7 @@ export function CalendarioView() {
         onOpenChange={setDialogOpen}
         event={selectedEvent}
         onSave={handleSave}
+        initialDateTime={clickedDateTime}
       />
     </div>
   )
