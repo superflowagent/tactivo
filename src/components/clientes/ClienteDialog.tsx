@@ -49,7 +49,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-    const [phoneError, setPhoneError] = useState<string>("")  
+    const [phoneError, setPhoneError] = useState<string>("")
 
     useEffect(() => {
         if (cliente) {
@@ -103,13 +103,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        
+
         // Validar teléfono
         if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
             setPhoneError("El teléfono debe tener exactamente 9 dígitos")
             return
         }
-        
+
         setLoading(true)
 
         try {
@@ -128,7 +128,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             if (fechaNacimiento) {
                 formDataToSend.append('birth_date', format(fechaNacimiento, "yyyy-MM-dd"))
             }
-            
+
             // Añadir role si es nuevo cliente
             if (!cliente?.id) {
                 formDataToSend.append('role', 'client')
@@ -154,7 +154,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleChange = (field: keyof Cliente, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }))
-        
+
         // Validar teléfono en tiempo real
         if (field === 'phone') {
             const phoneStr = String(value)
@@ -298,12 +298,30 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         />
                                         <label
                                             htmlFor="photo"
-                                            className="flex items-center justify-center h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                            className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
                                         >
-                                            {formData.photo instanceof File 
-                                                ? formData.photo.name 
-                                                : "Elegir archivo"
-                                            }
+                                            <span>
+                                                {formData.photo instanceof File
+                                                    ? formData.photo.name
+                                                    : "Elegir archivo"
+                                                }
+                                            </span>
+                                            {formData.photo instanceof File && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        setPhotoPreview(null)
+                                                        setFormData(prev => ({ ...prev, photo: undefined }))
+                                                        // Reset file input
+                                                        const input = document.getElementById('photo') as HTMLInputElement
+                                                        if (input) input.value = ''
+                                                    }}
+                                                    className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
                                         </label>
                                     </div>
                                     {photoPreview && (
@@ -330,7 +348,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                     )}
                                 </div>
                             </div>
-                            
+
                             <div className="space-y-2">
                                 <Label htmlFor="address">Dirección</Label>
                                 <Input
@@ -340,7 +358,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 />
                             </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Fecha de Nacimiento</Label>

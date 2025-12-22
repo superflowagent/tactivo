@@ -24,7 +24,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarProps) {
   const { state, toggleSidebar } = useSidebar()
   const isCollapsed = state === "collapsed"
-  
+
   const mainNavItems = [
     {
       title: "Calendario",
