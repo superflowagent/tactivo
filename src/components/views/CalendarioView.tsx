@@ -282,8 +282,7 @@ export function CalendarioView() {
             slotMinTime="08:00:00"
             slotMaxTime="20:00:00"
             allDaySlot={false}
-            height="auto"
-            contentHeight="500px"
+            height="calc(100vh - 280px)"
             slotDuration="00:30:00"
             events={filteredEvents}
             dateClick={handleDateClick}

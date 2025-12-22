@@ -77,11 +77,11 @@ export function ClientesView() {
     } else {
       const query = searchQuery.toLowerCase()
       const filtered = clientes.filter(cliente =>
-        cliente.name.toLowerCase().includes(query) ||
-        cliente.last_name.toLowerCase().includes(query) ||
+        (cliente.name && cliente.name.toLowerCase().includes(query)) ||
+        (cliente.last_name && cliente.last_name.toLowerCase().includes(query)) ||
         (cliente.dni && cliente.dni.toLowerCase().includes(query)) ||
-        cliente.phone.toLowerCase().includes(query) ||
-        cliente.email.toLowerCase().includes(query)
+        (cliente.phone && cliente.phone.toLowerCase().includes(query)) ||
+        (cliente.email && cliente.email.toLowerCase().includes(query))
       )
       setFilteredClientes(filtered)
     }
