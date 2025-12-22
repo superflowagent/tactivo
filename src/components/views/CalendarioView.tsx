@@ -106,20 +106,25 @@ export function CalendarioView() {
           title = expandedClient
             ? `${expandedClient.name} ${expandedClient.last_name}`
             : 'Cita'
-          backgroundColor = 'hsl(173, 58%, 39%)' // Verde/turquesa
-          borderColor = 'hsl(173, 58%, 39%)'
+          backgroundColor = 'hsl(var(--chart-2))' // Verde/turquesa
+          borderColor = 'hsl(var(--chart-2))'
         } else if (event.type === 'class') {
           title = 'Clase'
-          backgroundColor = 'hsl(27, 87%, 67%)' // Naranja
-          borderColor = 'hsl(27, 87%, 67%)'
+          backgroundColor = 'hsl(var(--chart-5))' // Naranja
+          borderColor = 'hsl(var(--chart-5))'
         } else if (event.type === 'vacation') {
-          // Obtener nombre del profesional
-          const expandedProfessional = (event as any).expand?.professional?.[0]
-          title = expandedProfessional
-            ? `${expandedProfessional.name} ${expandedProfessional.last_name}`
-            : 'Vacaciones'
-          backgroundColor = 'hsl(215, 20%, 65%)' // Gris muted
-          borderColor = 'hsl(215, 20%, 65%)'
+          // Obtener nombres de todos los profesionales
+          const expandedProfessionals = (event as any).expand?.professional
+          if (expandedProfessionals && expandedProfessionals.length > 0) {
+            const names = expandedProfessionals.map((prof: any) =>
+              `${prof.name} ${prof.last_name}`
+            ).join(', ')
+            title = names
+          } else {
+            title = 'Vacaciones'
+          }
+          backgroundColor = 'hsl(var(--muted-foreground))' // Gris
+          borderColor = 'hsl(var(--muted-foreground))'
         }
 
         return {
@@ -282,7 +287,7 @@ export function CalendarioView() {
             slotMinTime="08:00:00"
             slotMaxTime="20:00:00"
             allDaySlot={false}
-            height="calc(100vh - 280px)"
+            height="calc(100vh - 200px)"
             slotDuration="00:30:00"
             events={filteredEvents}
             dateClick={handleDateClick}

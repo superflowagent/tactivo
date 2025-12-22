@@ -48,6 +48,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined)
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [phoneError, setPhoneError] = useState<string>("")  
 
     useEffect(() => {
         if (cliente) {
@@ -56,6 +58,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 const date = new Date(cliente.birth_date)
                 setFechaNacimiento(date)
                 calcularEdad(date)
+            }
+            // Cargar preview de foto existente
+            if (cliente.photo) {
+                setPhotoPreview(pb.files.getUrl(cliente, cliente.photo))
+            } else {
+                setPhotoPreview(null)
             }
         } else {
             setFormData({
@@ -69,7 +77,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             })
             setFechaNacimiento(undefined)
             setEdad(null)
+            setPhotoPreview(null)
         }
+        setPhoneError("")
     }, [cliente, open])
 
     const calcularEdad = (fecha: Date) => {
@@ -93,6 +103,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        // Validar teléfono
+        if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
+            setPhoneError("El teléfono debe tener exactamente 9 dígitos")
+            return
+        }
+        
         setLoading(true)
 
         try {
@@ -110,6 +127,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             // Añadir fecha de nacimiento
             if (fechaNacimiento) {
                 formDataToSend.append('birth_date', format(fechaNacimiento, "yyyy-MM-dd"))
+            }
+            
+            // Añadir role si es nuevo cliente
+            if (!cliente?.id) {
+                formDataToSend.append('role', 'client')
             }
 
             if (cliente?.id) {
@@ -132,6 +154,16 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleChange = (field: keyof Cliente, value: string | number) => {
         setFormData(prev => ({ ...prev, [field]: value }))
+        
+        // Validar teléfono en tiempo real
+        if (field === 'phone') {
+            const phoneStr = String(value)
+            if (phoneStr && !/^\d{9}$/.test(phoneStr)) {
+                setPhoneError("Debe tener 9 dígitos")
+            } else {
+                setPhoneError("")
+            }
+        }
     }
 
     return (
@@ -150,21 +182,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 <form id="cliente-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
                     {/* Campos Obligatorios */}
                     <div className="space-y-4">
-
-                        <div className="space-y-2">
-                            <Label htmlFor="photo">Foto</Label>
-                            <Input
-                                id="photo"
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0]
-                                    if (file) {
-                                        setFormData(prev => ({ ...prev, photo: file as any }))
-                                    }
-                                }}
-                            />
-                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -206,8 +223,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                     type="tel"
                                     value={formData.phone}
                                     onChange={(e) => handleChange('phone', e.target.value)}
+                                    className={phoneError ? "border-red-500" : ""}
                                     required
                                 />
+                                {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
                             </div>
                         </div>
 
@@ -253,6 +272,50 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
                     {/* Campos Opcionales */}
                     <div className="space-y-4 pt-4 border-t">
+                        {/* Foto y Dirección en la misma línea */}
+                        <div className="grid grid-cols-[200px_1fr] gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="photo">Foto</Label>
+                                <div className="space-y-2">
+                                    <Input
+                                        id="photo"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0]
+                                            if (file) {
+                                                setFormData(prev => ({ ...prev, photo: file as any }))
+                                                // Crear preview
+                                                const reader = new FileReader()
+                                                reader.onloadend = () => {
+                                                    setPhotoPreview(reader.result as string)
+                                                }
+                                                reader.readAsDataURL(file)
+                                            }
+                                        }}
+                                    />
+                                    {photoPreview && (
+                                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border">
+                                            <img
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                className="object-cover w-full h-full"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="address">Dirección</Label>
+                                <Input
+                                    id="address"
+                                    value={formData.address || ""}
+                                    onChange={(e) => handleChange('address', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Fecha de Nacimiento</Label>
@@ -291,15 +354,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                     className="bg-muted"
                                 />
                             </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Dirección</Label>
-                            <Input
-                                id="address"
-                                value={formData.address || ""}
-                                onChange={(e) => handleChange('address', e.target.value)}
-                            />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

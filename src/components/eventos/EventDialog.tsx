@@ -57,6 +57,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
+    const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
@@ -353,9 +354,15 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 </div>
                                 <Select
                                     value=""
+                                    open={clientDropdownOpen}
+                                    onOpenChange={setClientDropdownOpen}
                                     onValueChange={(value) => {
                                         if (value && !selectedClients.includes(value)) {
                                             setSelectedClients(prev => [...prev, value])
+                                            // Si es tipo class, reabrir inmediatamente después del cierre automático
+                                            if (formData.type === 'class') {
+                                                setTimeout(() => setClientDropdownOpen(true), 10)
+                                            }
                                         }
                                     }}
                                 >
