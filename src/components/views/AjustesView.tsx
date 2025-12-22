@@ -44,7 +44,7 @@ export function AjustesView() {
 
       // Cargar preview del logo existente
       if (record.logo) {
-        setLogoPreview(pb.files.getUrl(record, record.logo))
+        setLogoPreview(pb.files.getURL(record, record.logo))
       }
     } catch (err: any) {
       console.error('Error al cargar configuración:', err)
