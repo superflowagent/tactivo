@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Obtener información de la compañía desde el expand o directamente
       let company = authData.record.expand?.company
-      
+
       // Si el expand no funcionó, obtener la compañía directamente
       if (!company && authData.record.company) {
         try {
@@ -102,6 +102,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Error obteniendo compañía:', err)
         }
       }
+
+      setUser({
         id: authData.record.id,
         email: authData.record.email,
         name: authData.record.name,
@@ -113,22 +115,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Si no se pudo obtener el nombre de la compañía, usar el ID como fallback
       const companyName = company?.name || authData.record.company || 'company'
-      console.log('Nombre original de compañía:', companyName)
       const companyUrlName = normalizeCompanyName(companyName)
-      console.log('Nombre normalizado para URL:', companyUrlName)
       setCompanyName(companyUrlName)
-      setCompanyName(companyUrlName)
-
-      console.log('Login completado exitosamente')
-      console.log('Company URL:', companyUrlName)
     } catch (error: any) {
       console.error('Login error:', error)
-      console.error('Error details:', {
-        message: error.message,
-        status: error.status,
-        data: error.data,
-        isAbort: error.isAbort
-      })
       throw error
     }
   }
@@ -139,11 +129,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyName(null)
   }
 
-  return (
-    <AuthContext.Provider value={{ user, companyName, login, logout, isLoading }}>
-      {children}
-    </AuthContext.Provider>
-  )
+return (
+  <AuthContext.Provider value={{ user, companyName, login, logout, isLoading }}>
+    {children}
+  </AuthContext.Provider>
+)
 }
 
 export function useAuth() {
