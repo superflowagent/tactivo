@@ -82,7 +82,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             let defaultDate = new Date()
             let defaultHora = ''
             let defaultMinutos = '00'
-            
+
             if (initialDateTime) {
                 // Usar la fecha/hora clickeada del calendario
                 defaultDate = new Date(initialDateTime)
@@ -94,7 +94,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0) // +1 hora, minutos en :00
                 defaultHora = nextHour.getHours().toString().padStart(2, '0')
             }
-            
+
             setFecha(defaultDate)
             setFormData({
                 type: 'appointment',
@@ -232,11 +232,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
                             <div className="space-y-2">
                                 {formData.type === 'vacation' ? (
-                                    <>
-                                        <Label>Días y Horas *</Label>
-                                        <div className="flex gap-2">
-                                            <div className="flex-1">
-                                                <Label htmlFor="dias" className="text-xs text-muted-foreground">Días</Label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="dias">Días *</Label>
                                             <Input
                                                 id="dias"
                                                 type="number"
@@ -246,8 +244,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 required
                                             />
                                         </div>
-                                        <div className="flex-1">
-                                            <Label htmlFor="horas-vac" className="text-xs text-muted-foreground">Horas</Label>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="horas-vac">Horas *</Label>
                                             <Input
                                                 id="horas-vac"
                                                 type="number"
@@ -258,8 +256,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 required
                                             />
                                         </div>
-                                        </div>
-                                    </>
+                                    </div>
                                 ) : (
                                     <>
                                         <Label htmlFor="duration">Duración (min) *</Label>
@@ -457,6 +454,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                             <RichTextEditor
                                 value={formData.notes || ""}
                                 onChange={(value) => handleChange('notes', value)}
+                                placeholder=""
                             />
                         </div>
                     </div>
