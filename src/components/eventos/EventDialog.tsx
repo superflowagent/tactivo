@@ -26,7 +26,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, Calendar as CalendarCheck, Edit } from "lucide-react"
+import { CalendarIcon, CalendarPlus, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
@@ -37,9 +37,10 @@ interface EventDialogProps {
     onOpenChange: (open: boolean) => void
     event?: Event | null
     onSave: () => void
+    initialDateTime?: string | null
 }
 
-export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogProps) {
+export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime }: EventDialogProps) {
     const [formData, setFormData] = useState<Partial<Event>>({
         type: 'appointment',
         duration: 60,
@@ -77,15 +78,24 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                 setMinutos(mins)
             }
         } else {
-            // Fecha por defecto: hoy
-            const today = new Date()
-            setFecha(today)
+            // Fecha por defecto: hoy o fecha clickeada
+            let defaultDate = new Date()
+            let defaultHora = ''
+            let defaultMinutos = '00'
             
-            // Hora por defecto: siguiente hora disponible (hora actual + 1, redondeada)
-            const nextHour = new Date()
-            nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0) // +1 hora, minutos en :00
-            const defaultHora = nextHour.getHours().toString().padStart(2, '0')
+            if (initialDateTime) {
+                // Usar la fecha/hora clickeada del calendario
+                defaultDate = new Date(initialDateTime)
+                defaultHora = defaultDate.getHours().toString().padStart(2, '0')
+                defaultMinutos = defaultDate.getMinutes().toString().padStart(2, '0')
+            } else {
+                // Hora por defecto: siguiente hora disponible (hora actual + 1, redondeada)
+                const nextHour = new Date()
+                nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0) // +1 hora, minutos en :00
+                defaultHora = nextHour.getHours().toString().padStart(2, '0')
+            }
             
+            setFecha(defaultDate)
             setFormData({
                 type: 'appointment',
                 duration: 60,
@@ -96,11 +106,11 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
             setSelectedClients([])
             setSelectedProfessionals([])
             setHora(defaultHora)
-            setMinutos('00')
+            setMinutos(defaultMinutos)
             setDias(1)
             setHorasVacaciones(0)
         }
-    }, [event, open])
+    }, [event, open, initialDateTime])
 
     const loadClientes = async () => {
         try {
@@ -192,7 +202,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
             <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        {event?.id ? <Edit className="h-5 w-5" /> : <CalendarCheck className="h-5 w-5" />}
+                        {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
                         {event?.id ? 'Editar Evento' : 'Crear Evento'}
                     </DialogTitle>
                     <DialogDescription>
@@ -221,13 +231,12 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="duration">
-                                    {formData.type === 'vacation' ? 'Duración *' : 'Duración (min) *'}
-                                </Label>
                                 {formData.type === 'vacation' ? (
-                                    <div className="flex gap-2">
-                                        <div className="flex-1">
-                                            <Label htmlFor="dias" className="text-xs text-muted-foreground">Días</Label>
+                                    <>
+                                        <Label>Días y Horas *</Label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <Label htmlFor="dias" className="text-xs text-muted-foreground">Días</Label>
                                             <Input
                                                 id="dias"
                                                 type="number"
@@ -249,16 +258,20 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                                                 required
                                             />
                                         </div>
-                                    </div>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <Input
-                                        id="duration"
-                                        type="number"
-                                        min="1"
-                                        value={formData.duration}
-                                        onChange={(e) => handleChange('duration', parseInt(e.target.value))}
-                                        required
-                                    />
+                                    <>
+                                        <Label htmlFor="duration">Duración (min) *</Label>
+                                        <Input
+                                            id="duration"
+                                            type="number"
+                                            min="1"
+                                            value={formData.duration}
+                                            onChange={(e) => handleChange('duration', parseInt(e.target.value))}
+                                            required
+                                        />
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -348,7 +361,6 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                                             setSelectedClients(prev => [...prev, value])
                                         }
                                     }}
-                                    open={formData.type === 'class' ? undefined : false}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Añadir cliente" />
@@ -365,7 +377,7 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                         )}
 
                         <div className="space-y-2">
-                            <Label>{formData.type === 'appointment' ? 'Profesional' : 'Profesionales'}</Label>
+                            <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
                             <div className="flex flex-wrap gap-2 mb-2">
                                 {selectedProfessionals.map((profId) => {
                                     const prof = profesionales.find(p => p.id === profId)
@@ -390,7 +402,6 @@ export function EventDialog({ open, onOpenChange, event, onSave }: EventDialogPr
                                         setSelectedProfessionals(prev => [...prev, value])
                                     }
                                 }}
-                                open={formData.type === 'vacation' ? undefined : false}
                             >
                                 <SelectTrigger>
                                     <SelectValue placeholder="Añadir profesional" />
