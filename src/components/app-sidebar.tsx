@@ -26,7 +26,7 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
       icon: Calendar,
     },
     {
-      title: "🔗 Clientes",
+      title: "Clientes",
       view: "clientes" as ViewType,
       icon: Users,
     },

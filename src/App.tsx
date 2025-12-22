@@ -13,7 +13,7 @@ function App() {
 
   const viewTitles: Record<ViewType, string> = {
     calendario: "Calendario",
-    clientes: "🔗 Clientes",
+    clientes: "Clientes",
     profesionales: "Profesionales",
     ajustes: "Ajustes",
   }
