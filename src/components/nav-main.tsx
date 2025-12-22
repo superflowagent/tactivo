@@ -6,6 +6,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavMain({
@@ -23,14 +24,24 @@ export function NavMain({
   onViewChange: (view: ViewType) => void
   isFooter?: boolean
 }) {
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const handleViewChange = (view: ViewType) => {
+    onViewChange(view)
+    // Cerrar sidebar en móvil después de seleccionar
+    if (isMobile) {
+      setOpenMobile(false)
+    }
+  }
+
   return (
-    <SidebarGroup className={isFooter ? "group-data-[collapsible=icon]:px-0" : ""}>
+    <SidebarGroup className={isFooter ? "" : ""}>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
             <SidebarMenuButton
               isActive={currentView === item.view}
-              onClick={() => onViewChange(item.view)}
+              onClick={() => handleViewChange(item.view)}
             >
               {item.icon && <item.icon />}
               {item.title}
