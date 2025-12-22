@@ -19,9 +19,11 @@ import pb from '@/lib/pocketbase'
 import type { Event } from '@/types/event'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useAuth } from '@/contexts/AuthContext'
 import './calendario.css'
 
 export function CalendarioView() {
+  const { companyId } = useAuth()
   const [events, setEvents] = useState<any[]>([])
   const [filteredEvents, setFilteredEvents] = useState<any[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -35,19 +37,18 @@ export function CalendarioView() {
   useEffect(() => {
     loadEvents()
     loadProfessionals()
-  }, [])
+  }, [companyId])
 
   useEffect(() => {
     filterEvents()
   }, [events, searchQuery, selectedProfessional])
 
   const loadProfessionals = async () => {
-    try {
-      const currentUser = pb.authStore.model
-      if (!currentUser?.company) return
+    if (!companyId) return
 
+    try {
       const records = await pb.collection('users').getFullList({
-        filter: `role="professional" && company="${currentUser.company}"`,
+        filter: `role="professional" && company="${companyId}"`,
         sort: 'name',
       })
       setProfessionals(records)
@@ -80,18 +81,14 @@ export function CalendarioView() {
   }
 
   const loadEvents = async () => {
-    try {
-      // Autenticar si es necesario
-      try {
-        await pb.admins.authWithPassword('superflow.agent@gmail.com', 'Superflow25')
-      } catch (authErr) {
-        console.log('Auth error (ignorado si ya está autenticado):', authErr)
-      }
+    if (!companyId) return
 
-      // Cargar eventos con relaciones expandidas
+    try {
+      // Cargar eventos de la company actual con relaciones expandidas
       const records = await pb.collection('events').getFullList<Event>({
         expand: 'client,professional',
         sort: 'datetime',
+        filter: `company = "${companyId}"`,
       })
 
       // Transformar eventos para FullCalendar
@@ -236,7 +233,7 @@ export function CalendarioView() {
     <div className="flex flex-1 flex-col gap-4">
       {/* Botón crear - siempre arriba en móvil */}
       <Button onClick={handleAdd} className="w-full sm:hidden">
-        <CalendarPlus className="mr-2 h-4 w-4" />
+        <CalendarPlus className="mr-0 h-4 w-4" />
         Crear Evento
       </Button>
 
@@ -270,7 +267,7 @@ export function CalendarioView() {
         )}
         <div className="hidden sm:block flex-1" />
         <Button onClick={handleAdd} className="hidden sm:flex">
-          <CalendarPlus className="mr-2 h-4 w-4" />
+          <CalendarPlus className="mr-0 h-4 w-4" />
           Crear Evento
         </Button>
       </div>

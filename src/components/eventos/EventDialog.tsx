@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface EventDialogProps {
     open: boolean
@@ -41,6 +42,7 @@ interface EventDialogProps {
 }
 
 export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime }: EventDialogProps) {
+    const { companyId } = useAuth()
     const [formData, setFormData] = useState<Partial<Event>>({
         type: 'appointment',
         duration: 60,
@@ -114,9 +116,11 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     }, [event, open, initialDateTime])
 
     const loadClientes = async () => {
+        if (!companyId) return
+
         try {
             const records = await pb.collection('users').getFullList<Cliente>({
-                filter: 'role="client"',
+                filter: `role="client" && company="${companyId}"`,
                 sort: 'name',
             })
             setClientes(records)
@@ -126,9 +130,11 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     }
 
     const loadProfesionales = async () => {
+        if (!companyId) return
+
         try {
             const records = await pb.collection('users').getFullList({
-                filter: 'role="professional"',
+                filter: `role="professional" && company="${companyId}"`,
                 sort: 'name',
             })
             setProfesionales(records)
@@ -168,7 +174,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             if (event?.id) {
                 await pb.collection('events').update(event.id, data)
             } else {
-                await pb.collection('events').create(data)
+                // Auto-asignar company del profesional logueado al crear evento
+                const dataWithCompany = {
+                    ...data,
+                    company: companyId,
+                }
+                await pb.collection('events').create(dataWithCompany)
             }
 
             onSave()

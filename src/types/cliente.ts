@@ -5,6 +5,7 @@ export interface Cliente {
     dni: string
     email: string
     phone: string
+    company: string
     session_credits?: number
     class_credits?: number
     photo?: string
