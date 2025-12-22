@@ -50,7 +50,7 @@ export function ClientesView() {
         // Filtrar solo clientes de la misma company
         const records = await pb.collection('users').getFullList<Cliente>({
           sort: 'name',
-          filter: `company = "${companyId}"`,
+          filter: `company = "${companyId}" && role = "client"`,
         })
         console.log('Clientes cargados:', records)
         setClientes(records)

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
+import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
 
 interface Profesional {
   id: string
@@ -44,6 +45,8 @@ export function ProfesionalesView() {
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [profesionalToDelete, setProfesionalToDelete] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedProfesional, setSelectedProfesional] = useState<Profesional | null>(null)
 
   // Cargar profesionales desde PocketBase
   useEffect(() => {
@@ -104,13 +107,22 @@ export function ProfesionalesView() {
   }
 
   const handleAdd = () => {
-    // TODO: Implementar lógica para agregar profesional
-    console.log("Agregar profesional")
+    setSelectedProfesional(null)
+    setDialogOpen(true)
   }
 
-  const handleEdit = (profesional: Profesional) => {
-    // TODO: Implementar lógica para editar profesional
-    console.log("Editar profesional:", profesional.id)
+  const handleEdit = async (profesional: Profesional) => {
+    // Recargar los datos más recientes del profesional desde PocketBase
+    if (!profesional.id) return
+
+    try {
+      const freshProfesional = await pb.collection('users').getOne<Profesional>(profesional.id)
+      setSelectedProfesional(freshProfesional)
+    } catch (err) {
+      console.error('Error al cargar profesional:', err)
+      setSelectedProfesional(profesional) // Usar datos en cache si falla
+    }
+    setDialogOpen(true)
   }
 
   const handleDeleteClick = (id: string) => {
@@ -131,6 +143,22 @@ export function ProfesionalesView() {
     } catch (err) {
       console.error('Error al eliminar profesional:', err)
       alert('Error al eliminar el profesional')
+    }
+  }
+
+  const handleSave = async () => {
+    // Recargar la lista de profesionales
+    try {
+      if (!companyId) return
+
+      const records = await pb.collection('users').getFullList<Profesional>({
+        sort: 'name',
+        filter: `company = "${companyId}" && role = "professional"`,
+      })
+      setProfesionales(records)
+      setFilteredProfesionales(records)
+    } catch (err) {
+      console.error('Error al recargar profesionales:', err)
     }
   }
 
@@ -243,6 +271,13 @@ export function ProfesionalesView() {
           </TableBody>
         </Table>
       </div>
+
+      <ProfesionalDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        profesional={selectedProfesional}
+        onSave={handleSave}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

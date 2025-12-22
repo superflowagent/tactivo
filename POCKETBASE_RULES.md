@@ -38,7 +38,7 @@ Esto significa que:
 // pero deben asignarles su misma company
 @request.auth.id != "" && 
 @request.auth.role = "professional" && 
-@request.data.company = @request.auth.company
+@request.body.company = @request.auth.company
 ```
 
 **Update Rule:**
@@ -53,12 +53,11 @@ Esto significa que:
 **Delete Rule:**
 ```javascript
 // Solo puede eliminar clientes de su company
-// NO puede eliminarse a sí mismo
+// Los profesionales están protegidos automáticamente por role = "client"
 @request.auth.id != "" && 
 @request.auth.company = company && 
 @request.auth.role = "professional" && 
-role = "client" &&
-@request.auth.id != id
+role = "client"
 ```
 
 ---
@@ -91,7 +90,7 @@ role = "client" &&
 // pero deben asignarles su misma company
 @request.auth.id != "" && 
 @request.auth.role = "professional" && 
-@request.data.company = @request.auth.company
+@request.body.company = @request.auth.company
 ```
 
 **Update Rule:**

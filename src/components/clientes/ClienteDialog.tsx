@@ -121,12 +121,30 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         try {
             const formDataToSend = new FormData()
 
-            // Añadir campos regulares
+            // Añadir campos regulares (excluyendo campos especiales y metadata)
             Object.entries(formData).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
+                // Excluir campos que se manejan por separado o son metadata
+                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') {
+                    return
+                }
+                // Solo añadir si tiene valor
+                if (value !== undefined && value !== null && value !== '') {
                     formDataToSend.append(key, String(value))
                 }
             })
+
+            // Añadir email solo si es creación o si ha cambiado
+            if (!cliente?.id) {
+                // Creación: siempre añadir email
+                if (formData.email) {
+                    formDataToSend.append('email', formData.email)
+                    formDataToSend.append('emailVisibility', 'true')
+                }
+            } else if (formData.email && formData.email !== cliente.email) {
+                // Actualización: solo si el email ha cambiado
+                formDataToSend.append('email', formData.email)
+                formDataToSend.append('emailVisibility', 'true')
+            }
 
             // Añadir foto si hay una nueva
             if (photoFile) {
@@ -145,6 +163,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 if (companyId) {
                     formDataToSend.append('company', companyId)
                 }
+                // Generar contraseña automática para nuevos clientes (requerido por PocketBase)
+                const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
+                formDataToSend.append('password', randomPassword)
+                formDataToSend.append('passwordConfirm', randomPassword)
             }
 
             if (cliente?.id) {
@@ -157,9 +179,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             onSave()
             onOpenChange(false)
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error al guardar cliente:', error)
-            alert('Error al guardar el cliente')
+            console.error('Error completo:', JSON.stringify(error, null, 2))
+            if (error?.response) {
+                console.error('Response data:', error.response)
+            }
+            alert(`Error al guardar el cliente: ${error?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
@@ -249,8 +275,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 <Input
                                     id="email"
                                     type="email"
-                                    value={formData.email}
+                                    value={formData.email || ''}
                                     onChange={(e) => handleChange('email', e.target.value)}
+                                    disabled={!!cliente?.id}
                                     required
                                 />
                             </div>
