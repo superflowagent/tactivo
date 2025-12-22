@@ -60,7 +60,7 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-8 w-8"
+              className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </Button>
@@ -86,7 +86,7 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
               variant="ghost"
               size="icon"
               onClick={toggleSidebar}
-              className="h-8 w-8 ml-auto"
+              className="h-8 w-8 ml-auto bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <PanelLeftClose className="h-4 w-4" />
             </Button>
@@ -96,8 +96,8 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
       <SidebarContent>
         <NavMain items={mainNavItems} currentView={currentView} onViewChange={onViewChange} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavMain items={footerNavItems} currentView={currentView} onViewChange={onViewChange} />
+      <SidebarFooter className="mt-auto">
+        <NavMain items={footerNavItems} currentView={currentView} onViewChange={onViewChange} isFooter />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

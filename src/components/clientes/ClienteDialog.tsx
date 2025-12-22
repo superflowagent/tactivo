@@ -273,27 +273,39 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     {/* Campos Opcionales */}
                     <div className="space-y-4 pt-4 border-t">
                         {/* Foto y Dirección en la misma línea */}
-                        <div className="grid grid-cols-[200px_1fr] gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="photo">Foto</Label>
                                 <div className="space-y-2">
-                                    <Input
-                                        id="photo"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0]
-                                            if (file) {
-                                                setFormData(prev => ({ ...prev, photo: file as any }))
-                                                // Crear preview
-                                                const reader = new FileReader()
-                                                reader.onloadend = () => {
-                                                    setPhotoPreview(reader.result as string)
+                                    <div className="relative">
+                                        <Input
+                                            id="photo"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) {
+                                                    setFormData(prev => ({ ...prev, photo: file as any }))
+                                                    // Crear preview
+                                                    const reader = new FileReader()
+                                                    reader.onloadend = () => {
+                                                        setPhotoPreview(reader.result as string)
+                                                    }
+                                                    reader.readAsDataURL(file)
                                                 }
-                                                reader.readAsDataURL(file)
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="photo"
+                                            className="flex items-center justify-center h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                        >
+                                            {formData.photo instanceof File 
+                                                ? formData.photo.name 
+                                                : "Elegir archivo"
                                             }
-                                        }}
-                                    />
+                                        </label>
+                                    </div>
                                     {photoPreview && (
                                         <div className="relative w-full aspect-square rounded-lg overflow-hidden border">
                                             <img
@@ -301,6 +313,19 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 alt="Preview"
                                                 className="object-cover w-full h-full"
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setPhotoPreview(null)
+                                                    setFormData(prev => ({ ...prev, photo: undefined }))
+                                                    // Reset file input
+                                                    const input = document.getElementById('photo') as HTMLInputElement
+                                                    if (input) input.value = ''
+                                                }}
+                                                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 text-lg font-semibold"
+                                            >
+                                                ×
+                                            </button>
                                         </div>
                                     )}
                                 </div>

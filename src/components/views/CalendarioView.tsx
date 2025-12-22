@@ -17,14 +17,12 @@ import {
 import { CalendarPlus } from "lucide-react"
 import pb from '@/lib/pocketbase'
 import type { Event } from '@/types/event'
-import type { Cliente } from '@/types/cliente'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import './calendario.css'
 
 export function CalendarioView() {
   const [events, setEvents] = useState<any[]>([])
   const [filteredEvents, setFilteredEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [clickedDateTime, setClickedDateTime] = useState<string | null>(null)
@@ -78,8 +76,6 @@ export function CalendarioView() {
 
   const loadEvents = async () => {
     try {
-      setLoading(true)
-
       // Autenticar si es necesario
       try {
         await pb.admins.authWithPassword('superflow.agent@gmail.com', 'Superflow25')
@@ -148,8 +144,6 @@ export function CalendarioView() {
       setFilteredEvents(calendarEvents)
     } catch (error) {
       console.error('Error cargando eventos:', error)
-    } finally {
-      setLoading(false)
     }
   }
 

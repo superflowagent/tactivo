@@ -12,6 +12,7 @@ export function NavMain({
   items,
   currentView,
   onViewChange,
+  isFooter,
 }: {
   items: {
     title: string
@@ -20,9 +21,10 @@ export function NavMain({
   }[]
   currentView: ViewType
   onViewChange: (view: ViewType) => void
+  isFooter?: boolean
 }) {
   return (
-    <SidebarGroup>
+    <SidebarGroup className={isFooter ? "group-data-[collapsible=icon]:px-0" : ""}>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
