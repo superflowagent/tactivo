@@ -6,6 +6,7 @@ import { NavMain } from "@/components/nav-main"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -19,7 +20,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarProps) {
-  const navItems = [
+  const mainNavItems = [
     {
       title: "Calendario",
       view: "calendario" as ViewType,
@@ -35,6 +36,9 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
       view: "profesionales" as ViewType,
       icon: UserCog,
     },
+  ]
+
+  const footerNavItems = [
     {
       title: "Ajustes",
       view: "ajustes" as ViewType,
@@ -62,8 +66,11 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} currentView={currentView} onViewChange={onViewChange} />
+        <NavMain items={mainNavItems} currentView={currentView} onViewChange={onViewChange} />
       </SidebarContent>
+      <SidebarFooter>
+        <NavMain items={footerNavItems} currentView={currentView} onViewChange={onViewChange} />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

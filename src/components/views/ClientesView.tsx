@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { ArrowUpDown, Plus, Pencil, Trash2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { ArrowUpDown, UserPlus, Pencil, Trash2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -10,76 +10,162 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-
-interface Cliente {
-  id: string
-  nombre: string
-  telefono: string
-  email: string
-}
-
-const clientesData: Cliente[] = [
-  {
-    id: "1",
-    nombre: "María García López",
-    telefono: "+34 612 345 678",
-    email: "maria.garcia@email.com",
-  },
-  {
-    id: "2",
-    nombre: "Juan Martínez Sánchez",
-    telefono: "+34 623 456 789",
-    email: "juan.martinez@email.com",
-  },
-  {
-    id: "3",
-    nombre: "Ana Rodríguez Pérez",
-    telefono: "+34 634 567 890",
-    email: "ana.rodriguez@email.com",
-  },
-  {
-    id: "4",
-    nombre: "Carlos Fernández Torres",
-    telefono: "+34 645 678 901",
-    email: "carlos.fernandez@email.com",
-  },
-  {
-    id: "5",
-    nombre: "Laura González Díaz",
-    telefono: "+34 656 789 012",
-    email: "laura.gonzalez@email.com",
-  },
-]
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { ClienteDialog } from "@/components/clientes/ClienteDialog"
+import pb from "@/lib/pocketbase"
+import type { Cliente } from "@/types/cliente"
 
 export function ClientesView() {
-  const [clientes, setClientes] = useState<Cliente[]>(clientesData)
+  const [clientes, setClientes] = useState<Cliente[]>([])
+  const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [clienteToDelete, setClienteToDelete] = useState<string | null>(null)
+
+  // Cargar clientes desde PocketBase
+  useEffect(() => {
+    const fetchClientes = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        console.log('Intentando conectar a PocketBase...')
+
+        // Autenticación temporal para desarrollo
+        // TODO: Implementar autenticación de usuario real
+        try {
+          await pb.admins.authWithPassword('superflow.agent@gmail.com', 'Superflow25')
+        } catch (authErr) {
+          console.log('Auth error (ignorado si ya está autenticado):', authErr)
+        }
+
+        const records = await pb.collection('users').getFullList<Cliente>({
+          sort: 'name',
+        })
+        console.log('Clientes cargados:', records)
+        setClientes(records)
+        setFilteredClientes(records)
+      } catch (err: any) {
+        console.error('Error al cargar clientes:', err)
+        const errorMsg = err?.message || 'Error desconocido'
+        setError(`Error al cargar los clientes: ${errorMsg}. Verifica que PocketBase esté corriendo en http://127.0.0.1:8090`)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchClientes()
+  }, [])
+
+  // Filtrar clientes cuando cambia la búsqueda
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setFilteredClientes(clientes)
+    } else {
+      const query = searchQuery.toLowerCase()
+      const filtered = clientes.filter(cliente =>
+        cliente.name.toLowerCase().includes(query) ||
+        cliente.last_name.toLowerCase().includes(query) ||
+        (cliente.dni && cliente.dni.toLowerCase().includes(query)) ||
+        cliente.phone.toLowerCase().includes(query) ||
+        cliente.email.toLowerCase().includes(query)
+      )
+      setFilteredClientes(filtered)
+    }
+  }, [searchQuery, clientes])
 
   const handleSort = () => {
-    const sorted = [...clientes].sort((a, b) => {
+    const sorted = [...filteredClientes].sort((a, b) => {
       if (sortOrder === "asc") {
-        return a.nombre.localeCompare(b.nombre)
+        return a.name.localeCompare(b.name)
       } else {
-        return b.nombre.localeCompare(a.nombre)
+        return b.name.localeCompare(a.name)
       }
     })
-    setClientes(sorted)
+    setFilteredClientes(sorted)
     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
   }
 
   const handleAdd = () => {
-    // TODO: Implementar lógica para agregar cliente
-    console.log("Agregar cliente")
+    setSelectedCliente(null)
+    setDialogOpen(true)
   }
 
-  const handleEdit = (id: string) => {
-    // TODO: Implementar lógica para editar cliente
-    console.log("Editar cliente:", id)
+  const handleEdit = async (cliente: Cliente) => {
+    // Recargar los datos más recientes del cliente desde PocketBase
+    if (!cliente.id) return
+
+    try {
+      const freshCliente = await pb.collection('users').getOne<Cliente>(cliente.id)
+      setSelectedCliente(freshCliente)
+    } catch (err) {
+      console.error('Error al cargar cliente:', err)
+      setSelectedCliente(cliente) // Usar datos en cache si falla
+    }
+    setDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    // TODO: Implementar lógica para eliminar cliente
-    console.log("Eliminar cliente:", id)
+  const handleDeleteClick = (id: string) => {
+    setClienteToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!clienteToDelete) return
+
+    try {
+      await pb.collection('users').delete(clienteToDelete)
+      const updatedClientes = clientes.filter(c => c.id !== clienteToDelete)
+      setClientes(updatedClientes)
+      setFilteredClientes(updatedClientes)
+      setDeleteDialogOpen(false)
+      setClienteToDelete(null)
+    } catch (err) {
+      console.error('Error al eliminar cliente:', err)
+      alert('Error al eliminar el cliente')
+    }
+  }
+
+  const handleSave = async () => {
+    // Recargar la lista de clientes
+    try {
+      const records = await pb.collection('users').getFullList<Cliente>({
+        sort: 'name',
+      })
+      setClientes(records)
+      setFilteredClientes(records)
+    } catch (err) {
+      console.error('Error al recargar clientes:', err)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-muted-foreground">Cargando clientes...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-destructive">{error}</p>
+      </div>
+    )
   }
 
   return (
@@ -88,9 +174,11 @@ export function ClientesView() {
         <Input
           placeholder="Buscar clientes..."
           className="max-w-sm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
         <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
+          <UserPlus className="mr-0 h-4 w-4" />
           Crear Cliente
         </Button>
       </div>
@@ -99,6 +187,7 @@ export function ClientesView() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-16">Foto</TableHead>
               <TableHead>
                 <Button
                   variant="ghost"
@@ -109,30 +198,54 @@ export function ClientesView() {
                   <ArrowUpDown className="h-4 w-4" />
                 </Button>
               </TableHead>
+              <TableHead>DNI</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead>Deporte</TableHead>
+              <TableHead>Clases Restantes</TableHead>
+              <TableHead className="text-right pr-4">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clientes.map((cliente) => (
+            {filteredClientes.map((cliente) => (
               <TableRow key={cliente.id}>
-                <TableCell className="font-medium">{cliente.nombre}</TableCell>
-                <TableCell>{cliente.telefono}</TableCell>
+                <TableCell>
+                  {cliente.photo ? (
+                    <img
+                      src={`https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`}
+                      alt={cliente.name}
+                      className="w-10 h-10 rounded-md object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
+                      {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="font-medium">{cliente.name} {cliente.last_name}</TableCell>
+                <TableCell>{cliente.dni}</TableCell>
+                <TableCell>{cliente.phone}</TableCell>
                 <TableCell>{cliente.email}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
+                <TableCell>{cliente.sport || '-'}</TableCell>
+                <TableCell>{cliente.class_credits || 0}</TableCell>
+                <TableCell className="text-right pr-4">
+                  <div className="flex justify-end gap-0.5">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleEdit(cliente.id)}
+                      onClick={() => handleEdit(cliente)}
+                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(cliente.id)}
+                      onClick={() => {
+                        if (!cliente.id) return;
+                        handleDeleteClick(cliente.id);
+                      }}
+                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -143,6 +256,30 @@ export function ClientesView() {
           </TableBody>
         </Table>
       </div>
+
+      <ClienteDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        cliente={selectedCliente}
+        onSave={handleSave}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. El cliente será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
