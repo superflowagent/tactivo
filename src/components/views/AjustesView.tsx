@@ -35,7 +35,7 @@ export function AjustesView() {
       const record = await pb.collection('companies').getOne<Company>(companyId)
       setCompany(record)
       setFormData(record)
-      
+
       // Cargar preview del logo existente
       if (record.logo) {
         setLogoPreview(pb.files.getUrl(record, record.logo))
@@ -89,10 +89,10 @@ export function AjustesView() {
       }
 
       await pb.collection('companies').update(companyId, formDataToSend)
-      
+
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
-      
+
       // Recargar datos
       await loadCompany()
     } catch (err: any) {
