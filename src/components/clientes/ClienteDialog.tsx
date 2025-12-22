@@ -48,7 +48,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined)
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [phoneError, setPhoneError] = useState<string>("")
 
     useEffect(() => {
@@ -58,12 +57,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 const date = new Date(cliente.birth_date)
                 setFechaNacimiento(date)
                 calcularEdad(date)
-            }
-            // Cargar preview de foto existente
-            if (cliente.photo) {
-                setPhotoPreview(pb.files.getUrl(cliente, cliente.photo))
-            } else {
-                setPhotoPreview(null)
             }
         } else {
             setFormData({
@@ -77,7 +70,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             })
             setFechaNacimiento(undefined)
             setEdad(null)
-            setPhotoPreview(null)
         }
         setPhoneError("")
     }, [cliente, open])
@@ -287,12 +279,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 const file = e.target.files?.[0]
                                                 if (file) {
                                                     setFormData(prev => ({ ...prev, photo: file as any }))
-                                                    // Crear preview
-                                                    const reader = new FileReader()
-                                                    reader.onloadend = () => {
-                                                        setPhotoPreview(reader.result as string)
-                                                    }
-                                                    reader.readAsDataURL(file)
                                                 }
                                             }}
                                         />
@@ -301,17 +287,16 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
                                         >
                                             <span>
-                                                {formData.photo instanceof File
+                                                {(formData.photo && typeof formData.photo === 'object' && 'name' in formData.photo)
                                                     ? formData.photo.name
                                                     : "Elegir archivo"
                                                 }
                                             </span>
-                                            {formData.photo instanceof File && (
+                                            {(formData.photo && typeof formData.photo === 'object' && 'name' in formData.photo) && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
                                                         e.preventDefault()
-                                                        setPhotoPreview(null)
                                                         setFormData(prev => ({ ...prev, photo: undefined }))
                                                         // Reset file input
                                                         const input = document.getElementById('photo') as HTMLInputElement
@@ -324,28 +309,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             )}
                                         </label>
                                     </div>
-                                    {photoPreview && (
-                                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border">
-                                            <img
-                                                src={photoPreview}
-                                                alt="Preview"
-                                                className="object-cover w-full h-full"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setPhotoPreview(null)
-                                                    setFormData(prev => ({ ...prev, photo: undefined }))
-                                                    // Reset file input
-                                                    const input = document.getElementById('photo') as HTMLInputElement
-                                                    if (input) input.value = ''
-                                                }}
-                                                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 text-lg font-semibold"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
