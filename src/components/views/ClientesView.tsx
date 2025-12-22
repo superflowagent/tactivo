@@ -23,8 +23,10 @@ import {
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
 import pb from "@/lib/pocketbase"
 import type { Cliente } from "@/types/cliente"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function ClientesView() {
+  const { companyId } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -39,21 +41,16 @@ export function ClientesView() {
   // Cargar clientes desde PocketBase
   useEffect(() => {
     const fetchClientes = async () => {
+      if (!companyId) return
+
       try {
         setLoading(true)
         setError(null)
-        console.log('Intentando conectar a PocketBase...')
 
-        // Autenticación temporal para desarrollo
-        // TODO: Implementar autenticación de usuario real
-        try {
-          await pb.admins.authWithPassword('superflow.agent@gmail.com', 'Superflow25')
-        } catch (authErr) {
-          console.log('Auth error (ignorado si ya está autenticado):', authErr)
-        }
-
+        // Filtrar solo clientes de la misma company
         const records = await pb.collection('users').getFullList<Cliente>({
           sort: 'name',
+          filter: `company = "${companyId}"`,
         })
         console.log('Clientes cargados:', records)
         setClientes(records)
@@ -61,14 +58,14 @@ export function ClientesView() {
       } catch (err: any) {
         console.error('Error al cargar clientes:', err)
         const errorMsg = err?.message || 'Error desconocido'
-        setError(`Error al cargar los clientes: ${errorMsg}. Verifica que PocketBase esté corriendo en http://127.0.0.1:8090`)
+        setError(`Error al cargar los clientes: ${errorMsg}`)
       } finally {
         setLoading(false)
       }
     }
 
     fetchClientes()
-  }, [])
+  }, [companyId])
 
   // Filtrar clientes cuando cambia la búsqueda
   useEffect(() => {

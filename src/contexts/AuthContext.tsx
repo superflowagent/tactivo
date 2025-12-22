@@ -15,6 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   companyName: string | null
+  companyId: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
   isLoading: boolean
@@ -25,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [companyName, setCompanyName] = useState<string | null>(null)
+  const [companyId, setCompanyId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -63,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             company: userData.company,
             photo: userData.photo,
           })
+          // Guardar el ID de la compañía
+          setCompanyId(userData.company)
           // Normalizar el nombre de la compañía para la URL
           const companyUrlName = companyData?.name ? normalizeCompanyName(companyData.name) : 'company'
           setCompanyName(companyUrlName)
@@ -113,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photo: authData.record.photo,
       })
 
+      // Guardar el ID de la compañía
+      setCompanyId(authData.record.company)
       // Si no se pudo obtener el nombre de la compañía, usar el ID como fallback
       const companyName = company?.name || authData.record.company || 'company'
       const companyUrlName = normalizeCompanyName(companyName)
@@ -127,13 +133,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     pb.authStore.clear()
     setUser(null)
     setCompanyName(null)
+    setCompanyId(null)
   }
 
-return (
-  <AuthContext.Provider value={{ user, companyName, login, logout, isLoading }}>
-    {children}
-  </AuthContext.Provider>
-)
+  return (
+    <AuthContext.Provider value={{ user, companyName, companyId, login, logout, isLoading }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {
