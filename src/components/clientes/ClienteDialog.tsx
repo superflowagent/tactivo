@@ -65,7 +65,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             }
             // Cargar preview de foto existente
             if (cliente.photo) {
-                setPhotoPreview(pb.files.getUrl(cliente, cliente.photo))
+                setPhotoPreview(pb.files.getURL(cliente, cliente.photo))
             } else {
                 setPhotoPreview(null)
             }

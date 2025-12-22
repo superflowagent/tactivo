@@ -72,7 +72,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
             // Cargar preview de foto existente
             if (profesional.photo) {
-                setPhotoPreview(pb.files.getUrl(profesional, profesional.photo))
+                setPhotoPreview(pb.files.getURL(profesional, profesional.photo))
             } else {
                 setPhotoPreview(null)
             }
