@@ -325,7 +325,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         </label>
                                     </div>
                                     {photoPreview && (
-                                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border">
+                                        <div className="relative w-1/2 aspect-square rounded-lg overflow-hidden border">
                                             <img
                                                 src={photoPreview}
                                                 alt="Preview"
