@@ -35,7 +35,7 @@ interface Profesional {
 }
 
 export function ProfesionalesView() {
-  const { companyId } = useAuth()
+  const { companyId, user } = useAuth()
   const [profesionales, setProfesionales] = useState<Profesional[]>([])
   const [filteredProfesionales, setFilteredProfesionales] = useState<Profesional[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -214,22 +214,28 @@ export function ProfesionalesView() {
                 <TableCell>{profesional.email}</TableCell>
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(profesional)}
-                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteClick(profesional.id)}
-                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {/* Solo puede editar su propio perfil */}
+                    {profesional.id === user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(profesional)}
+                        className="hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {/* No puede eliminar su propio perfil */}
+                    {profesional.id !== user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteClick(profesional.id)}
+                        className="hover:bg-slate-200 dark:hover:bg-slate-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
