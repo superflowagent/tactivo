@@ -48,6 +48,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined)
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
+    const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [phoneError, setPhoneError] = useState<string>("")
 
@@ -77,6 +78,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             })
             setFechaNacimiento(undefined)
             setEdad(null)
+            setPhotoFile(null)
             setPhotoPreview(null)
         }
         setPhoneError("")
@@ -117,12 +119,15 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             // Añadir campos regulares
             Object.entries(formData).forEach(([key, value]) => {
-                if (key === 'photo' && value instanceof File) {
-                    formDataToSend.append('photo', value)
-                } else if (value !== undefined && value !== null && !(value instanceof File)) {
+                if (value !== undefined && value !== null) {
                     formDataToSend.append(key, String(value))
                 }
             })
+
+            // Añadir foto si hay una nueva
+            if (photoFile) {
+                formDataToSend.append('photo', photoFile)
+            }
 
             // Añadir fecha de nacimiento
             if (fechaNacimiento) {
@@ -286,7 +291,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             onChange={(e) => {
                                                 const file = e.target.files?.[0]
                                                 if (file) {
-                                                    setFormData(prev => ({ ...prev, photo: file as any }))
+                                                    setPhotoFile(file)
                                                     // Crear preview
                                                     const reader = new FileReader()
                                                     reader.onloadend = () => {
@@ -301,18 +306,15 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
                                         >
                                             <span>
-                                                {(formData.photo && typeof formData.photo === 'object' && 'name' in formData.photo)
-                                                    ? formData.photo.name
-                                                    : "Elegir archivo"
-                                                }
+                                                {photoFile ? photoFile.name : "Elegir archivo"}
                                             </span>
-                                            {(formData.photo && typeof formData.photo === 'object' && 'name' in formData.photo) && (
+                                            {photoFile && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
                                                         e.preventDefault()
+                                                        setPhotoFile(null)
                                                         setPhotoPreview(null)
-                                                        setFormData(prev => ({ ...prev, photo: undefined }))
                                                         // Reset file input
                                                         const input = document.getElementById('photo') as HTMLInputElement
                                                         if (input) input.value = ''
