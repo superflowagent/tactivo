@@ -73,14 +73,6 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
     },
   ]
 
-  const footerNavItems = [
-    {
-      title: "Ajustes",
-      view: "ajustes" as ViewType,
-      icon: Settings,
-    },
-  ]
-
   return (
     <Sidebar {...props} collapsible="offcanvas">
       <SidebarHeader className="p-2">
@@ -145,7 +137,23 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
         <NavMain items={mainNavItems} currentView={currentView} onViewChange={onViewChange} />
       </SidebarContent>
       <SidebarFooter className="mt-auto">
-        <NavMain items={footerNavItems} currentView={currentView} onViewChange={onViewChange} isFooter />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              isActive={currentView === "ajustes"}
+              onClick={() => {
+                onViewChange("ajustes")
+                if (isMobile) {
+                  // Cerrar sidebar en móvil
+                  toggleSidebar()
+                }
+              }}
+            >
+              <Settings />
+              Ajustes
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

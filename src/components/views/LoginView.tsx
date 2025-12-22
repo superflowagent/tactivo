@@ -67,6 +67,7 @@ export function LoginView() {
                 id="email"
                 type="email"
                 placeholder="tu@email.com"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -80,6 +81,7 @@ export function LoginView() {
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -97,7 +99,7 @@ export function LoginView() {
       {/* Alert en esquina inferior derecha */}
       {error && (
         <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
