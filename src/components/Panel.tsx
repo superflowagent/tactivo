@@ -35,8 +35,8 @@ export function Panel() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  return (
+    <SidebarProvider defaultOpen={true}>
       <AppSidebar currentView={currentView} onViewChange={setCurrentView} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
