@@ -27,6 +27,7 @@ import { CalendarIcon, ChevronDown, UserPlus, PencilLine } from "lucide-react"
 import { cn } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Cliente } from "@/types/cliente"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface ClienteDialogProps {
     open: boolean
@@ -36,12 +37,14 @@ interface ClienteDialogProps {
 }
 
 export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
+    const { companyId } = useAuth()
     const [formData, setFormData] = useState<Cliente>({
         name: "",
         last_name: "",
         dni: "",
         email: "",
         phone: "",
+        company: "",
         session_credits: 0,
         class_credits: 0,
     })
@@ -73,6 +76,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 dni: "",
                 email: "",
                 phone: "",
+                company: "",
                 session_credits: 0,
                 class_credits: 0,
             })
@@ -137,6 +141,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             // Añadir role si es nuevo cliente
             if (!cliente?.id) {
                 formDataToSend.append('role', 'client')
+                // Auto-asignar company del profesional logueado
+                if (companyId) {
+                    formDataToSend.append('company', companyId)
+                }
             }
 
             if (cliente?.id) {
