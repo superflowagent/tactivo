@@ -1,50 +1,29 @@
-import { useState } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { CalendarioView } from "@/components/views/CalendarioView"
-import { ClientesView } from "@/components/views/ClientesView"
-import { ProfesionalesView } from "@/components/views/ProfesionalesView"
-import { AjustesView } from "@/components/views/AjustesView"
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from '@/contexts/AuthContext'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { LoginView } from '@/components/views/LoginView'
+import { Panel } from '@/components/Panel'
 
 export type ViewType = "calendario" | "clientes" | "profesionales" | "ajustes"
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewType>("calendario")
-
-  const viewTitles: Record<ViewType, string> = {
-    calendario: "Calendario",
-    clientes: "Clientes",
-    profesionales: "Profesionales",
-    ajustes: "Ajustes",
-  }
-
-  const renderView = () => {
-    switch (currentView) {
-      case "calendario":
-        return <CalendarioView />
-      case "clientes":
-        return <ClientesView />
-      case "profesionales":
-        return <ProfesionalesView />
-      case "ajustes":
-        return <AjustesView />
-      default:
-        return <CalendarioView />
-    }
-  }
-
   return (
-    <SidebarProvider>
-      <AppSidebar currentView={currentView} onViewChange={setCurrentView} collapsible="icon" />
-      <SidebarInset>
-        <div className="flex flex-1 flex-col gap-4 p-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">{viewTitles[currentView]}</h1>
-          </div>
-          {renderView()}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<LoginView />} />
+          <Route
+            path="/:companyName/panel"
+            element={
+              <ProtectedRoute>
+                <Panel />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "myproject2",
+  "name": "tactivo",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -37,6 +37,7 @@
     "react": "^18.3.1",
     "react-day-picker": "^9.4.4",
     "react-dom": "^18.3.1",
+    "react-router-dom": "^7.11.0",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"
   },

@@ -18,6 +18,7 @@ import { CalendarPlus } from "lucide-react"
 import pb from '@/lib/pocketbase'
 import type { Event } from '@/types/event'
 import { EventDialog } from '@/components/eventos/EventDialog'
+import { useIsMobile } from '@/hooks/use-mobile'
 import './calendario.css'
 
 export function CalendarioView() {
@@ -29,6 +30,7 @@ export function CalendarioView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all')
   const [professionals, setProfessionals] = useState<any[]>([])
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     loadEvents()
@@ -41,8 +43,11 @@ export function CalendarioView() {
 
   const loadProfessionals = async () => {
     try {
+      const currentUser = pb.authStore.model
+      if (!currentUser?.company) return
+
       const records = await pb.collection('users').getFullList({
-        filter: 'role="professional"',
+        filter: `role="professional" && company="${currentUser.company}"`,
         sort: 'name',
       })
       setProfessionals(records)
@@ -229,33 +234,42 @@ export function CalendarioView() {
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Buscar eventos..."
-          className="max-w-sm"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Profesional" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los profesionales</SelectItem>
-            {professionals.map((prof) => (
-              <SelectItem key={prof.id} value={prof.id}>
-                {prof.name} {prof.last_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Botón crear - siempre arriba en móvil */}
+      <Button onClick={handleAdd} className="w-full sm:hidden">
+        <CalendarPlus className="mr-2 h-4 w-4" />
+        Crear Evento
+      </Button>
+
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+        <div className="flex w-full sm:w-auto gap-2">
+          <Input
+            placeholder="Buscar eventos..."
+            className="flex-1 sm:max-w-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+            <SelectTrigger className="w-[140px] sm:w-[200px]">
+              <SelectValue placeholder="Profesional" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {professionals.map((prof) => (
+                <SelectItem key={prof.id} value={prof.id}>
+                  {prof.name} {prof.last_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         {(searchQuery || selectedProfessional !== 'all') && (
-          <Button variant="outline" onClick={handleClearFilters}>
+          <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
             Limpiar filtros
           </Button>
         )}
-        <div className="flex-1" />
-        <Button onClick={handleAdd}>
+        <div className="hidden sm:block flex-1" />
+        <Button onClick={handleAdd} className="hidden sm:flex">
           <CalendarPlus className="mr-2 h-4 w-4" />
           Crear Evento
         </Button>
@@ -265,12 +279,12 @@ export function CalendarioView() {
         <CardContent className="pt-6">
           <FullCalendar
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
+            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
             locale={esLocale}
             headerToolbar={{
-              left: 'prev,next today',
+              left: isMobile ? 'prev,next' : 'prev,next today',
               center: 'title',
-              right: 'dayGridMonth,timeGridWeek,timeGridDay'
+              right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
             }}
             buttonText={{
               today: 'Hoy',
@@ -281,7 +295,7 @@ export function CalendarioView() {
             slotMinTime="08:00:00"
             slotMaxTime="20:00:00"
             allDaySlot={false}
-            height="calc(100vh - 200px)"
+            height={isMobile ? "calc(100vh - 340px)" : "calc(100vh - 240px)"}
             slotDuration="00:30:00"
             events={filteredEvents}
             dateClick={handleDateClick}
@@ -293,6 +307,8 @@ export function CalendarioView() {
             weekends={true}
             eventDrop={handleEventDrop}
             eventResize={handleEventResize}
+            titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
+            dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
           />
         </CardContent>
       </Card>
