@@ -170,13 +170,19 @@ export function ClientesView() {
 
   return (
     <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-4">
         <Input
           placeholder="Buscar clientes..."
           className="max-w-sm"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
+        {searchQuery && (
+          <Button variant="outline" onClick={() => setSearchQuery('')}>
+            Limpiar filtros
+          </Button>
+        )}
+        <div className="flex-1" />
         <Button onClick={handleAdd}>
           <UserPlus className="mr-0 h-4 w-4" />
           Crear Cliente

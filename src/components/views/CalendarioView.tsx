@@ -157,13 +157,13 @@ export function CalendarioView() {
 
   const handleEventClick = async (clickInfo: any) => {
     const eventId = clickInfo.event.id
-    
+
     try {
       // Cargar el evento completo desde PocketBase
       const eventData = await pb.collection('events').getOne<Event>(eventId, {
         expand: 'client,professional',
       })
-      
+
       setSelectedEvent(eventData)
       setDialogOpen(true)
     } catch (error) {
@@ -184,6 +184,48 @@ export function CalendarioView() {
   const handleClearFilters = () => {
     setSearchQuery('')
     setSelectedProfessional('all')
+  }
+
+  const handleEventDrop = async (info: any) => {
+    try {
+      const eventId = info.event.id
+      const newStart = info.event.start
+
+      // Actualizar en PocketBase
+      await pb.collection('events').update(eventId, {
+        datetime: newStart.toISOString(),
+      })
+
+      // Recargar eventos
+      loadEvents()
+    } catch (error) {
+      console.error('Error moviendo evento:', error)
+      info.revert() // Revertir si falla
+    }
+  }
+
+  const handleEventResize = async (info: any) => {
+    try {
+      const eventId = info.event.id
+      const newStart = info.event.start
+      const newEnd = info.event.end
+
+      // Calcular nueva duración en minutos
+      const durationMs = newEnd.getTime() - newStart.getTime()
+      const durationMin = Math.round(durationMs / (1000 * 60))
+
+      // Actualizar en PocketBase
+      await pb.collection('events').update(eventId, {
+        datetime: newStart.toISOString(),
+        duration: durationMin,
+      })
+
+      // Recargar eventos
+      loadEvents()
+    } catch (error) {
+      console.error('Error redimensionando evento:', error)
+      info.revert() // Revertir si falla
+    }
   }
 
   return (
@@ -208,9 +250,11 @@ export function CalendarioView() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" onClick={handleClearFilters}>
-          Limpiar filtros
-        </Button>
+        {(searchQuery || selectedProfessional !== 'all') && (
+          <Button variant="outline" onClick={handleClearFilters}>
+            Limpiar filtros
+          </Button>
+        )}
         <div className="flex-1" />
         <Button onClick={handleAdd}>
           <CalendarPlus className="mr-2 h-4 w-4" />
@@ -239,7 +283,8 @@ export function CalendarioView() {
             slotMaxTime="20:00:00"
             allDaySlot={false}
             height="auto"
-            contentHeight="550px"
+            contentHeight="500px"
+            slotDuration="00:30:00"
             events={filteredEvents}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
@@ -248,6 +293,8 @@ export function CalendarioView() {
             selectMirror={true}
             dayMaxEvents={true}
             weekends={true}
+            eventDrop={handleEventDrop}
+            eventResize={handleEventResize}
           />
         </CardContent>
       </Card>
