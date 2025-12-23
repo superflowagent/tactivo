@@ -162,23 +162,6 @@ export function EjerciciosView() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <ExerciseDialog
-          exercise={null}
-          anatomy={anatomy}
-          equipment={equipment}
-          onSuccess={handleDialogClose}
-          trigger={
-            <Button size="sm" className="whitespace-nowrap">
-              <Plus className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Crear Ejercicio</span>
-              <span className="sm:hidden">Crear</span>
-            </Button>
-          }
-        />
-      </div>
-
       {/* Filtros y búsqueda */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 flex-wrap">
@@ -281,6 +264,20 @@ export function EjerciciosView() {
           {(searchTerm || selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
             <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedAnatomy([]); setSelectedEquipment([]); }}>Limpiar</Button>
           )}
+          <div className="flex-1" />
+          <ExerciseDialog
+            exercise={null}
+            anatomy={anatomy}
+            equipment={equipment}
+            onSuccess={handleDialogClose}
+            trigger={
+              <Button size="sm" className="whitespace-nowrap">
+                <Plus className="mr-1 h-4 w-4" />
+                <span className="hidden sm:inline">Crear Ejercicio</span>
+                <span className="sm:hidden">Crear</span>
+              </Button>
+            }
+          />
         </div>
 
         {(selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
@@ -341,9 +338,13 @@ export function EjerciciosView() {
                         equipment={equipment}
                         onSuccess={handleDialogClose}
                         trigger={
-                          <button className="p-2 rounded-full hover:bg-slate-200 transition-colors shrink-0">
-                            <Pencil className="h-5 w-5 text-slate-600" />
-                          </button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hover:bg-slate-200"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                         }
                       />
                     </div>
