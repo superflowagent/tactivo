@@ -9,68 +9,48 @@
     /* Base colors */
     --background: 0 0% 100%;
     /* hsl(0, 0%, 100%) */
-    --foreground: 222 47% 11%;
-    /* hsl(222, 47%, 11%) */
-    --card: var(--background);
-    /* hsl(0, 0%, 100%) */
-    --card-foreground: var(--foreground);
-    /* hsl(222, 47%, 11%) */
-    --popover: var(--background);
-    /* hsl(0, 0%, 100%) */
-    --popover-foreground: var(--foreground);
-    /* hsl(222, 47%, 11%) */
-    --border: 214.3 31.8% 91.4%;
-    /* hsl(214.3, 31.8%, 91.4%) */
-    --input: var(--border);
-    /* hsl(214.3, 31.8%, 91.4%) */
+    --foreground: 248 85% 7%;
+    /* hsl(248, 85%, 7%) */
     --muted: 210 40% 96.1%;
     /* hsl(210, 40%, 96.1%) */
     --muted-foreground: 215.4 16.3% 46.9%;
     /* hsl(215.4, 16.3%, 46.9%) */
-    --accent: var(--border);
-    /* hsl(214.3, 31.8%, 91.4%) */
-    --accent-foreground: var(--foreground);
-    /* hsl(222, 47%, 11%) */
-
-    /* Sidebar (under base) */
-    --sidebar-background: 210 40% 98%;
-    /* hsl(210, 40%, 98%) */
-    --sidebar-foreground: var(--foreground);
-    /* hsl(222, 47%, 11%) */
-    --sidebar-primary: var(--primary);
-    /* hsl(217, 91%, 60%) */
-    --sidebar-primary-foreground: 0 0% 100%;
-    /* hsl(0, 0%, 100%) */
-    --sidebar-accent: var(--accent);
-    /* hsl(214.3, 31.8%, 91.4%) */
-    --sidebar-accent-foreground: var(--foreground);
-    /* hsl(222, 47%, 11%) */
-    --sidebar-border: var(--border);
-    /* hsl(214.3, 31.8%, 91.4%) */
-    --sidebar-ring: var(--primary);
-    /* hsl(217, 91%, 60%) */
 
     /* Primary (blue) */
     --primary: 217 91% 60%;
-    /* hsl(217, 91%, 60%) */
-    --primary-foreground: 210 40% 98%;
-    /* hsl(210, 40%, 98%) */
-    --ring: var(--primary);
     /* hsl(217, 91%, 60%) */
 
     /* Destructive (red) */
     --destructive: 0 84.2% 60.2%;
     /* hsl(0, 84.2%, 60.2%) */
-    --destructive-foreground: var(--primary-foreground);
-    /* hsl(210, 40%, 98%) */
 
     /* Event colors */
-    --class-color: 27 87% 67%;
-    /* hsl(27, 87%, 67%) */
-    --appointment-color: 142 76% 36%;
-    /* hsl(142, 76%, 36%) */
+    --class-color: 28, 100%, 50%;
+    /* hsl(28, 100%, 50%) */
+    --appointment-color: 155, 80%, 44%;
+    /* hsl(155, 80%, 44%) */
+
+    /* Aliases */
+    --card: var(--background);
+    --card-foreground: var(--foreground);
+    --popover: var(--background);
+    --popover-foreground: var(--foreground);
+    --border: var(--muted);
+    --input: var(--border);
+    --accent: var(--muted);
+    --accent-foreground: var(--foreground);
+    --primary-foreground: var(--muted);
+    --ring: var(--primary);
+    --destructive-foreground: var(--primary-foreground);
     --vacation-color: var(--muted-foreground);
-    /* hsl(215.4, 16.3%, 46.9%) */
+    --sidebar-background: var(--muted);
+    --sidebar-foreground: var(--foreground);
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: var(--muted);
+    --sidebar-accent: var(--accent);
+    --sidebar-accent-foreground: var(--foreground);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--primary);
   }
 
   * {
