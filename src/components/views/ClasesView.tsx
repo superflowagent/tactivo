@@ -180,8 +180,11 @@ export function ClasesView() {
     return (
         <div className="flex flex-1 flex-col gap-4">
             <div className="flex justify-end">
-                <Button onClick={() => setPropagateDialogOpen(true)} variant="outline">
-                    <CalendarRange className="mr-0 h-4 w-4" />
+                <Button onClick={() => setPropagateDialogOpen(true)} style={{
+                    backgroundColor: 'hsl(var(--class-color))',
+                    color: 'white'
+                }} className="hover:opacity-90 transition-opacity">
+                    <CalendarRange className="mr-2 h-4 w-4" />
                     Propagar
                 </Button>
             </div>

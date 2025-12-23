@@ -164,7 +164,6 @@ export function EjerciciosView() {
     <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl sm:text-3xl font-bold">Ejercicios</h1>
         <ExerciseDialog
           exercise={null}
           anatomy={anatomy}
@@ -319,7 +318,7 @@ export function EjerciciosView() {
             <p className="text-slate-500 text-lg">No hay ejercicios que coincidan con los filtros</p>
           </div>
         ) : (
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {filteredExercises.map((exercise) => {
               const exerciseAnatomy = anatomy.filter((a) =>
                 exercise.anatomy.includes(a.id)
@@ -342,8 +341,8 @@ export function EjerciciosView() {
                         equipment={equipment}
                         onSuccess={handleDialogClose}
                         trigger={
-                          <button className="p-1.5 rounded-full hover:bg-slate-100 transition-colors shrink-0">
-                            <Pencil className="h-3.5 w-3.5 text-slate-600" />
+                          <button className="p-2 rounded-full hover:bg-slate-200 transition-colors shrink-0">
+                            <Pencil className="h-5 w-5 text-slate-600" />
                           </button>
                         }
                       />
@@ -369,7 +368,7 @@ export function EjerciciosView() {
                   </CardHeader>
 
                   {/* Media Container */}
-                  <div className="relative bg-slate-200 overflow-hidden aspect-[9/16] mt-auto group">
+                  <div className="relative bg-slate-200 overflow-hidden aspect-video mt-auto group">
                     {exercise.file ? (
                       <>
                         {isVideo(exercise.file) ? (
