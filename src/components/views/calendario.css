@@ -34,6 +34,7 @@
   opacity: 0.5;
 }
 
+/* SOLUCIÓN SIMPLE: Modificar la regla original para excluir botones de vista */
 .fc .fc-button-active {
   background-color: hsl(var(--foreground)) !important;
   border-color: hsl(var(--foreground)) !important;
@@ -43,6 +44,29 @@
 .fc .fc-button-active:hover {
   background-color: hsl(var(--foreground)) !important;
   border-color: hsl(var(--foreground)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* SOLUCIÓN ALTERNATIVA: Usar una regla más específica que anule la anterior */
+.fc .fc-button.fc-button-active.fc-dayGridMonth-button,
+.fc .fc-button.fc-button-active.fc-timeGridWeek-button,
+.fc .fc-button.fc-button-active.fc-timeGridDay-button,
+.fc .fc-button.fc-button-active[class*="dayGridMonth"],
+.fc .fc-button.fc-button-active[class*="timeGridWeek"],
+.fc .fc-button.fc-button-active[class*="timeGridDay"] {
+  background-color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--muted-foreground)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.fc .fc-button.fc-button-active.fc-dayGridMonth-button:hover,
+.fc .fc-button.fc-button-active.fc-timeGridWeek-button:hover,
+.fc .fc-button.fc-button-active.fc-timeGridDay-button:hover,
+.fc .fc-button.fc-button-active[class*="dayGridMonth"]:hover,
+.fc .fc-button.fc-button-active[class*="timeGridWeek"]:hover,
+.fc .fc-button.fc-button-active[class*="timeGridDay"]:hover {
+  background-color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--muted-foreground)) !important;
   color: hsl(var(--primary-foreground)) !important;
 }
 

@@ -8,15 +8,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,6 +48,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
+    const [clientSearch, setClientSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
 
@@ -82,6 +74,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
             setMinutos('00')
             setSelectedClients([])
             setSelectedProfessionals([])
+            setClientSearch('')
         }
     }, [open])
 
@@ -309,29 +302,63 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                                     ) : null
                                 })}
                             </div>
-                            <Select
-                                value=""
-                                onValueChange={(value) => {
-                                    if (value && !selectedClients.includes(value)) {
-                                        if (company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
-                                            setShowMaxAssistantsDialog(true)
-                                            return
-                                        }
-                                        setSelectedClients(prev => [...prev, value])
-                                    }
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Añadir cliente" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {clientes.map((cliente) => (
-                                        <SelectItem key={cliente.id} value={cliente.id!}>
-                                            {cliente.name} {cliente.last_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <div className="space-y-2">
+                                <Input
+                                    placeholder="Buscar cliente..."
+                                    value={clientSearch}
+                                    onChange={(e) => setClientSearch(e.target.value)}
+                                    className="text-sm"
+                                />
+                                {clientSearch && (
+                                    <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
+                                        {clientes
+                                            .filter(cliente => {
+                                                const normalizedSearch = clientSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                                                const normalizedClientName = (cliente.name + ' ' + cliente.last_name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                                                return normalizedClientName.includes(normalizedSearch)
+                                            })
+                                            .filter(cliente => !selectedClients.includes(cliente.id!))
+                                            .map((cliente) => {
+                                                const photoUrl = cliente.photo
+                                                    ? `https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`
+                                                    : null
+                                                return (
+                                                    <button
+                                                        key={cliente.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
+                                                                setShowMaxAssistantsDialog(true)
+                                                                return
+                                                            }
+                                                            setSelectedClients(prev => [...prev, cliente.id!])
+                                                            setClientSearch('')
+                                                        }}
+                                                        className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"
+                                                    >
+                                                        {photoUrl ? (
+                                                            <img
+                                                                src={photoUrl}
+                                                                alt={`${cliente.name} ${cliente.last_name}`}
+                                                                className="h-8 w-8 rounded object-cover flex-shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                                {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 flex items-center justify-between">
+                                                            <span>{cliente.name} {cliente.last_name}</span>
+                                                            <span className={`text-xs font-medium ml-2 ${(cliente.class_credits || 0) <= 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                                                                {cliente.class_credits || 0} créditos
+                                                            </span>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Profesional */}
