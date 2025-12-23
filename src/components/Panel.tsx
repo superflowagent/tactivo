@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { CalendarioView } from "@/components/views/CalendarioView"
 import { ClientesView } from "@/components/views/ClientesView"
 import { ClasesView } from "@/components/views/ClasesView"
@@ -47,6 +47,7 @@ export function Panel() {
       <AppSidebar currentView={currentView} onViewChange={setCurrentView} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger className="md:hidden" />
           <h1 className="text-xl md:text-2xl font-bold">{viewTitles[currentView]}</h1>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">

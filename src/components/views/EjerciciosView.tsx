@@ -330,8 +330,46 @@ export function EjerciciosView() {
 
               return (
                 <Card key={exercise.id} className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
-                  {/* Media Container with Action Buttons */}
-                  <div className="relative bg-slate-200 overflow-hidden aspect-[9/16] group">
+                  {/* Card Header: Título, Edit Button y Badges */}
+                  <CardHeader className="pb-2 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+                        {exercise.name}
+                      </CardTitle>
+                      <ExerciseDialog
+                        exercise={exercise}
+                        anatomy={anatomy}
+                        equipment={equipment}
+                        onSuccess={handleDialogClose}
+                        trigger={
+                          <button className="p-1.5 rounded-full hover:bg-slate-100 transition-colors shrink-0">
+                            <Pencil className="h-3.5 w-3.5 text-slate-600" />
+                          </button>
+                        }
+                      />
+                    </div>
+
+                    {/* Badge Area with Overflow Tooltip */}
+                    <div className="space-y-1.5 min-h-12">
+                      {exerciseEquipment.length > 0 && (
+                        <ExerciseBadgeGroup
+                          items={exerciseEquipment}
+                          color="blue"
+                          maxVisible={2}
+                        />
+                      )}
+                      {exerciseAnatomy.length > 0 && (
+                        <ExerciseBadgeGroup
+                          items={exerciseAnatomy}
+                          color="orange"
+                          maxVisible={2}
+                        />
+                      )}
+                    </div>
+                  </CardHeader>
+
+                  {/* Media Container */}
+                  <div className="relative bg-slate-200 overflow-hidden aspect-[9/16] mt-auto group">
                     {exercise.file ? (
                       <>
                         {isVideo(exercise.file) ? (
@@ -348,20 +386,8 @@ export function EjerciciosView() {
                           />
                         )}
 
-                        {/* Action Buttons on Hover */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                          <ExerciseDialog
-                            exercise={exercise}
-                            anatomy={anatomy}
-                            equipment={equipment}
-                            onSuccess={handleDialogClose}
-                            trigger={
-                              <button className="p-2 rounded-full bg-white/90 hover:bg-white shadow-md transition-colors">
-                                <Pencil className="h-4 w-4 text-slate-700" />
-                              </button>
-                            }
-                          />
-
+                        {/* Delete Button on Hover */}
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <button className="p-2 rounded-full bg-white/90 hover:bg-red-50 shadow-md transition-colors">
@@ -392,39 +418,6 @@ export function EjerciciosView() {
                       </div>
                     )}
                   </div>
-
-                  {/* Card Content */}
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold line-clamp-2">
-                      {exercise.name}
-                    </CardTitle>
-                  </CardHeader>
-
-                  <CardContent className="flex-1 flex flex-col space-y-2">
-                    {exercise.description && (
-                      <p className="text-xs text-slate-600 line-clamp-2">
-                        {exercise.description}
-                      </p>
-                    )}
-
-                    {/* Fixed Badge Area with Overflow Tooltip */}
-                    <div className="flex-1 flex flex-col gap-2 min-h-16 justify-end">
-                      {exerciseEquipment.length > 0 && (
-                        <ExerciseBadgeGroup
-                          items={exerciseEquipment}
-                          color="blue"
-                          maxVisible={2}
-                        />
-                      )}
-                      {exerciseAnatomy.length > 0 && (
-                        <ExerciseBadgeGroup
-                          items={exerciseAnatomy}
-                          color="orange"
-                          maxVisible={2}
-                        />
-                      )}
-                    </div>
-                  </CardContent>
                 </Card>
               );
             })}
