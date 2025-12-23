@@ -199,7 +199,7 @@ export function ProfesionalesView() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-xl border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
@@ -248,7 +248,7 @@ export function ProfesionalesView() {
                         variant="ghost"
                         size="icon"
                         onClick={() => handleEdit(profesional)}
-                        className="hover:bg-slate-200 dark:hover:bg-slate-700"
+                        className="hover:bg-slate-200"
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>

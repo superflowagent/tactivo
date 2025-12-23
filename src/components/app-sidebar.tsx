@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Calendar, Users, UserStar, Settings, PanelLeftClose, PanelLeftOpen, LogOut } from "lucide-react"
+import { Calendar, Users, UserStar, Settings, ChevronLeft, ChevronRight, ArrowLeftFromLine, Dumbbell } from "lucide-react"
 import type { ViewType } from "@/App"
 import { useAuth } from "@/contexts/AuthContext"
 import pb from "@/lib/pocketbase"
@@ -13,7 +13,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -67,6 +66,11 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
       icon: Users,
     },
     {
+      title: "Clases",
+      view: "clases" as ViewType,
+      icon: Dumbbell,
+    },
+    {
       title: "Profesionales",
       view: "profesionales" as ViewType,
       icon: UserStar,
@@ -74,62 +78,55 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
   ]
 
   return (
-    <Sidebar {...props} collapsible="offcanvas">
+    <Sidebar {...props} collapsible="icon">
       <SidebarHeader className="p-2">
-        {isCollapsed ? (
+        <div className="flex justify-end mb-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleSidebar}
-            className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 mx-auto"
+            className="h-8 w-8"
           >
-            <PanelLeftOpen className="h-4 w-4" />
-          </Button>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
-              <div
-                className="group/avatar relative flex aspect-square size-12 md:size-14 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground cursor-pointer overflow-hidden flex-shrink-0"
-                onClick={(e) => {
-                  e.preventDefault()
-                  logout()
-                }}
-              >
-                {photoUrl ? (
-                  <>
-                    <img
-                      src={photoUrl}
-                      alt={getFullName()}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                      <LogOut className="size-3 md:size-4 text-white" />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xs md:text-sm font-medium">{getUserInitials()}</span>
-                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                      <LogOut className="size-3 md:size-4 text-white" />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
-                <span className="text-sm md:text-base font-semibold truncate">Tactivo</span>
-                <span className="text-xs truncate">{getFullName()}</span>
-              </div>
-            </div>
-            {!isMobile && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="h-8 w-8 flex-shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <PanelLeftClose className="h-4 w-4" />
-              </Button>
+            {isCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
             )}
+          </Button>
+        </div>
+        {!isCollapsed && (
+          <div className="flex items-center gap-2 md:gap-3">
+            <div
+              className="group/avatar relative flex aspect-square size-12 md:size-14 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground cursor-pointer overflow-hidden flex-shrink-0"
+              onClick={(e) => {
+                e.preventDefault()
+                logout()
+              }}
+            >
+              {photoUrl ? (
+                <>
+                  <img
+                    src={photoUrl}
+                    alt={getFullName()}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                    <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-xs md:text-sm font-medium">{getUserInitials()}</span>
+                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                    <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
+              <span className="text-sm md:text-base font-semibold truncate">Tactivo</span>
+              <span className="text-xs truncate">{getFullName()}</span>
+            </div>
           </div>
         )}
       </SidebarHeader>
@@ -155,7 +152,6 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }

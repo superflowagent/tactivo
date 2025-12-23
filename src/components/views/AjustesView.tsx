@@ -160,7 +160,7 @@ export function AjustesView() {
                     />
                     <label
                       htmlFor="logo"
-                      className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-input bg-background cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
                     >
                       <span>
                         {logoFile ? logoFile.name : "Elegir archivo"}
@@ -314,7 +314,6 @@ export function AjustesView() {
                   id="default_appointment_duration"
                   type="number"
                   min="1"
-                  step="5"
                   value={formData.default_appointment_duration || ''}
                   onChange={(e) => handleChange('default_appointment_duration', parseInt(e.target.value))}
                   required
@@ -327,7 +326,6 @@ export function AjustesView() {
                   id="default_class_duration"
                   type="number"
                   min="1"
-                  step="5"
                   value={formData.default_class_duration || ''}
                   onChange={(e) => handleChange('default_class_duration', parseInt(e.target.value))}
                   required

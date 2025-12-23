@@ -111,7 +111,62 @@ role = "client"
 
 ---
 
-## 🏢 Collection: `companies`
+## �️ Collection: `classes_template`
+
+### Descripción:
+Template de clases semanales que se propagan al calendario mensualmente. Cada registro representa un slot de clase en un día específico de la semana con su configuración (profesional, clientes, duración, etc.).
+
+### Campos importantes:
+- `type`: Siempre "class"
+- `datetime`: Fecha/hora que determina el día de la semana y hora
+- `duration`: Duración en minutos
+- `client`: Array de IDs de clientes (relación)
+- `professional`: Array de IDs de profesionales (relación)
+- `company`: ID de la compañía (relación)
+- `notes`: Notas opcionales
+
+### Reglas de API recomendadas:
+
+**List/Search Rule:**
+```javascript
+// Solo puede ver slots de template de su company
+@request.auth.id != "" && @request.auth.company = company
+```
+
+**View Rule:**
+```javascript
+// Solo puede ver slots de template de su company
+@request.auth.id != "" && @request.auth.company = company
+```
+
+**Create Rule:**
+```javascript
+// Los profesionales pueden crear slots en el template
+// pero deben asignarles su misma company
+@request.auth.id != "" && 
+@request.auth.role = "professional" && 
+@request.body.company = @request.auth.company
+```
+
+**Update Rule:**
+```javascript
+// Solo profesionales de la misma company pueden editar slots del template
+@request.auth.id != "" && 
+@request.auth.role = "professional" && 
+@request.auth.company = company
+```
+
+**Delete Rule:**
+```javascript
+// Solo profesionales de la misma company pueden eliminar slots del template
+@request.auth.id != "" && 
+@request.auth.role = "professional" && 
+@request.auth.company = company
+```
+
+---
+
+## �🏢 Collection: `companies`
 
 ### Campos importantes:
 - `name`: Nombre del centro

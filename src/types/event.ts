@@ -11,4 +11,8 @@ export interface Event {
     notes?: string
     created?: string
     updated?: string
+    expand?: {
+        professional?: any[] | any
+        client?: any[] | any
+    }
 }

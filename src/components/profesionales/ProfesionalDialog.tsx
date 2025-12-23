@@ -121,12 +121,30 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
         try {
             const formDataToSend = new FormData()
 
-            // Añadir campos regulares
+            // Añadir campos regulares (excluyendo campos especiales y metadata)
             Object.entries(formData).forEach(([key, value]) => {
-                if (value !== undefined && value !== null) {
+                // Excluir campos que se manejan por separado o son metadata
+                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') {
+                    return
+                }
+                // Solo añadir si tiene valor
+                if (value !== undefined && value !== null && value !== '') {
                     formDataToSend.append(key, String(value))
                 }
             })
+
+            // Añadir email solo si es creación o si ha cambiado
+            if (!profesional?.id) {
+                // Creación: siempre añadir email
+                if (formData.email) {
+                    formDataToSend.append('email', formData.email)
+                    formDataToSend.append('emailVisibility', 'true')
+                }
+            } else if (formData.email && formData.email !== profesional.email) {
+                // Actualización: solo si el email ha cambiado
+                formDataToSend.append('email', formData.email)
+                formDataToSend.append('emailVisibility', 'true')
+            }
 
             // Añadir foto si hay una nueva
             if (photoFile) {
@@ -145,6 +163,10 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 if (companyId) {
                     formDataToSend.append('company', companyId)
                 }
+                // Generar contraseña automática para nuevos profesionales (requerido por PocketBase)
+                const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
+                formDataToSend.append('password', randomPassword)
+                formDataToSend.append('passwordConfirm', randomPassword)
             }
 
             if (profesional?.id) {
@@ -205,28 +227,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     </DialogDescription>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit}>
+                <form id="profesional-form" onSubmit={handleSubmit}>
                     <div className="space-y-6 py-4">
-                        {/* Foto */}
-                        <div className="space-y-2">
-                            <Label htmlFor="photo">Foto</Label>
-                            <div className="flex items-center gap-4">
-                                {photoPreview && (
-                                    <img
-                                        src={photoPreview}
-                                        alt="Preview"
-                                        className="w-20 h-20 rounded-md object-cover"
-                                    />
-                                )}
-                                <Input
-                                    id="photo"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handlePhotoChange}
-                                />
-                            </div>
-                        </div>
-
                         {/* Datos personales */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -283,80 +285,146 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 type="email"
                                 value={formData.email || ''}
                                 onChange={(e) => handleChange('email', e.target.value)}
+                                disabled={!!profesional?.id}
                                 required
-                            />
-                        </div>
-
-                        {/* Fecha de nacimiento */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Fecha de Nacimiento</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !fechaNacimiento && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {fechaNacimiento ? format(fechaNacimiento, "dd/MM/yyyy") : "Seleccionar fecha"}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={fechaNacimiento}
-                                            onSelect={handleDateSelect}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            {edad !== null && (
-                                <div className="space-y-2">
-                                    <Label>Edad</Label>
-                                    <Input
-                                        value={`${edad} años`}
-                                        disabled
-                                        className="bg-muted"
-                                    />
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Dirección */}
-                        <div className="space-y-2">
-                            <Label htmlFor="address">Dirección</Label>
-                            <Input
-                                id="address"
-                                value={formData.address || ''}
-                                onChange={(e) => handleChange('address', e.target.value)}
-                            />
-                        </div>
-
-                        {/* Notas */}
-                        <div className="space-y-2">
-                            <Label htmlFor="notes">Notas</Label>
-                            <RichTextEditor
-                                value={formData.notes || ''}
-                                onChange={(html) => handleChange('notes', html)}
-                                placeholder="Añade notas sobre el profesional..."
                             />
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" disabled={loading}>
-                            {loading ? 'Guardando...' : 'Guardar'}
-                        </Button>
-                    </DialogFooter>
+                    {/* Campos Opcionales */}
+                    <div className="space-y-4 pt-4 border-t">
+                        {/* Foto y Dirección en la misma línea */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="photo">Foto</Label>
+                                <div className="space-y-2">
+                                    <div className="relative">
+                                        <Input
+                                            id="photo"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0]
+                                                if (file) {
+                                                    setPhotoFile(file)
+                                                    // Crear preview
+                                                    const reader = new FileReader()
+                                                    reader.onloadend = () => {
+                                                        setPhotoPreview(reader.result as string)
+                                                    }
+                                                    reader.readAsDataURL(file)
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="photo"
+                                            className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
+                                        >
+                                            <span>
+                                                {photoFile ? photoFile.name : "Elegir archivo"}
+                                            </span>
+                                            {photoFile && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        setPhotoFile(null)
+                                                        setPhotoPreview(null)
+                                                        // Reset file input
+                                                        const input = document.getElementById('photo') as HTMLInputElement
+                                                        if (input) input.value = ''
+                                                    }}
+                                                    className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </label>
+                                    </div>
+                                    {photoPreview && (
+                                        <div className="relative w-1/2 aspect-square rounded-lg overflow-hidden border">
+                                            <img
+                                                src={photoPreview}
+                                                alt="Preview"
+                                                className="object-cover w-full h-full"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="address">Dirección</Label>
+                                <Input
+                                    id="address"
+                                    value={formData.address || ''}
+                                    onChange={(e) => handleChange('address', e.target.value)}
+                                />
+                            </div>
+
+                            {/* Fecha de nacimiento */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Fecha de Nacimiento</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !fechaNacimiento && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {fechaNacimiento ? format(fechaNacimiento, "dd/MM/yyyy") : "Seleccionar fecha"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <Calendar
+                                                mode="single"
+                                                selected={fechaNacimiento}
+                                                onSelect={handleDateSelect}
+                                                captionLayout="dropdown"
+                                                fromYear={1920}
+                                                toYear={new Date().getFullYear()}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Edad</Label>
+                                    <Input
+                                        value={edad !== null ? `${edad} años` : ""}
+                                        disabled
+                                        className="bg-muted"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Notas */}
+                            <div className="space-y-2">
+                                <Label htmlFor="notes">Notas</Label>
+                                <RichTextEditor
+                                    value={formData.notes || ''}
+                                    onChange={(html) => handleChange('notes', html)}
+                                    placeholder="Añade notas sobre el profesional..."
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </form>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                        Cancelar
+                    </Button>
+                    <Button type="submit" form="profesional-form" disabled={loading}>
+                        {loading ? 'Guardando...' : 'Guardar'}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

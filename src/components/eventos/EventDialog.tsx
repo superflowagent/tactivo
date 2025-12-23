@@ -13,6 +13,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
     Select,
     SelectContent,
@@ -26,7 +37,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, CalendarPlus, Edit } from "lucide-react"
+import { CalendarIcon, CalendarPlus, Edit, Trash, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
@@ -61,11 +72,24 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
     const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [company, setCompany] = useState<any>(null)
+    const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
+
+    useEffect(() => {
+        if (showMaxAssistantsDialog) {
+            const timer = setTimeout(() => {
+                setShowMaxAssistantsDialog(false)
+            }, 4000)
+            return () => clearTimeout(timer)
+        }
+    }, [showMaxAssistantsDialog])
 
     useEffect(() => {
         if (open) {
             loadClientes()
             loadProfesionales()
+            loadCompany()
         }
 
         if (event) {
@@ -114,7 +138,15 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             setHorasVacaciones(0)
         }
     }, [event, open, initialDateTime])
-
+    const loadCompany = async () => {
+        if (!companyId) return
+        try {
+            const record = await pb.collection('companies').getOne(companyId)
+            setCompany(record)
+        } catch (error) {
+            console.error('Error cargando company:', error)
+        }
+    }
     const loadClientes = async () => {
         if (!companyId) return
 
@@ -192,6 +224,23 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         }
     }
 
+    const handleDelete = async () => {
+        if (!event?.id) return
+
+        try {
+            setLoading(true)
+            await pb.collection('events').delete(event.id)
+            onSave()
+            onOpenChange(false)
+            setShowDeleteDialog(false)
+        } catch (error: any) {
+            console.error('Error al eliminar evento:', error)
+            alert(`Error al eliminar el evento: ${error?.message || 'Error desconocido'}`)
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleChange = (field: keyof Event, value: any) => {
         setFormData(prev => {
             const newData = { ...prev, [field]: value }
@@ -210,151 +259,211 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
-                        {event?.id ? 'Editar Evento' : 'Crear Evento'}
-                    </DialogTitle>
-                    <DialogDescription>
-                        {event?.id ? 'Modifica los datos del evento' : 'Completa los datos del nuevo evento'}
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
+                            {event?.id ? 'Editar Evento' : 'Crear Evento'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {event?.id ? 'Modifica los datos del evento' : 'Completa los datos del nuevo evento'}
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <form id="event-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="type">Tipo *</Label>
-                                <Select
-                                    value={formData.type}
-                                    onValueChange={(value) => handleChange('type', value as Event['type'])}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona un tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="appointment">Cita</SelectItem>
-                                        <SelectItem value="class">Clase</SelectItem>
-                                        <SelectItem value="vacation">Vacaciones</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                {formData.type === 'vacation' ? (
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="dias">Días *</Label>
-                                            <Input
-                                                id="dias"
-                                                type="number"
-                                                min="0"
-                                                value={dias}
-                                                onChange={(e) => setDias(parseInt(e.target.value) || 0)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="horas-vac">Horas *</Label>
-                                            <Input
-                                                id="horas-vac"
-                                                type="number"
-                                                min="0"
-                                                max="23"
-                                                value={horasVacaciones}
-                                                onChange={(e) => setHorasVacaciones(parseInt(e.target.value) || 0)}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <Label htmlFor="duration">Duración (min) *</Label>
-                                        <Input
-                                            id="duration"
-                                            type="number"
-                                            min="1"
-                                            value={formData.duration}
-                                            onChange={(e) => handleChange('duration', parseInt(e.target.value))}
-                                            required
-                                        />
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Fecha *</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            className={cn(
-                                                "w-full justify-start text-left font-normal",
-                                                !fecha && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {fecha ? format(fecha, "dd/MM/yyyy") : "Seleccionar fecha"}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={fecha}
-                                            onSelect={setFecha}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label htmlFor="hora">Hora *</Label>
-                                <div className="flex gap-2">
-                                    <Select value={hora} onValueChange={setHora}>
-                                        <SelectTrigger className="flex-1">
-                                            <SelectValue />
+                    <form id="event-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="type">Tipo *</Label>
+                                    <Select
+                                        value={formData.type}
+                                        onValueChange={(value) => handleChange('type', value as Event['type'])}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Selecciona un tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {Array.from({ length: 24 }, (_, i) => i).map((h) => (
-                                                <SelectItem key={h} value={h.toString().padStart(2, '0')}>
-                                                    {h.toString().padStart(2, '0')}
-                                                </SelectItem>
-                                            ))}
+                                            <SelectItem value="appointment">Cita</SelectItem>
+                                            <SelectItem value="class">Clase</SelectItem>
+                                            <SelectItem value="vacation">Vacaciones</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <span className="flex items-center">:</span>
-                                    <Select value={minutos} onValueChange={setMinutos}>
-                                        <SelectTrigger className="flex-1">
-                                            <SelectValue />
+                                </div>
+
+                                <div className="space-y-2">
+                                    {formData.type === 'vacation' ? (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="dias">Días *</Label>
+                                                <Input
+                                                    id="dias"
+                                                    type="number"
+                                                    min="0"
+                                                    value={dias}
+                                                    onChange={(e) => setDias(parseInt(e.target.value) || 0)}
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="horas-vac">Horas *</Label>
+                                                <Input
+                                                    id="horas-vac"
+                                                    type="number"
+                                                    min="0"
+                                                    max="23"
+                                                    value={horasVacaciones}
+                                                    onChange={(e) => setHorasVacaciones(parseInt(e.target.value) || 0)}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Label htmlFor="duration">Duración (min) *</Label>
+                                            <Input
+                                                id="duration"
+                                                type="number"
+                                                min="1"
+                                                value={formData.duration}
+                                                onChange={(e) => handleChange('duration', parseInt(e.target.value))}
+                                                required
+                                            />
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Fecha *</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !fecha && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {fecha ? format(fecha, "dd/MM/yyyy") : "Seleccionar fecha"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={fecha}
+                                                onSelect={setFecha}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="hora">Hora *</Label>
+                                    <div className="flex gap-2">
+                                        <Select value={hora} onValueChange={setHora}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                                                    <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+                                                        {h.toString().padStart(2, '0')}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <span className="flex items-center">:</span>
+                                        <Select value={minutos} onValueChange={setMinutos}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {['00', '15', '30', '45'].map((m) => (
+                                                    <SelectItem key={m} value={m}>
+                                                        {m}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {formData.type !== 'vacation' && (
+                                <div className="space-y-2">
+                                    <Label>
+                                        {formData.type === 'appointment' ? 'Cliente' : 'Clientes'}
+                                        {formData.type === 'class' && company?.max_class_assistants && (
+                                            <span className="text-muted-foreground ml-2">
+                                                ({selectedClients.length}/{company.max_class_assistants})
+                                            </span>
+                                        )}
+                                    </Label>
+                                    <div className="flex flex-wrap gap-2 mb-2">
+                                        {selectedClients.map((clientId) => {
+                                            const cliente = clientes.find(c => c.id === clientId)
+                                            return cliente ? (
+                                                <div key={clientId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
+                                                    <span>{cliente.name} {cliente.last_name}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                        className="hover:text-destructive"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            ) : null
+                                        })}
+                                    </div>
+                                    <Select
+                                        value=""
+                                        open={clientDropdownOpen}
+                                        onOpenChange={setClientDropdownOpen}
+                                        onValueChange={(value) => {
+                                            if (value && !selectedClients.includes(value)) {
+                                                // Validar límite de asistentes para clases
+                                                if (formData.type === 'class' && company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
+                                                    setShowMaxAssistantsDialog(true)
+                                                    return
+                                                }
+                                                setSelectedClients(prev => [...prev, value])
+                                                // Si es tipo class, reabrir inmediatamente después del cierre automático
+                                                if (formData.type === 'class') {
+                                                    setTimeout(() => setClientDropdownOpen(true), 10)
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Añadir cliente" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {['00', '15', '30', '45'].map((m) => (
-                                                <SelectItem key={m} value={m}>
-                                                    {m}
+                                            {clientes.map((cliente) => (
+                                                <SelectItem key={cliente.id} value={cliente.id!}>
+                                                    {cliente.name} {cliente.last_name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
-                        </div>
+                            )}
 
-                        {formData.type !== 'vacation' && (
                             <div className="space-y-2">
-                                <Label>{formData.type === 'appointment' ? 'Cliente' : 'Clientes'}</Label>
+                                <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
                                 <div className="flex flex-wrap gap-2 mb-2">
-                                    {selectedClients.map((clientId) => {
-                                        const cliente = clientes.find(c => c.id === clientId)
-                                        return cliente ? (
-                                            <div key={clientId} className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-md text-sm">
-                                                <span>{cliente.name} {cliente.last_name}</span>
+                                    {selectedProfessionals.map((profId) => {
+                                        const prof = profesionales.find(p => p.id === profId)
+                                        return prof ? (
+                                            <div key={profId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
+                                                <span>{prof.name} {prof.last_name}</span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                    onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
                                                     className="hover:text-destructive"
                                                 >
                                                     ×
@@ -365,128 +474,127 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 </div>
                                 <Select
                                     value=""
-                                    open={clientDropdownOpen}
-                                    onOpenChange={setClientDropdownOpen}
                                     onValueChange={(value) => {
-                                        if (value && !selectedClients.includes(value)) {
-                                            setSelectedClients(prev => [...prev, value])
-                                            // Si es tipo class, reabrir inmediatamente después del cierre automático
-                                            if (formData.type === 'class') {
-                                                setTimeout(() => setClientDropdownOpen(true), 10)
-                                            }
+                                        if (value && !selectedProfessionals.includes(value)) {
+                                            setSelectedProfessionals(prev => [...prev, value])
                                         }
                                     }}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Añadir cliente" />
+                                        <SelectValue placeholder="Añadir profesional" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {clientes.map((cliente) => (
-                                            <SelectItem key={cliente.id} value={cliente.id!}>
-                                                {cliente.name} {cliente.last_name}
+                                        {profesionales.map((prof) => (
+                                            <SelectItem key={prof.id} value={prof.id}>
+                                                {prof.name} {prof.last_name}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
-                        )}
 
-                        <div className="space-y-2">
-                            <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                                {selectedProfessionals.map((profId) => {
-                                    const prof = profesionales.find(p => p.id === profId)
-                                    return prof ? (
-                                        <div key={profId} className="flex items-center gap-1 bg-secondary px-2 py-1 rounded-md text-sm">
-                                            <span>{prof.name} {prof.last_name}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
-                                                className="hover:text-destructive"
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ) : null
-                                })}
-                            </div>
-                            <Select
-                                value=""
-                                onValueChange={(value) => {
-                                    if (value && !selectedProfessionals.includes(value)) {
-                                        setSelectedProfessionals(prev => [...prev, value])
-                                    }
-                                }}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Añadir profesional" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {profesionales.map((prof) => (
-                                        <SelectItem key={prof.id} value={prof.id}>
-                                            {prof.name} {prof.last_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {formData.type === 'appointment' && (
-                            <>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="cost">Coste (€) *</Label>
-                                        <Input
-                                            id="cost"
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            value={formData.cost}
-                                            onChange={(e) => handleChange('cost', parseFloat(e.target.value))}
-                                            required
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label>Pagado</Label>
-                                        <div className="flex items-center h-10">
-                                            <Checkbox
-                                                id="paid"
-                                                checked={formData.paid}
-                                                onCheckedChange={(checked) => handleChange('paid', checked)}
+                            {formData.type === 'appointment' && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="cost">Coste (€) *</Label>
+                                            <Input
+                                                id="cost"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={formData.cost}
+                                                onChange={(e) => handleChange('cost', parseFloat(e.target.value))}
+                                                required
                                             />
-                                            <label
-                                                htmlFor="paid"
-                                                className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                            >
-                                                Sí
-                                            </label>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label>Pagado</Label>
+                                            <div className="flex items-center h-10">
+                                                <Checkbox
+                                                    id="paid"
+                                                    checked={formData.paid}
+                                                    onCheckedChange={(checked) => handleChange('paid', checked)}
+                                                />
+                                                <label
+                                                    htmlFor="paid"
+                                                    className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                >
+                                                    Sí
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </>
-                        )}
+                                </>
+                            )}
 
-                        <div className="space-y-2">
-                            <Label>Notas</Label>
-                            <RichTextEditor
-                                value={formData.notes || ""}
-                                onChange={(value) => handleChange('notes', value)}
-                                placeholder=""
-                            />
+                            <div className="space-y-2">
+                                <Label>Notas</Label>
+                                <RichTextEditor
+                                    value={formData.notes || ""}
+                                    onChange={(value) => handleChange('notes', value)}
+                                    placeholder=""
+                                />
+                            </div>
                         </div>
-                    </div>
-                </form>
+                    </form>
 
-                <DialogFooter className="mt-4">
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancelar
-                    </Button>
-                    <Button type="submit" form="event-form" disabled={loading}>
-                        {loading ? "Guardando..." : "Guardar"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                    <DialogFooter className="mt-4">
+                        <div className="flex w-full justify-between">
+                            <div>
+                                {event?.id && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() => setShowDeleteDialog(true)}
+                                        disabled={loading}
+                                    >
+                                        Eliminar
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" form="event-form" disabled={loading}>
+                                    {loading ? "Guardando..." : "Guardar"}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar evento?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {showMaxAssistantsDialog && (
+                <div className="fixed bottom-4 right-4 left-4 md:left-auto z-[100] w-auto md:max-w-md animate-in slide-in-from-right">
+                    <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Número máximo de asistentes alcanzado</AlertTitle>
+                        <AlertDescription>
+                            El número máximo de clientes para las clases es {company?.max_class_assistants}.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            )}
+        </>
     )
 }

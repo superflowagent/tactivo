@@ -1,0 +1,412 @@
+import { useState, useEffect } from "react"
+import { format } from "date-fns"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Dumbbell, AlertCircle } from "lucide-react"
+import pb from "@/lib/pocketbase"
+import type { Event } from "@/types/event"
+import type { Cliente } from "@/types/cliente"
+import { useAuth } from "@/contexts/AuthContext"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
+
+interface ClassSlotDialogProps {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    slot?: Event | null
+    dayOfWeek: number // 1=Monday, 2=Tuesday, etc.
+    onSave: () => void
+}
+
+export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }: ClassSlotDialogProps) {
+    const { companyId } = useAuth()
+    const [company, setCompany] = useState<any>(null)
+    const [formData, setFormData] = useState<Partial<Event>>({
+        type: 'class',
+        duration: 60,
+        notes: '',
+    })
+    const [hora, setHora] = useState<string>('10')
+    const [minutos, setMinutos] = useState<string>('00')
+    const [clientes, setClientes] = useState<Cliente[]>([])
+    const [profesionales, setProfesionales] = useState<any[]>([])
+    const [selectedClients, setSelectedClients] = useState<string[]>([])
+    const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
+    const [loading, setLoading] = useState(false)
+    const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
+
+    useEffect(() => {
+        if (showMaxAssistantsDialog) {
+            const timer = setTimeout(() => {
+                setShowMaxAssistantsDialog(false)
+            }, 4000)
+            return () => clearTimeout(timer)
+        }
+    }, [showMaxAssistantsDialog])
+
+    useEffect(() => {
+        if (!open) {
+            setShowMaxAssistantsDialog(false)
+            // Reset form data when closing
+            setFormData({
+                type: 'class',
+                duration: 60,
+                notes: '',
+            })
+            setHora('10')
+            setMinutos('00')
+            setSelectedClients([])
+            setSelectedProfessionals([])
+        }
+    }, [open])
+
+    useEffect(() => {
+        if (open) {
+            loadClientes()
+            loadProfesionales()
+            loadCompany()
+        }
+    }, [open, companyId])
+
+    const loadCompany = async () => {
+        if (!companyId) return
+        try {
+            const record = await pb.collection('companies').getOne(companyId)
+            setCompany(record)
+        } catch (error) {
+            console.error('Error cargando company:', error)
+        }
+    }
+
+    useEffect(() => {
+        if (!open) return
+
+        if (slot) {
+            setFormData({
+                type: 'class',
+                duration: slot.duration || company?.default_class_duration || 60,
+                notes: slot.notes || '',
+            })
+            const date = new Date(slot.datetime)
+            setHora(date.getHours().toString().padStart(2, '0'))
+            setMinutos(date.getMinutes().toString().padStart(2, '0'))
+            setSelectedClients(Array.isArray(slot.client) ? slot.client : slot.client ? [slot.client] : [])
+            setSelectedProfessionals(Array.isArray(slot.professional) ? slot.professional : slot.professional ? [slot.professional] : [])
+        } else {
+            setFormData({
+                type: 'class',
+                duration: company?.default_class_duration || 60,
+                notes: '',
+            })
+            setHora('10')
+            setMinutos('00')
+            setSelectedClients([])
+            setSelectedProfessionals([])
+        }
+    }, [slot, company, open])
+
+    const loadClientes = async () => {
+        if (!companyId) return
+
+        try {
+            const records = await pb.collection('users').getFullList<Cliente>({
+                filter: `company = "${companyId}" && role = "client"`,
+                sort: 'name',
+            })
+            setClientes(records)
+        } catch (error) {
+            console.error('Error cargando clientes:', error)
+        }
+    }
+
+    const loadProfesionales = async () => {
+        if (!companyId) return
+
+        try {
+            const records = await pb.collection('users').getFullList({
+                filter: `company = "${companyId}" && role = "professional"`,
+                sort: 'name',
+            })
+            setProfesionales(records)
+        } catch (error) {
+            console.error('Error cargando profesionales:', error)
+        }
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        // Validar límite de clientes
+        if (company?.max_class_assistants && selectedClients.length > company.max_class_assistants) {
+            alert(`El número máximo de clientes es ${company.max_class_assistants}`)
+            return
+        }
+
+        try {
+            setLoading(true)
+
+            // Crear una fecha para el día de la semana especificado
+            const today = new Date()
+            const diff = dayOfWeek - today.getDay()
+            const targetDate = new Date(today)
+            targetDate.setDate(today.getDate() + diff)
+            targetDate.setHours(parseInt(hora), parseInt(minutos), 0, 0)
+
+            const data = {
+                type: 'class',
+                datetime: targetDate.toISOString(),
+                duration: formData.duration,
+                client: selectedClients,
+                professional: selectedProfessionals,
+                company: companyId,
+                notes: formData.notes || '',
+            }
+
+            if (slot?.id) {
+                await pb.collection('classes_template').update(slot.id, data)
+            } else {
+                await pb.collection('classes_template').create(data)
+            }
+
+            onSave()
+            onOpenChange(false)
+        } catch (error: any) {
+            console.error('Error al guardar clase:', error)
+            alert(`Error al guardar la clase: ${error?.message || 'Error desconocido'}`)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const toggleClient = (clientId: string) => {
+        setSelectedClients(prev =>
+            prev.includes(clientId)
+                ? prev.filter(id => id !== clientId)
+                : [...prev, clientId]
+        )
+    }
+
+    const toggleProfessional = (profId: string) => {
+        setSelectedProfessionals(prev =>
+            prev.includes(profId)
+                ? prev.filter(id => id !== profId)
+                : [...prev, profId]
+        )
+    }
+
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+
+    return (
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Dumbbell className="h-5 w-5" />
+                            {slot?.id ? 'Editar Plantilla - Clase' : 'Crear Plantilla - Clase'}
+                        </DialogTitle>
+                        <DialogDescription>
+                            Completa los datos de la clase del {dayNames[dayOfWeek]}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <form id="class-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
+                        {/* Hora y Duración */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="hora">Hora *</Label>
+                                <div className="flex gap-2">
+                                    <Select value={hora} onValueChange={setHora}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                                                <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+                                                    {h.toString().padStart(2, '0')}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="flex items-center">:</span>
+                                    <Select value={minutos} onValueChange={setMinutos}>
+                                        <SelectTrigger className="flex-1">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {['00', '15', '30', '45'].map((m) => (
+                                                <SelectItem key={m} value={m}>
+                                                    {m}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="duration">Duración (min) *</Label>
+                                <Input
+                                    id="duration"
+                                    type="number"
+                                    min="1"
+                                    value={formData.duration || 60}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        {/* Clientes */}
+                        <div className="space-y-2">
+                            <Label>
+                                Clientes
+                                {company?.max_class_assistants && (
+                                    <span className="text-muted-foreground ml-2">
+                                        ({selectedClients.length}/{company.max_class_assistants})
+                                    </span>
+                                )}
+                            </Label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {selectedClients.map((clientId) => {
+                                    const cliente = clientes.find(c => c.id === clientId)
+                                    return cliente ? (
+                                        <div key={clientId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
+                                            <span>{cliente.name} {cliente.last_name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                className="hover:text-destructive"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ) : null
+                                })}
+                            </div>
+                            <Select
+                                value=""
+                                onValueChange={(value) => {
+                                    if (value && !selectedClients.includes(value)) {
+                                        if (company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
+                                            setShowMaxAssistantsDialog(true)
+                                            return
+                                        }
+                                        setSelectedClients(prev => [...prev, value])
+                                    }
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Añadir cliente" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {clientes.map((cliente) => (
+                                        <SelectItem key={cliente.id} value={cliente.id!}>
+                                            {cliente.name} {cliente.last_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Profesional */}
+                        <div className="space-y-2">
+                            <Label>Profesional *</Label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {selectedProfessionals.map((profId) => {
+                                    const prof = profesionales.find(p => p.id === profId)
+                                    return prof ? (
+                                        <div key={profId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
+                                            <span>{prof.name} {prof.last_name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
+                                                className="hover:text-destructive"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ) : null
+                                })}
+                            </div>
+                            <Select
+                                value=""
+                                onValueChange={(value) => {
+                                    if (value && !selectedProfessionals.includes(value)) {
+                                        setSelectedProfessionals(prev => [...prev, value])
+                                    }
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Añadir profesional" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {profesionales.map((prof) => (
+                                        <SelectItem key={prof.id} value={prof.id}>
+                                            {prof.name} {prof.last_name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Notas */}
+                        <div className="space-y-2">
+                            <Label>Notas</Label>
+                            <RichTextEditor
+                                value={formData.notes || ""}
+                                onChange={(value) => setFormData(prev => ({ ...prev, notes: value }))}
+                            />
+                        </div>
+                    </form>
+
+                    <DialogFooter className="mt-4">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancelar
+                        </Button>
+                        <Button type="submit" form="class-form" disabled={loading}>
+                            {loading ? "Guardando..." : "Guardar"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {showMaxAssistantsDialog && (
+                <div className="fixed bottom-4 right-4 left-4 md:left-auto z-[100] w-auto md:max-w-md animate-in slide-in-from-right">
+                    <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Número máximo de asistentes alcanzado</AlertTitle>
+                        <AlertDescription>
+                            El número máximo de clientes para las clases es {company?.max_class_assistants}.
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            )}
+        </>
+    )
+}
