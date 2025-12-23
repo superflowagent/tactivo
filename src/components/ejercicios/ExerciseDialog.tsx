@@ -260,10 +260,10 @@ export default function ExerciseDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
                 <DialogHeader>
-                    <DialogTitle>{exercise ? "Editar Ejercicio" : "Crear Ejercicio"}</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-xl sm:text-2xl">{exercise ? "Editar Ejercicio" : "Crear Ejercicio"}</DialogTitle>
+                    <DialogDescription className="text-sm">
                         {exercise
                             ? "Modifica los datos del ejercicio"
                             : "Completa los datos del nuevo ejercicio"}
@@ -315,14 +315,14 @@ export default function ExerciseDialog({
                         ) : (
                             <div
                                 className={`w-full border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 transition-colors p-8 text-center group exercise-drag-overlay ${dragOver ? "drag-over" : ""}`}
-                                onDragOver={(e) => { 
-                                    e.preventDefault(); 
-                                    e.stopPropagation(); 
+                                onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     setDragOver(true);
                                 }}
-                                onDragLeave={(e) => { 
-                                    e.preventDefault(); 
-                                    setDragOver(false); 
+                                onDragLeave={(e) => {
+                                    e.preventDefault();
+                                    setDragOver(false);
                                 }}
                                 onDrop={(e) => {
                                     e.preventDefault();

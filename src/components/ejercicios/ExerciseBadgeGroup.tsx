@@ -35,7 +35,12 @@ export function ExerciseBadgeGroup({
   return (
     <div className="flex flex-wrap gap-1">
       {visibleItems.map((item) => (
-        <Badge key={item.id} variant="secondary" className={`text-xs ${bgClass}`}>
+        <Badge
+          key={item.id}
+          variant="secondary"
+          className={`text-xs truncate ${bgClass}`}
+          title={item.name}
+        >
           {item.name}
         </Badge>
       ))}

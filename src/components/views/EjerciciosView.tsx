@@ -144,12 +144,12 @@ export function EjerciciosView() {
 
   if (loading) {
     return (
-      <div className="space-y-4 p-6">
+      <div className="space-y-4 p-4 sm:p-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Ejercicios</h1>
-          <Skeleton className="h-10 w-32" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Ejercicios</h1>
+          <Skeleton className="h-9 w-28" />
         </div>
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {[...Array(6)].map((_, i) => (
             <Card key={i}>
               <Skeleton className="w-full aspect-[9/16]" />
@@ -161,19 +161,20 @@ export function EjerciciosView() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Ejercicios</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl sm:text-3xl font-bold">Ejercicios</h1>
         <ExerciseDialog
           exercise={null}
           anatomy={anatomy}
           equipment={equipment}
           onSuccess={handleDialogClose}
           trigger={
-            <Button>
+            <Button size="sm" className="whitespace-nowrap">
               <Plus className="mr-1 h-4 w-4" />
-              Crear Ejercicio
+              <span className="hidden sm:inline">Crear Ejercicio</span>
+              <span className="sm:hidden">Crear</span>
             </Button>
           }
         />
@@ -181,18 +182,18 @@ export function EjerciciosView() {
 
       {/* Filtros y búsqueda */}
       <div className="space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <Input
             placeholder="Buscar ejercicios..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
+            className="w-full sm:max-w-sm"
           />
           {/* Equipamiento dropdown */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left min-w-56">
-                {selectedEquipment.length > 0 ? `${selectedEquipment.length} equipo(s)` : "Equipamiento"}
+              <Button variant="outline" className="justify-start text-left min-w-40 sm:min-w-56 text-sm">
+                {selectedEquipment.length > 0 ? `${selectedEquipment.length} eq.` : "Equipamiento"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">
@@ -230,8 +231,8 @@ export function EjerciciosView() {
           {/* Anatomía dropdown */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left min-w-56">
-                {selectedAnatomy.length > 0 ? `${selectedAnatomy.length} anatomía(s)` : "Anatomía"}
+              <Button variant="outline" className="justify-start text-left min-w-40 sm:min-w-56 text-sm">
+                {selectedAnatomy.length > 0 ? `${selectedAnatomy.length} anat.` : "Anatomía"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">
@@ -267,7 +268,7 @@ export function EjerciciosView() {
           </Popover>
 
           {(searchTerm || selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
-            <Button variant="outline" onClick={() => { setSearchTerm(""); setSelectedAnatomy([]); setSelectedEquipment([]); }}>Limpiar filtros</Button>
+            <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedAnatomy([]); setSelectedEquipment([]); }}>Limpiar</Button>
           )}
         </div>
 
@@ -306,7 +307,7 @@ export function EjerciciosView() {
             <p className="text-slate-500 text-lg">No hay ejercicios que coincidan con los filtros</p>
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {filteredExercises.map((exercise) => {
               const exerciseAnatomy = anatomy.filter((a) =>
                 exercise.anatomy.includes(a.id)
