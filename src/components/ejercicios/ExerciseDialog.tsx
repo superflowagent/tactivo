@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlertCircle, Plus, X, Image as ImageIcon } from "lucide-react";
+import { AlertCircle, Plus, X, Image as ImageIcon, ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import "./ejercicios.css";
 
@@ -294,7 +294,7 @@ export default function ExerciseDialog({
                     <div className="space-y-2">
                         <Label>Vídeo</Label>
                         {imagePreview ? (
-                            <div className="relative w-32 h-56 bg-slate-100 rounded-lg overflow-hidden">
+                            <div className="relative w-40 h-72 bg-slate-100 rounded-lg overflow-hidden">
                                 <video
                                     src={imagePreview}
                                     className="w-full h-full object-cover"
@@ -373,9 +373,10 @@ export default function ExerciseDialog({
                             <Label>Equipamiento</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-start text-left">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Equipamiento
+                                    <Button variant="outline" className="w-full justify-start text-left gap-1">
+                                        <Plus className="h-4 w-4" />
+                                        <span>Equipamiento</span>
+                                        <ChevronDown className="h-4 w-4 ml-auto" />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80" align="start">
@@ -447,9 +448,10 @@ export default function ExerciseDialog({
                             <Label>Anatomía</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" className="w-full justify-start text-left">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Anatomía
+                                    <Button variant="outline" className="w-full justify-start text-left gap-1">
+                                        <Plus className="h-4 w-4" />
+                                        <span>Anatomía</span>
+                                        <ChevronDown className="h-4 w-4 ml-auto" />
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80" align="start">
