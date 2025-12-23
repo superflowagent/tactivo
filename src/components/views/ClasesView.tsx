@@ -311,7 +311,6 @@ export function ClasesView() {
                             <div className="flex items-start justify-between gap-2">
                                 <div>
                                     <p className="font-semibold text-green-800">Clases propagadas correctamente</p>
-                                    <p className="text-sm mt-1 text-green-700">Clases propagadas al mes seleccionado.</p>
                                 </div>
                                 <button
                                     onClick={() => setShowSuccessAlert(false)}

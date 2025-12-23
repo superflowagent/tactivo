@@ -239,27 +239,25 @@ export function CalendarioView() {
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-        <div className="flex w-full sm:w-auto gap-2">
-          <Input
-            placeholder="Buscar eventos..."
-            className="flex-1 sm:max-w-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-            <SelectTrigger className="w-[140px] sm:w-[200px]">
-              <SelectValue placeholder="Profesional" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los profesionales</SelectItem>
-              {professionals.map((prof) => (
-                <SelectItem key={prof.id} value={prof.id}>
-                  {prof.name} {prof.last_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <Input
+          placeholder="Buscar eventos..."
+          className="max-w-sm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+          <SelectTrigger className="max-w-sm">
+            <SelectValue placeholder="Profesional" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los profesionales</SelectItem>
+            {professionals.map((prof) => (
+              <SelectItem key={prof.id} value={prof.id}>
+                {prof.name} {prof.last_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {(searchQuery || selectedProfessional !== 'all') && (
           <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
             Limpiar filtros
