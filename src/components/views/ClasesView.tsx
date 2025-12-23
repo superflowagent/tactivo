@@ -183,7 +183,7 @@ export function ClasesView() {
                 <Button onClick={() => setPropagateDialogOpen(true)} style={{
                     backgroundColor: 'hsl(var(--class-color))',
                     color: 'white'
-                }} className="hover:opacity-90 transition-opacity">
+                }} className="hover:shadow-md transition-shadow hover:brightness-110">
                     <CalendarRange className="mr-2 h-4 w-4" />
                     Propagar
                 </Button>

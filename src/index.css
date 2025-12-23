@@ -29,6 +29,8 @@
     /* Event colors */
     --class-color: 28, 100%, 50%;
     /* hsl(28, 100%, 50%) */
+    --class-color-light: 28, 100%, 60%;
+    /* hsl(28, 100%, 60%) - lighter for hover */
     --appointment-color: 155, 80%, 44%;
     /* hsl(155, 80%, 44%) */
 
