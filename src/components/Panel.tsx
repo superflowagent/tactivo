@@ -7,8 +7,9 @@ import { ClientesView } from "@/components/views/ClientesView"
 import { ClasesView } from "@/components/views/ClasesView"
 import { ProfesionalesView } from "@/components/views/ProfesionalesView"
 import { AjustesView } from "@/components/views/AjustesView"
+import { EjerciciosView } from "@/components/views/EjerciciosView"
 
-export type ViewType = "calendario" | "clientes" | "clases" | "profesionales" | "ajustes"
+export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
 
 export function Panel() {
   const [currentView, setCurrentView] = useState<ViewType>("calendario")
@@ -17,6 +18,7 @@ export function Panel() {
     calendario: "Calendario",
     clientes: "Clientes",
     clases: "Clases",
+    ejercicios: "Ejercicios",
     profesionales: "Profesionales",
     ajustes: "Ajustes",
   }
@@ -29,6 +31,8 @@ export function Panel() {
         return <ClientesView />
       case "clases":
         return <ClasesView />
+      case "ejercicios":
+        return <EjerciciosView />
       case "profesionales":
         return <ProfesionalesView />
       case "ajustes":
@@ -52,3 +56,4 @@ export function Panel() {
     </SidebarProvider>
   )
 }
+

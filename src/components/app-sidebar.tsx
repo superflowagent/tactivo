@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Calendar, Users, UserStar, Settings, ChevronLeft, ChevronRight, ArrowLeftFromLine, Dumbbell } from "lucide-react"
+import { Calendar, Users, UserStar, Settings, ChevronLeft, ChevronRight, ArrowLeftFromLine, Dumbbell, ListChecks } from "lucide-react"
 import type { ViewType } from "@/App"
 import { useAuth } from "@/contexts/AuthContext"
 import pb from "@/lib/pocketbase"
@@ -68,6 +68,11 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
     {
       title: "Clases",
       view: "clases" as ViewType,
+      icon: ListChecks,
+    },
+    {
+      title: "Ejercicios",
+      view: "ejercicios" as ViewType,
       icon: Dumbbell,
     },
     {

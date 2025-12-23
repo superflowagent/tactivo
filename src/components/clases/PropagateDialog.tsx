@@ -19,6 +19,7 @@ import {
 import { CalendarRange } from "lucide-react"
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
+import { onBatchEventsCreate } from "@/lib/creditManager"
 
 interface PropagateDialogProps {
     open: boolean
@@ -70,26 +71,23 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
         try {
             const month = parseInt(selectedMonth)
             const year = parseInt(selectedYear)
-            let eventsCreated = 0
+            const createdEvents: any[] = []
 
-            // Para cada slot del template
+            // Collect all events to create
             for (const slot of templateSlots) {
                 const templateDate = new Date(slot.datetime)
-                const templateDayOfWeek = templateDate.getDay() // 0=Sunday, 1=Monday, etc.
+                const templateDayOfWeek = templateDate.getDay()
                 const templateHours = templateDate.getHours()
                 const templateMinutes = templateDate.getMinutes()
 
-                // Encontrar todos los días del mes que coincidan con el día de la semana
                 const daysInMonth = new Date(year, month, 0).getDate()
 
                 for (let day = 1; day <= daysInMonth; day++) {
                     const currentDate = new Date(year, month - 1, day)
 
-                    // Si el día de la semana coincide con el del template
                     if (currentDate.getDay() === templateDayOfWeek) {
                         currentDate.setHours(templateHours, templateMinutes, 0, 0)
 
-                        // Crear el evento
                         const eventData = {
                             type: 'class',
                             datetime: currentDate.toISOString(),
@@ -101,10 +99,13 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                         }
 
                         await pb.collection('events').create(eventData)
-                        eventsCreated++
+                        createdEvents.push(eventData)
                     }
                 }
             }
+
+            // Batch adjust credits for all created events
+            await onBatchEventsCreate(createdEvents)
 
             onSuccess()
             onOpenChange(false)
@@ -123,11 +124,17 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
         const year = parseInt(selectedYear)
         const daysInMonth = new Date(year, month, 0).getDate()
         let totalEvents = 0
+        const clientsSet = new Set<string>()
 
-        // Contar cuántos eventos se crearían
+        // Contar cuántos eventos se crearían y recopilar clientes únicos
         for (const slot of templateSlots) {
             const templateDate = new Date(slot.datetime)
             const templateDayOfWeek = templateDate.getDay()
+
+            // Añadir clientes del slot
+            if (slot.client && Array.isArray(slot.client)) {
+                slot.client.forEach(clientId => clientsSet.add(clientId))
+            }
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const currentDate = new Date(year, month - 1, day)
@@ -137,9 +144,14 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
             }
         }
 
+        // Calcular créditos por cliente
+        const creditsPerClient = totalEvents
+
         return {
             totalEvents,
             monthName: months.find(m => m.value === selectedMonth)?.label,
+            clientCount: clientsSet.size,
+            creditsPerClient,
         }
     }
 
@@ -198,10 +210,19 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                     </div>
 
                     {preview && (
-                        <div className="bg-muted p-4 rounded-lg">
-                            <p className="text-sm font-medium">
-                                Se crearán <span className="font-bold text-primary">{preview.totalEvents}</span> clases en {preview.monthName} de {selectedYear}
-                            </p>
+                        <div className="space-y-2">
+                            <div className="bg-muted p-4 rounded-lg">
+                                <p className="text-sm font-medium">
+                                    Se crearán <span className="font-bold text-primary">{preview.totalEvents}</span> clases en {preview.monthName} de {selectedYear}
+                                </p>
+                            </div>
+                            {preview.clientCount > 0 && (
+                                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                                    <p className="text-xs text-blue-800">
+                                        💳 Se deducirán <span className="font-semibold">{preview.creditsPerClient} créditos</span> a cada uno de los {preview.clientCount} cliente(s) asignado(s)
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
