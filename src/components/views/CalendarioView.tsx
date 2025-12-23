@@ -104,12 +104,12 @@ export function CalendarioView() {
           title = expandedClient
             ? `${expandedClient.name} ${expandedClient.last_name}`
             : 'Cita'
-          backgroundColor = 'hsl(var(--chart-2))' // Verde/turquesa
-          borderColor = 'hsl(var(--chart-2))'
+          backgroundColor = 'hsl(var(--appointment-color))'
+          borderColor = 'hsl(var(--appointment-color))'
         } else if (event.type === 'class') {
           title = 'Clase'
-          backgroundColor = 'hsl(var(--chart-5))' // Naranja
-          borderColor = 'hsl(var(--chart-5))'
+          backgroundColor = 'hsl(var(--class-color))'
+          borderColor = 'hsl(var(--class-color))'
         } else if (event.type === 'vacation') {
           // Obtener nombres de todos los profesionales
           const expandedProfessionals = (event as any).expand?.professional
@@ -121,8 +121,8 @@ export function CalendarioView() {
           } else {
             title = 'Vacaciones'
           }
-          backgroundColor = 'hsl(var(--muted-foreground))' // Gris
-          borderColor = 'hsl(var(--muted-foreground))'
+          backgroundColor = 'hsl(var(--vacation-color))'
+          borderColor = 'hsl(var(--vacation-color))'
         }
 
         return {
@@ -251,7 +251,7 @@ export function CalendarioView() {
               <SelectValue placeholder="Profesional" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="all">Todos los profesionales</SelectItem>
               {professionals.map((prof) => (
                 <SelectItem key={prof.id} value={prof.id}>
                   {prof.name} {prof.last_name}

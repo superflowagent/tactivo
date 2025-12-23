@@ -139,8 +139,11 @@ export function ClientesView() {
   const handleSave = async () => {
     // Recargar la lista de clientes
     try {
+      if (!companyId) return
+
       const records = await pb.collection('users').getFullList<Cliente>({
         sort: 'name',
+        filter: `company = "${companyId}" && role = "client"`,
       })
       setClientes(records)
       setFilteredClientes(records)
@@ -186,7 +189,7 @@ export function ClientesView() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-xl border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
@@ -237,7 +240,7 @@ export function ClientesView() {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleEdit(cliente)}
-                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
+                      className="hover:bg-slate-200"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -248,7 +251,7 @@ export function ClientesView() {
                         if (!cliente.id) return;
                         handleDeleteClick(cliente.id);
                       }}
-                      className="hover:bg-slate-200 dark:hover:bg-slate-700"
+                      className="hover:bg-slate-200"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -270,14 +273,14 @@ export function ClientesView() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. El cliente será eliminado permanentemente.
+              Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
