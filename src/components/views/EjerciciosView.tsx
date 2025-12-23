@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -192,8 +192,14 @@ export function EjerciciosView() {
           {/* Equipamiento dropdown */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left min-w-40 sm:min-w-56 text-sm">
-                {selectedEquipment.length > 0 ? `${selectedEquipment.length} eq.` : "Equipamiento"}
+              <Button variant="outline" className="justify-between text-left min-w-40 sm:min-w-56 text-sm">
+                <span>Equipamiento</span>
+                <div className="flex items-center gap-1">
+                  {selectedEquipment.length > 0 && (
+                    <span className="font-medium">{selectedEquipment.length}</span>
+                  )}
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">
@@ -231,8 +237,14 @@ export function EjerciciosView() {
           {/* Anatomía dropdown */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-start text-left min-w-40 sm:min-w-56 text-sm">
-                {selectedAnatomy.length > 0 ? `${selectedAnatomy.length} anat.` : "Anatomía"}
+              <Button variant="outline" className="justify-between text-left min-w-40 sm:min-w-56 text-sm">
+                <span>Anatomía</span>
+                <div className="flex items-center gap-1">
+                  {selectedAnatomy.length > 0 && (
+                    <span className="font-medium">{selectedAnatomy.length}</span>
+                  )}
+                  <ChevronDown className="h-4 w-4" />
+                </div>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72" align="start">
