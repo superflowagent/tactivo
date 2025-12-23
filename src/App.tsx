@@ -4,7 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { LoginView } from '@/components/views/LoginView'
 import { Panel } from '@/components/Panel'
 
-export type ViewType = "calendario" | "clientes" | "profesionales" | "ajustes"
+export type ViewType = "calendario" | "clientes" | "clases" | "profesionales" | "ajustes"
 
 function App() {
   return (
