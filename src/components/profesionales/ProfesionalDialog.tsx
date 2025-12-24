@@ -18,11 +18,21 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, UserStar, X } from "lucide-react"
+import { CalendarIcon, UserStar, X, Mail } from "lucide-react"
 import { cn, shouldAutoFocus } from "@/lib/utils"
 import { error } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Profesional {
     id?: string
@@ -104,6 +114,29 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
         }
         setPhoneError("")
     }, [profesional, open])
+
+    const [resetDialogOpen, setResetDialogOpen] = useState(false)
+    const [sendingReset, setSendingReset] = useState(false)
+
+    const handleSendResetConfirm = async () => {
+        if (!formData.email) {
+            alert('El profesional no tiene email')
+            setResetDialogOpen(false)
+            return
+        }
+        setSendingReset(true)
+        try {
+            // PocketBase: POST /api/collections/users/request-password-reset with body { email }
+            await pb.collection('users').requestPasswordReset(formData.email)
+            setResetDialogOpen(false)
+            alert('Email de restablecimiento enviado')
+        } catch (err) {
+            error('Error al enviar reset password:', err)
+            alert('Error al enviar email de restablecimiento')
+        } finally {
+            setSendingReset(false)
+        }
+    }
 
     const calcularEdad = (fecha: Date) => {
         const hoy = new Date()
@@ -420,10 +453,33 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     </div>
                 </form>
 
+                <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Enviar email de restablecimiento</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Se enviará un email de restablecimiento a <strong>{formData.email}</strong>. ¿Continuar?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleSendResetConfirm}>
+                                {sendingReset ? 'Enviando...' : 'Enviar'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
                 <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Cancelar
                     </Button>
+
+                    <Button type="button" variant="ghost" onClick={() => setResetDialogOpen(true)} disabled={!profesional?.id || !formData.email}>
+                        <Mail className="mr-2 h-4 w-4" />
+                        Enviar reset
+                    </Button>
+
                     <Button type="submit" form="profesional-form" disabled={loading}>
                         {loading ? 'Guardando...' : 'Guardar'}
                     </Button>
