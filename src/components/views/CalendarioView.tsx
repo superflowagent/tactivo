@@ -18,8 +18,8 @@ import type { Event } from '@/types/event'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
-import { normalizeString } from '@/lib/utils'
-import './calendario.css' 
+import { normalizeForSearch } from '@/lib/utils'
+import './calendario.css'
 
 export function CalendarioView() {
   const { companyId } = useAuth()
@@ -61,10 +61,10 @@ export function CalendarioView() {
 
     // Filtrar por búsqueda de texto
     if (searchQuery) {
-      const q = normalizeString(searchQuery)
+      const q = normalizeForSearch(searchQuery)
       filtered = filtered.filter(event => {
-        const titleMatch = event.title && normalizeString(event.title).includes(q)
-        const notesMatch = event.extendedProps?.notes && normalizeString(event.extendedProps.notes).includes(q)
+        const titleMatch = event.title && normalizeForSearch(event.title).includes(q)
+        const notesMatch = event.extendedProps?.notes && normalizeForSearch(event.extendedProps.notes).includes(q)
         return Boolean(titleMatch || notesMatch)
       })
     }

@@ -105,6 +105,9 @@ export function ClasesView() {
         try {
             await pb.collection('classes_template').delete(slotToDelete.id)
             await loadTemplateSlots()
+            // Close class dialog if it's open and clear selection
+            setDialogOpen(false)
+            setSelectedSlot(null)
             setDeleteDialogOpen(false)
             setSlotToDelete(null)
         } catch (err) {

@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { LoginView } from '@/components/views/LoginView'
 import { Panel } from '@/components/Panel'
+import PasswordResetView from '@/components/views/PasswordResetView'
 
 export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
 
@@ -20,6 +21,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/auth/password-reset" element={<PasswordResetView />} />
+          <Route path="/auth/password-reset/:token" element={<PasswordResetView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>

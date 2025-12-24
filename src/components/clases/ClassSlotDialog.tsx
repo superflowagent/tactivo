@@ -437,7 +437,6 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                         onClick={() => {
                                             if (onDeleteRequest) {
                                                 onDeleteRequest(slot)
-                                                onOpenChange(false)
                                             } else {
                                                 handleInternalDelete()
                                             }
