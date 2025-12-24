@@ -9,6 +9,16 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
 import { Pencil, Plus, ChevronDown, Trash } from "lucide-react";
@@ -85,31 +95,48 @@ export function EjerciciosView() {
     loadData();
   }, [loadData]);
 
-  // Delete equipment and anatomy from filters
-  const handleDeleteEquipment = async (id: string) => {
-    if (!confirm('¿Eliminar equipamiento? Esta acción no se puede deshacer.')) return;
-    try {
-      await pb.collection('equipment').delete(id);
-      setEquipment(prev => prev.filter(x => x.id !== id));
-      setSelectedEquipment(prev => prev.filter(i => i !== id));
-      // refresh exercises to reflect removal
-      await loadData();
-    } catch (err) {
-      logError('Error deleting equipment:', err);
-      alert('Error al eliminar equipamiento');
-    }
+  // Delete equipment/anatomy via AlertDialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: "equipment" | "anatomy";
+    name?: string;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const requestDeleteEquipment = (id: string, name?: string) => {
+    setDeleteTarget({ id, type: "equipment", name });
+    setDeleteDialogOpen(true);
   };
 
-  const handleDeleteAnatomy = async (id: string) => {
-    if (!confirm('¿Eliminar anatomía? Esta acción no se puede deshacer.')) return;
+  const requestDeleteAnatomy = (id: string, name?: string) => {
+    setDeleteTarget({ id, type: "anatomy", name });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleteLoading(true);
     try {
-      await pb.collection('anatomy').delete(id);
-      setAnatomy(prev => prev.filter(x => x.id !== id));
-      setSelectedAnatomy(prev => prev.filter(i => i !== id));
+      const collection = deleteTarget.type === "equipment" ? "equipment" : "anatomy";
+      await pb.collection(collection).delete(deleteTarget.id);
+
+      if (deleteTarget.type === "equipment") {
+        setEquipment((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+        setSelectedEquipment((prev) => prev.filter((i) => i !== deleteTarget.id));
+      } else {
+        setAnatomy((prev) => prev.filter((x) => x.id !== deleteTarget.id));
+        setSelectedAnatomy((prev) => prev.filter((i) => i !== deleteTarget.id));
+      }
+
       await loadData();
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
     } catch (err) {
-      logError('Error deleting anatomy:', err);
-      alert('Error al eliminar anatomía');
+      logError("Error deleting:", err);
+      alert("Error al eliminar");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -230,11 +257,11 @@ export function EjerciciosView() {
                           }}
                         />
                         <span className="text-sm">{eq.name}</span>
-                        <ActionButton tooltip="Eliminar equipamiento" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); handleDeleteEquipment(eq.id); }}>
+                        <ActionButton tooltip="Eliminar equipamiento" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); requestDeleteEquipment(eq.id, eq.name); }}>
                           <Trash className="h-3.5 w-3.5" />
                         </ActionButton>
                       </label>
-                    ))} 
+                    ))}
                 </div>
               </div>
             </PopoverContent>
@@ -276,7 +303,7 @@ export function EjerciciosView() {
                           }}
                         />
                         <span className="text-sm">{a.name}</span>
-                        <ActionButton tooltip="Eliminar anatomía" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); handleDeleteAnatomy(a.id); }}>
+                        <ActionButton tooltip="Eliminar anatomía" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); requestDeleteAnatomy(a.id, a.name); }}>
                           <Trash className="h-3.5 w-3.5" />
                         </ActionButton>
                       </label>
@@ -335,12 +362,30 @@ export function EjerciciosView() {
         </div>
       )}
 
+      {/* Delete confirmation dialog for equipment/anatomy */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteTarget?.type === "equipment" ? "¿Eliminar equipamiento?" : "¿Eliminar anatomía?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.name ? `Vas a eliminar "${deleteTarget.name}". Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deleteLoading}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Resultados */}
       <div>
         <p className="text-sm text-slate-600 mb-4">
           {filteredExercises.length} ejercicio{filteredExercises.length !== 1 ? "s" : ""} encontrado{filteredExercises.length !== 1 ? "s" : ""}
         </p>
-
         {filteredExercises.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-slate-500 text-lg">No hay ejercicios que coincidan con los filtros</p>
