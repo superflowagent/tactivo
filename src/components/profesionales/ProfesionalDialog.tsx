@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import {
     Dialog,
@@ -18,8 +18,9 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, UserStar } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { CalendarIcon, UserStar, X } from "lucide-react"
+import { cn, shouldAutoFocus } from "@/lib/utils"
+import { error } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -47,6 +48,7 @@ interface ProfesionalDialogProps {
 
 export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: ProfesionalDialogProps) {
     const { companyId } = useAuth()
+    const nameInputRef = useRef<HTMLInputElement | null>(null)
     const [formData, setFormData] = useState<Profesional>({
         name: "",
         last_name: "",
@@ -58,6 +60,14 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined)
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (open && shouldAutoFocus()) {
+            setTimeout(() => {
+                nameInputRef.current?.focus()
+            }, 50)
+        }
+    }, [open])
     const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const [phoneError, setPhoneError] = useState<string>("")
@@ -179,8 +189,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
             onSave()
             onOpenChange(false)
-        } catch (error) {
-            console.error('Error al guardar profesional:', error)
+        } catch (err) {
+            error('Error al guardar profesional:', err)
             alert('Error al guardar el profesional')
         } finally {
             setLoading(false)
@@ -238,6 +248,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                     value={formData.name || ''}
                                     onChange={(e) => handleChange('name', e.target.value)}
                                     required
+                                    ref={(el: HTMLInputElement) => nameInputRef.current = el}
                                 />
                             </div>
 
@@ -304,18 +315,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                             type="file"
                                             accept="image/*"
                                             className="hidden"
-                                            onChange={(e) => {
-                                                const file = e.target.files?.[0]
-                                                if (file) {
-                                                    setPhotoFile(file)
-                                                    // Crear preview
-                                                    const reader = new FileReader()
-                                                    reader.onloadend = () => {
-                                                        setPhotoPreview(reader.result as string)
-                                                    }
-                                                    reader.readAsDataURL(file)
-                                                }
-                                            }}
+                                            onChange={handlePhotoChange}
                                         />
                                         <label
                                             htmlFor="photo"
@@ -324,20 +324,21 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                             <span>
                                                 {photoFile ? photoFile.name : "Elegir archivo"}
                                             </span>
-                                            {photoFile && (
+                                            {(photoFile || photoPreview) && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
                                                         e.preventDefault()
                                                         setPhotoFile(null)
                                                         setPhotoPreview(null)
-                                                        // Reset file input
+                                                        setFormData(prev => ({ ...prev, photo: '' }))
                                                         const input = document.getElementById('photo') as HTMLInputElement
                                                         if (input) input.value = ''
                                                     }}
-                                                    className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
+                                                    className="ml-2 text-foreground hover:text-destructive p-1 rounded"
+                                                    aria-label="Borrar foto"
                                                 >
-                                                    ×
+                                                    <X className="h-4 w-4" />
                                                 </button>
                                             )}
                                         </label>
@@ -363,55 +364,57 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 />
                             </div>
 
-                            {/* Fecha de nacimiento */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Fecha de Nacimiento</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full justify-start text-left font-normal",
-                                                    !fechaNacimiento && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {fechaNacimiento ? format(fechaNacimiento, "dd/MM/yyyy") : "Seleccionar fecha"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0">
-                                            <Calendar
-                                                mode="single"
-                                                selected={fechaNacimiento}
-                                                onSelect={handleDateSelect}
-                                                captionLayout="dropdown"
-                                                fromYear={1920}
-                                                toYear={new Date().getFullYear()}
-                                                initialFocus
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
+                            {/* Fecha de nacimiento + edad con Notas debajo en toda la fila */}
+                            <div className="col-span-2 space-y-2">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Fecha de Nacimiento</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal h-10",
+                                                        !fechaNacimiento && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {fechaNacimiento ? format(fechaNacimiento, "dd/MM/yyyy") : "Seleccionar fecha"}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={fechaNacimiento}
+                                                    onSelect={handleDateSelect}
+                                                    captionLayout="dropdown"
+                                                    fromYear={1920}
+                                                    toYear={new Date().getFullYear()}
+                                                    initialFocus
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label>Edad</Label>
+                                        <Input
+                                            value={edad !== null ? `${edad} años` : ""}
+                                            disabled
+                                            className="bg-muted h-10"
+                                        />
+                                    </div>
                                 </div>
 
+                                {/* Notas (debajo de fecha, ocupando toda la fila) */}
                                 <div className="space-y-2">
-                                    <Label>Edad</Label>
-                                    <Input
-                                        value={edad !== null ? `${edad} años` : ""}
-                                        disabled
-                                        className="bg-muted"
+                                    <Label htmlFor="notes">Notas</Label>
+                                    <RichTextEditor
+                                        value={formData.notes || ''}
+                                        onChange={(html) => handleChange('notes', html)}
+                                        placeholder="Añade notas sobre el profesional..."
                                     />
                                 </div>
-                            </div>
-
-                            {/* Notas */}
-                            <div className="space-y-2">
-                                <Label htmlFor="notes">Notas</Label>
-                                <RichTextEditor
-                                    value={formData.notes || ''}
-                                    onChange={(html) => handleChange('notes', html)}
-                                    placeholder="Añade notas sobre el profesional..."
-                                />
                             </div>
                         </div>
                     </div>

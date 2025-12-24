@@ -1,4 +1,5 @@
 import pb from './pocketbase'
+import { debug, info, error } from './logger'
 
 interface CreditChange {
     clientId: string
@@ -19,9 +20,9 @@ async function adjustCredits(changes: CreditChange[]): Promise<void> {
                 class_credits: newCredits
             })
 
-            console.log(`💳 Client ${clientId}: ${currentCredits} → ${newCredits}`)
-        } catch (error) {
-            console.error(`Failed to adjust credits for client ${clientId}:`, error)
+            debug(`💳 Client ${clientId}: ${currentCredits} → ${newCredits}`)
+        } catch (err) {
+            error(`Failed to adjust credits for client ${clientId}:`, err)
         }
     })
 
@@ -110,7 +111,7 @@ export async function onBatchEventsCreate(eventsData: any[]): Promise<void> {
     }))
 
     if (changes.length > 0) {
-        console.log(`📊 Batch adjusting credits for ${changes.length} client(s)`)
+        info(`📊 Batch adjusting credits for ${changes.length} client(s)`)
         await adjustCredits(changes)
     }
 }
