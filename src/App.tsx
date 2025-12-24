@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { LoginView } from '@/components/views/LoginView'
 import { Panel } from '@/components/Panel'
 import PasswordResetView from '@/components/views/PasswordResetView'
+import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect'
 
 export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
 
@@ -11,6 +12,9 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        {/* Detect hash-style password reset links and convert to path route */}
+        <HashPasswordResetRedirect />
+
         <Routes>
           <Route path="/" element={<LoginView />} />
           <Route
