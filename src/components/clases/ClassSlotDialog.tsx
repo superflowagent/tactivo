@@ -431,7 +431,19 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                         <div className="flex w-full justify-between">
                             <div>
                                 {slot?.id && (
-                                    <Button type="button" variant="destructive" onClick={() => onDeleteRequest ? onDeleteRequest(slot) : handleInternalDelete()} disabled={loading}>
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() => {
+                                            if (onDeleteRequest) {
+                                                onDeleteRequest(slot)
+                                                onOpenChange(false)
+                                            } else {
+                                                handleInternalDelete()
+                                            }
+                                        }}
+                                        disabled={loading}
+                                    >
                                         Eliminar
                                     </Button>
                                 )}
