@@ -110,19 +110,49 @@ Equipamiento por company. Reglas: `@request.auth.id != "" && @request.auth.role 
 
 ---
 
-## ✉️ Personalizar plantilla de email: restablecer contraseña
+## ✉️ Plantilla de email: restablecer contraseña
 
-He añadido un script para actualizar la plantilla de email de "restablecer contraseña" en PocketBase con contenido en español y un CTA que usa el color **--primary** del tema.
+Las plantillas de correo se gestionan directamente desde la interfaz de administración de PocketBase (Settings → Mail → Templates → Request password reset).
 
-- Script: `scripts/set-pocketbase-email-reset.mjs`
-- Uso (localmente):
-  - Exporta variables de entorno: `PB_URL`, `PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD`
-  - Ejecuta: `node scripts/set-pocketbase-email-reset.mjs` para aplicar la plantilla
-  - Opcional: `node scripts/set-pocketbase-email-reset.mjs --test` enviará un email de prueba al admin (útil para verificar)
+> Nota: anteriormente incluyeron un script (`scripts/set-pocketbase-email-reset.mjs`) para actualizar la plantilla automáticamente y enviar un email de prueba; se ha eliminado del repositorio para evitar duplicidad con la gestión manual en PocketBase.
 
-Notas:
-- El script lee `--primary` desde `src/index.css` y genera un color de respaldo en HEX para compatibilidad con clientes de email.
-- No se ejecuta automáticamente; requiere credenciales de admin y tu confirmación para correrlo en el servidor de producción.
+### Recomendación
+PocketBase expone las variables `{APP_URL}` y `{TOKEN}` en la plantilla de restablecimiento. Para garantizar que el enlace llegue al frontend de Tactivo con el token, construye la URL explícitamente con esas variables.
+
+### Ejemplo (HTML)
+```html
+<!doctype html>
+<html>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color: #111;">
+    <h2>Hola {RECORD:name},</h2>
+    <p>Pulsa el botón de abajo para establecer una nueva contraseña:</p>
+    <p>
+      <a href="{APP_URL}/auth/password-reset/{TOKEN}" style="background-color:#3c83f6;display:inline-block;padding:10px 18px;border-radius:8px;color:#fff;text-decoration:none;font-weight:600;">Restablecer contraseña</a>
+    </p>
+    <p>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
+    <small>{APP_URL}/auth/password-reset/{TOKEN}</small>
+  </body>
+</html>
+```
+
+### Ejemplo (Texto plano)
+```
+Hola {RECORD:name},
+
+Recibimos una solicitud para restablecer tu contraseña. Usa este enlace:
+
+{APP_URL}/auth/password-reset/{TOKEN}
+
+Si no solicitaste este cambio, puedes ignorar este email.
+
+Saludos,
+El equipo de Tactivo
+```
+
+### Notas
+- Asegúrate de que `{APP_URL}` apunte a la URL pública de tu frontend (ej. `https://app.tactivo.es`). Si PocketBase no la tiene configurada, el enlace quedará vacío.
+- En la app el route para reset es `/auth/password-reset/:token` y la vista ya acepta ese `:token` y llama a `pb.collection('users').confirmPasswordReset(token, password, passwordConfirm)`.
+- Prueba enviando un reset real o usa la opción de envío de prueba en PocketBase para verificar que el enlace funciona.
 
 ---
 
