@@ -23,6 +23,7 @@ import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
 import { Pencil, Plus, ChevronDown, Trash } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { normalizeString } from "@/lib/utils";
 
 interface Exercise {
   id: string;
@@ -150,8 +151,8 @@ export function EjerciciosView() {
   const filteredExercises = exercises.filter((exercise) => {
     // Filtro de búsqueda
     const matchesSearch =
-      exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exercise.description.toLowerCase().includes(searchTerm.toLowerCase());
+      normalizeString(exercise.name).includes(normalizeString(searchTerm)) ||
+      normalizeString(exercise.description || '').includes(normalizeString(searchTerm));
 
     if (!matchesSearch) return false;
 
@@ -242,7 +243,7 @@ export function EjerciciosView() {
                 />
                 <div className="max-h-56 overflow-y-auto space-y-1" onWheel={(e) => e.stopPropagation()}>
                   {equipment
-                    .filter((eq) => eq.name.toLowerCase().includes(equipmentFilterQuery.toLowerCase()))
+                    .filter((eq) => normalizeString(eq.name).includes(normalizeString(equipmentFilterQuery)))
                     .map((eq) => (
                       <label key={eq.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
                         <Checkbox
@@ -288,7 +289,7 @@ export function EjerciciosView() {
                 />
                 <div className="max-h-56 overflow-y-auto space-y-1" onWheel={(e) => e.stopPropagation()}>
                   {anatomy
-                    .filter((a) => a.name.toLowerCase().includes(anatomyFilterQuery.toLowerCase()))
+                    .filter((a) => normalizeString(a.name).includes(normalizeString(anatomyFilterQuery)))
                     .map((a) => (
                       <label key={a.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
                         <Checkbox
