@@ -1,24 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import pb from "@/lib/pocketbase";
+import { error as logError } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
+import ActionButton from "@/components/ui/ActionButton";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
-import { Pencil, Trash2, Plus, ChevronDown } from "lucide-react";
+import { Pencil, Plus, ChevronDown } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Exercise {
   id: string;
@@ -54,7 +48,7 @@ export function EjerciciosView() {
   const [anatomyFilterQuery, setAnatomyFilterQuery] = useState("");
   const [equipmentFilterQuery, setEquipmentFilterQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+
 
   // Cargar ejercicios, anatomías y equipamiento
   const loadData = useCallback(async () => {
@@ -80,8 +74,8 @@ export function EjerciciosView() {
         filter: `company = "${user.company}"`,
       });
       setEquipment(equipmentResult as unknown as EquipmentRecord[]);
-    } catch (error) {
-      console.error("Error loading exercises data:", error);
+    } catch (err) {
+      logError("Error loading exercises data:", err);
     } finally {
       setLoading(false);
     }
@@ -125,20 +119,11 @@ export function EjerciciosView() {
     return true;
   });
 
-  // Manejar eliminación
-  const handleDelete = async (exerciseId: string) => {
-    try {
-      await pb.collection("exercises").delete(exerciseId);
-      setExercises(exercises.filter((e) => e.id !== exerciseId));
-    } catch (error) {
-      console.error("Error deleting exercise:", error);
-    }
-  };
+
 
   // Manejar cierre de diálogo
   const handleDialogClose = () => {
     setDialogOpen(false);
-    setEditingExercise(null);
     loadData();
   };
 
@@ -161,20 +146,29 @@ export function EjerciciosView() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      {/* Filtros y búsqueda */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Input
-            placeholder="Buscar ejercicios..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:max-w-sm"
-          />
-          {/* Equipamiento dropdown */}
-          <Popover>
+    <div className="flex flex-1 flex-col gap-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Mobile: Crear encima del searchbar */}
+        <div className="w-full sm:hidden">
+          <Button className="w-full mb-2" onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-0 h-4 w-4" />
+            Crear Ejercicio
+          </Button>
+        </div>
+
+        {/* Search bar */}
+        <Input
+          placeholder="Buscar ejercicios..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="section-search"
+        />
+
+        {/* On mobile: equip + anatomy occupy the same total width as the search */}
+        <div className="w-full sm:w-auto flex gap-2">
+          <div className="flex-1"><Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-between text-left min-w-40 sm:min-w-56 text-sm">
+              <Button variant="outline" className="w-full justify-between text-left text-sm">
                 <span>Equipamiento</span>
                 <div className="flex items-center gap-1">
                   {selectedEquipment.length > 0 && (
@@ -184,8 +178,8 @@ export function EjerciciosView() {
                 </div>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72" align="start">
-              <div className="space-y-3">
+            <PopoverContent className="popover-content-width" align="start">
+              <div className="space-y-1">
                 <Input
                   placeholder="Buscar equipamiento..."
                   value={equipmentFilterQuery}
@@ -196,12 +190,11 @@ export function EjerciciosView() {
                     .filter((eq) => eq.name.toLowerCase().includes(equipmentFilterQuery.toLowerCase()))
                     .map((eq) => (
                       <label key={eq.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="rounded"
+                        <Checkbox
                           checked={selectedEquipment.includes(eq.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onCheckedChange={(checked: boolean | "indeterminate") => {
+                            const isChecked = Boolean(checked)
+                            if (isChecked) {
                               setSelectedEquipment([...selectedEquipment, eq.id]);
                             } else {
                               setSelectedEquipment(selectedEquipment.filter((id) => id !== eq.id));
@@ -214,12 +207,11 @@ export function EjerciciosView() {
                 </div>
               </div>
             </PopoverContent>
-          </Popover>
+          </Popover></div>
 
-          {/* Anatomía dropdown */}
-          <Popover>
+          <div className="flex-1"><Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="justify-between text-left min-w-40 sm:min-w-56 text-sm">
+              <Button variant="outline" className="w-full justify-between text-left text-sm">
                 <span>Anatomía</span>
                 <div className="flex items-center gap-1">
                   {selectedAnatomy.length > 0 && (
@@ -229,8 +221,8 @@ export function EjerciciosView() {
                 </div>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72" align="start">
-              <div className="space-y-3">
+            <PopoverContent className="popover-content-width" align="start">
+              <div className="space-y-1">
                 <Input
                   placeholder="Buscar anatomía..."
                   value={anatomyFilterQuery}
@@ -241,12 +233,11 @@ export function EjerciciosView() {
                     .filter((a) => a.name.toLowerCase().includes(anatomyFilterQuery.toLowerCase()))
                     .map((a) => (
                       <label key={a.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="rounded"
+                        <Checkbox
                           checked={selectedAnatomy.includes(a.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
+                          onCheckedChange={(checked: boolean | "indeterminate") => {
+                            const isChecked = Boolean(checked)
+                            if (isChecked) {
                               setSelectedAnatomy([...selectedAnatomy, a.id]);
                             } else {
                               setSelectedAnatomy(selectedAnatomy.filter((id) => id !== a.id));
@@ -259,50 +250,56 @@ export function EjerciciosView() {
                 </div>
               </div>
             </PopoverContent>
-          </Popover>
+          </Popover></div>
+        </div>
 
-          {(searchTerm || selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
-            <Button variant="outline" size="sm" onClick={() => { setSearchTerm(""); setSelectedAnatomy([]); setSelectedEquipment([]); }}>Limpiar</Button>
-          )}
-          <div className="flex-1" />
+        {(searchTerm || selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
+          <Button variant="outline" onClick={() => { setSearchTerm(""); setSelectedAnatomy([]); setSelectedEquipment([]); }}>Limpiar</Button>
+        )}
+        <div className="flex-1" />
+
+        {/* Desktop create button remains on the right */}
+        <div className="hidden sm:block">
           <ExerciseDialog
             exercise={null}
             anatomy={anatomy}
             equipment={equipment}
             onSuccess={handleDialogClose}
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
             trigger={
-              <Button size="sm" className="whitespace-nowrap">
-                <Plus className="mr-1 h-4 w-4" />
-                <span className="hidden sm:inline">Crear Ejercicio</span>
-                <span className="sm:hidden">Crear</span>
+              <Button className="whitespace-nowrap">
+                <Plus className="mr-0 h-4 w-4" />
+                Crear Ejercicio
               </Button>
             }
           />
         </div>
-
-        {(selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
-          <div className="flex gap-2 flex-wrap">
-            {selectedEquipment.map((id) => {
-              const e = equipment.find((x) => x.id === id);
-              return (
-                <Badge key={id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                  {e?.name}
-                  <button className="ml-1" onClick={() => setSelectedEquipment(selectedEquipment.filter((i) => i !== id))}>×</button>
-                </Badge>
-              );
-            })}
-            {selectedAnatomy.map((id) => {
-              const a = anatomy.find((x) => x.id === id);
-              return (
-                <Badge key={id} variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
-                  {a?.name}
-                  <button className="ml-1" onClick={() => setSelectedAnatomy(selectedAnatomy.filter((i) => i !== id))}>×</button>
-                </Badge>
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      {/* Filtros aplicados */}
+      {(selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
+        <div className="flex gap-2 flex-wrap">
+          {selectedEquipment.map((id) => {
+            const e = equipment.find((x) => x.id === id);
+            return (
+              <Badge key={id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                {e?.name}
+                <button className="ml-1" onClick={() => setSelectedEquipment(selectedEquipment.filter((i) => i !== id))}>×</button>
+              </Badge>
+            );
+          })}
+          {selectedAnatomy.map((id) => {
+            const a = anatomy.find((x) => x.id === id);
+            return (
+              <Badge key={id} variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
+                {a?.name}
+                <button className="ml-1" onClick={() => setSelectedAnatomy(selectedAnatomy.filter((i) => i !== id))}>×</button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
 
       {/* Resultados */}
       <div>
@@ -327,8 +324,8 @@ export function EjerciciosView() {
               return (
                 <Card key={exercise.id} className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
                   {/* Card Header: Título, Edit Button y Badges */}
-                  <CardHeader className="pb-2 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
+                  <CardHeader className="py-2 px-4">
+                    <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
                         {exercise.name}
                       </CardTitle>
@@ -338,19 +335,15 @@ export function EjerciciosView() {
                         equipment={equipment}
                         onSuccess={handleDialogClose}
                         trigger={
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="hover:bg-slate-200"
-                          >
+                          <ActionButton tooltip="Editar ejercicio" aria-label="Editar ejercicio">
                             <Pencil className="h-4 w-4" />
-                          </Button>
+                          </ActionButton>
                         }
                       />
                     </div>
 
                     {/* Badge Area with Overflow Tooltip */}
-                    <div className="space-y-1.5 min-h-12">
+                    <div className="flex flex-col gap-1">
                       {exerciseEquipment.length > 0 && (
                         <ExerciseBadgeGroup
                           items={exerciseEquipment}
@@ -386,31 +379,7 @@ export function EjerciciosView() {
                           />
                         )}
 
-                        {/* Delete Button on Hover */}
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <button className="p-2 rounded-full bg-white/90 hover:bg-red-50 shadow-md transition-colors">
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogTitle>¿Eliminar ejercicio?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Se eliminará "{exercise.name}" de forma permanente.
-                              </AlertDialogDescription>
-                              <div className="flex gap-2 justify-end">
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(exercise.id)}
-                                  className="bg-destructive hover:bg-destructive/90"
-                                >
-                                  Eliminar
-                                </AlertDialogAction>
-                              </div>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
+                        {/* Eliminado: botón eliminar sobre el vídeo en hover */}
                       </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-slate-100">

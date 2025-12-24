@@ -15,13 +15,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import ActionButton from "@/components/ui/ActionButton";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   currentView: ViewType
@@ -32,6 +26,9 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
   const { state, toggleSidebar, isMobile } = useSidebar()
   const { user, logout } = useAuth()
   const isCollapsed = state === "collapsed"
+
+  // Tooltip text for the sidebar toggle. On mobile we always show "Expandir menú" to avoid confusion.
+  const toggleTooltip = isMobile ? "Expandir menú" : (isCollapsed ? "Expandir menú" : "Colapsar menú")
 
   // Generar avatar con iniciales del usuario
   const getUserInitials = () => {
@@ -85,55 +82,55 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
   return (
     <Sidebar {...props} collapsible="icon">
       <SidebarHeader className="p-2">
-        <div className="flex justify-end mb-2">
-          <Button
-            variant="ghost"
-            size="icon"
+        <div className="flex items-center justify-between gap-2">
+          {!isCollapsed && (
+            <div className="flex items-center gap-2 md:gap-3 flex-1">
+              <div
+                className="group/avatar relative flex aspect-square size-12 md:size-14 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground cursor-pointer overflow-hidden flex-shrink-0"
+                onClick={(e) => {
+                  e.preventDefault()
+                  logout()
+                }}
+              >
+                {photoUrl ? (
+                  <>
+                    <img
+                      src={photoUrl}
+                      alt={getFullName()}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                      <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs md:text-sm font-medium">{getUserInitials()}</span>
+                    <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                      <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
+                <span className="text-sm md:text-base font-semibold truncate">Tactivo</span>
+                <span className="text-xs truncate">{getFullName()}</span>
+              </div>
+            </div>
+          )}
+          <ActionButton
+            tooltip={toggleTooltip}
             onClick={toggleSidebar}
-            className="h-8 w-8"
+            className="h-8 w-8 hover:bg-primary hover:text-white flex-shrink-0"
+            aria-label={toggleTooltip}
           >
             {isCollapsed ? (
               <ChevronRight className="h-4 w-4" />
             ) : (
               <ChevronLeft className="h-4 w-4" />
             )}
-          </Button>
+          </ActionButton>
         </div>
-        {!isCollapsed && (
-          <div className="flex items-center gap-2 md:gap-3">
-            <div
-              className="group/avatar relative flex aspect-square size-12 md:size-14 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground cursor-pointer overflow-hidden flex-shrink-0"
-              onClick={(e) => {
-                e.preventDefault()
-                logout()
-              }}
-            >
-              {photoUrl ? (
-                <>
-                  <img
-                    src={photoUrl}
-                    alt={getFullName()}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                    <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="text-xs md:text-sm font-medium">{getUserInitials()}</span>
-                  <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/80 opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                    <ArrowLeftFromLine className="size-3 md:size-4 text-white" />
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
-              <span className="text-sm md:text-base font-semibold truncate">Tactivo</span>
-              <span className="text-xs truncate">{getFullName()}</span>
-            </div>
-          </div>
-        )}
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={mainNavItems} currentView={currentView} onViewChange={onViewChange} />

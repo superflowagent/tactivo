@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import {
     Dialog,
@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Label } from "@/components/ui/label";
+import { error as logError } from "@/lib/logger";
 import { Calendar } from "@/components/ui/calendar"
 import {
     AlertDialog,
@@ -40,8 +41,8 @@ import {
 } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil, Trash } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
+import { cn, shouldAutoFocus } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Cliente } from "@/types/cliente"
 import type { Event } from "@/types/event"
@@ -57,6 +58,7 @@ interface ClienteDialogProps {
 
 export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
     const { companyId } = useAuth()
+    const nameInputRef = useRef<HTMLInputElement | null>(null)
     const [formData, setFormData] = useState<Cliente>({
         name: "",
         last_name: "",
@@ -114,6 +116,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             setEventos([])
         }
         setPhoneError("")
+
+        if (open && shouldAutoFocus()) {
+            // Focus name input when dialog opens (give time for animation)
+            setTimeout(() => {
+                nameInputRef.current?.focus()
+            }, 50)
+        }
     }, [cliente, open])
 
     const calcularEdad = (fecha: Date) => {
@@ -138,7 +147,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             })
             setEventos(records)
         } catch (err) {
-            console.error('Error al cargar eventos:', err)
+            logError('Error al cargar eventos:', err)
         } finally {
             setLoadingEventos(false)
         }
@@ -151,8 +160,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             })
             setSelectedEvent(eventData)
             setEventDialogOpen(true)
-        } catch (error) {
-            console.error('Error cargando evento:', error)
+        } catch (err) {
+            logError('Error cargando evento:', err)
         }
     }
 
@@ -241,13 +250,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             onSave()
             onOpenChange(false)
-        } catch (error: any) {
-            console.error('Error al guardar cliente:', error)
-            console.error('Error completo:', JSON.stringify(error, null, 2))
-            if (error?.response) {
-                console.error('Response data:', error.response)
+        } catch (err: any) {
+            logError('Error al guardar cliente:', err)
+            logError('Error completo:', JSON.stringify(err, null, 2))
+            if (err?.response) {
+                logError('Response data:', err.response)
             }
-            alert(`Error al guardar el cliente: ${error?.message || 'Error desconocido'}`)
+            alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
@@ -262,9 +271,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             onSave()
             onOpenChange(false)
             setShowDeleteDialog(false)
-        } catch (error: any) {
-            console.error('Error al eliminar cliente:', error)
-            alert(`Error al eliminar el cliente: ${error?.message || 'Error desconocido'}`)
+        } catch (err: any) {
+            logError('Error al eliminar cliente:', err)
+            alert(`Error al eliminar el cliente: ${err?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
@@ -317,6 +326,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 value={formData.name}
                                                 onChange={(e) => handleChange('name', e.target.value)}
                                                 required
+                                                ref={(el: HTMLInputElement) => nameInputRef.current = el}
                                             />
                                         </div>
 
@@ -479,7 +489,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                     <Button
                                                         variant="outline"
                                                         className={cn(
-                                                            "w-full justify-start text-left font-normal",
+                                                            "w-full justify-start text-left font-normal h-10",
                                                             !fechaNacimiento && "text-muted-foreground"
                                                         )}
                                                     >
@@ -506,7 +516,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Input
                                                 value={edad !== null ? `${edad} años` : ""}
                                                 disabled
-                                                className="bg-muted"
+                                                className="bg-muted h-10"
                                             />
                                         </div>
                                     </div>

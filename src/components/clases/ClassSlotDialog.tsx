@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react"
-import { format } from "date-fns"
 import {
     Dialog,
     DialogContent,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { Dumbbell, AlertCircle } from "lucide-react"
 import pb from "@/lib/pocketbase"
+import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
@@ -91,8 +91,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
         try {
             const record = await pb.collection('companies').getOne(companyId)
             setCompany(record)
-        } catch (error) {
-            console.error('Error cargando company:', error)
+        } catch (err) {
+            logError('Error cargando company:', err)
         }
     }
 
@@ -132,8 +132,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                 sort: 'name',
             })
             setClientes(records)
-        } catch (error) {
-            console.error('Error cargando clientes:', error)
+        } catch (err) {
+            logError('Error cargando clientes:', err)
         }
     }
 
@@ -146,8 +146,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                 sort: 'name',
             })
             setProfesionales(records)
-        } catch (error) {
-            console.error('Error cargando profesionales:', error)
+        } catch (err) {
+            logError('Error cargando profesionales:', err)
         }
     }
 
@@ -189,28 +189,14 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
             onSave()
             onOpenChange(false)
         } catch (error: any) {
-            console.error('Error al guardar clase:', error)
+            error('Error al guardar clase:', error)
             alert(`Error al guardar la clase: ${error?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
     }
 
-    const toggleClient = (clientId: string) => {
-        setSelectedClients(prev =>
-            prev.includes(clientId)
-                ? prev.filter(id => id !== clientId)
-                : [...prev, clientId]
-        )
-    }
 
-    const toggleProfessional = (profId: string) => {
-        setSelectedProfessionals(prev =>
-            prev.includes(profId)
-                ? prev.filter(id => id !== profId)
-                : [...prev, profId]
-        )
-    }
 
     const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -425,7 +411,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
 
             {showMaxAssistantsDialog && (
                 <div className="fixed bottom-4 right-4 left-4 md:left-auto z-[100] w-auto md:max-w-md animate-in slide-in-from-right">
-                    <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
+                    <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Número máximo de asistentes alcanzado</AlertTitle>
                         <AlertDescription>

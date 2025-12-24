@@ -9,7 +9,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { Input } from "@/components/ui/input";
+import ActionButton from "@/components/ui/ActionButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
 import pb from "@/lib/pocketbase"
+import { debug, error as logError } from '@/lib/logger'
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -52,11 +54,11 @@ export function ClientesView() {
           sort: 'name',
           filter: `company = "${companyId}" && role = "client"`,
         })
-        console.log('Clientes cargados:', records)
+        debug('Clientes cargados:', records)
         setClientes(records)
         setFilteredClientes(records)
       } catch (err: any) {
-        console.error('Error al cargar clientes:', err)
+        logError('Error al cargar clientes:', err)
         const errorMsg = err?.message || 'Error desconocido'
         setError(`Error al cargar los clientes: ${errorMsg}`)
       } finally {
@@ -109,7 +111,7 @@ export function ClientesView() {
       const freshCliente = await pb.collection('users').getOne<Cliente>(cliente.id)
       setSelectedCliente(freshCliente)
     } catch (err) {
-      console.error('Error al cargar cliente:', err)
+      logError('Error al cargar cliente:', err)
       setSelectedCliente(cliente) // Usar datos en cache si falla
     }
     setDialogOpen(true)
@@ -131,7 +133,7 @@ export function ClientesView() {
       setDeleteDialogOpen(false)
       setClienteToDelete(null)
     } catch (err) {
-      console.error('Error al eliminar cliente:', err)
+      logError('Error al eliminar cliente:', err)
       alert('Error al eliminar el cliente')
     }
   }
@@ -148,7 +150,7 @@ export function ClientesView() {
       setClientes(records)
       setFilteredClientes(records)
     } catch (err) {
-      console.error('Error al recargar clientes:', err)
+      logError('Error al recargar clientes:', err)
     }
   }
 
@@ -173,7 +175,7 @@ export function ClientesView() {
       <div className="flex items-center gap-4">
         <Input
           placeholder="Buscar clientes..."
-          className="max-w-sm"
+          className="section-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -236,25 +238,14 @@ export function ClientesView() {
                 <TableCell>{cliente.class_credits || 0}</TableCell>
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(cliente)}
-                      className="hover:bg-slate-200"
-                    >
+                    <ActionButton tooltip="Editar" onClick={() => handleEdit(cliente)} aria-label="Editar cliente">
                       <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        if (!cliente.id) return;
-                        handleDeleteClick(cliente.id);
-                      }}
-                      className="hover:bg-slate-200"
-                    >
+                    </ActionButton>
+                    <ActionButton tooltip="Eliminar" onClick={() => {
+                      if (!cliente.id) return; handleDeleteClick(cliente.id);
+                    }} aria-label="Eliminar cliente">
                       <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </ActionButton>
                   </div>
                 </TableCell>
               </TableRow>

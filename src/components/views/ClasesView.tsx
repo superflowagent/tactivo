@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
+import ActionButton from "@/components/ui/ActionButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -12,8 +13,9 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Dumbbell, Plus, Pencil, Trash, CalendarRange, CheckCircle } from "lucide-react"
+import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from "lucide-react"
 import pb from '@/lib/pocketbase'
+import { error as logError, debug } from '@/lib/logger' 
 import { useAuth } from '@/contexts/AuthContext'
 import type { Event } from '@/types/event'
 import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog'
@@ -56,8 +58,8 @@ export function ClasesView() {
                 expand: 'client,professional',
             })
             setTemplateSlots(records)
-        } catch (error) {
-            console.error('Error cargando slots:', error)
+        } catch (err) {
+            logError('Error cargando slots:', err)
         } finally {
             setLoading(false)
         }
@@ -74,6 +76,23 @@ export function ClasesView() {
         setDialogOpen(true)
     }
 
+    const handleDuplicate = async (slot: Event) => {
+        try {
+            await pb.collection('classes_template').create({
+                datetime: slot.datetime,
+                duration: slot.duration,
+                client: slot.client || [],
+                professional: slot.professional || [],
+                company: slot.company,
+                notes: slot.notes || '',
+            })
+            await loadTemplateSlots()
+        } catch (err) {
+            logError('Error duplicando clase:', err)
+            alert('Error al duplicar la clase')
+        }
+    }
+
     const handleCreate = (dayValue: number) => {
         setSelectedSlot(null)
         setSelectedDay(dayValue)
@@ -88,8 +107,8 @@ export function ClasesView() {
             await loadTemplateSlots()
             setDeleteDialogOpen(false)
             setSlotToDelete(null)
-        } catch (error) {
-            console.error('Error eliminando slot:', error)
+        } catch (err) {
+            logError('Error eliminando slot:', err)
             alert('Error al eliminar la clase')
         }
     }
@@ -169,8 +188,8 @@ export function ClasesView() {
 
             // Recargar los slots
             await loadTemplateSlots()
-        } catch (error) {
-            console.error('Error moviendo clase:', error)
+        } catch (err) {
+            logError('Error moviendo clase:', err)
             alert('Error al mover la clase')
         } finally {
             setDraggedSlot(null)
@@ -180,10 +199,7 @@ export function ClasesView() {
     return (
         <div className="flex flex-1 flex-col gap-4">
             <div className="flex justify-end">
-                <Button onClick={() => setPropagateDialogOpen(true)} style={{
-                    backgroundColor: 'hsl(var(--class-color))',
-                    color: 'white'
-                }} className="hover:shadow-md transition-shadow hover:brightness-110">
+                <Button className="btn-propagate">
                     <CalendarRange className="mr-2 h-4 w-4" />
                     Propagar
                 </Button>
@@ -207,14 +223,9 @@ export function ClasesView() {
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-base font-semibold flex items-center justify-between">
                                                 {day.name}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-7 w-7"
-                                                    onClick={() => handleCreate(day.value)}
-                                                >
+                                                <ActionButton tooltip="Crear plantilla" onClick={() => handleCreate(day.value)}>
                                                     <Plus className="h-4 w-4" />
-                                                </Button>
+                                                </ActionButton>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
@@ -235,27 +246,20 @@ export function ClasesView() {
                                                             <div className="flex items-center justify-between">
                                                                 <p className="font-semibold">{getTime(slot.datetime)}</p>
                                                                 <div className="flex gap-1">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-6 w-6 hover:bg-slate-200"
-                                                                        onClick={() => handleEdit(slot)}
-                                                                    >
-                                                                        <Pencil className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-6 w-6 hover:bg-slate-200"
-                                                                        onClick={() => handleDelete(slot)}
-                                                                    >
-                                                                        <Trash className="h-3 w-3" />
-                                                                    </Button>
+                                                                    <ActionButton tooltip="Editar" onClick={() => handleEdit(slot)} aria-label="Editar plantilla">
+                                                                        <Pencil className="h-4 w-4" />
+                                                                    </ActionButton>
+                                                                    <ActionButton tooltip="Duplicar" onClick={() => handleDuplicate(slot)} aria-label="Duplicar plantilla">
+                                                                        <Copy className="h-4 w-4" />
+                                                                    </ActionButton>
+                                                                    <ActionButton tooltip="Eliminar" onClick={() => handleDelete(slot)} aria-label="Eliminar plantilla">
+                                                                        <Trash className="h-4 w-4" />
+                                                                    </ActionButton>
                                                                 </div>
                                                             </div>
                                                             <div className="text-xs text-muted-foreground space-y-1">
-                                                                <p>⏱️ {slot.duration} min</p>
                                                                 <p>👤 {getProfessionalNames(slot)}</p>
+                                                                <p>⏱️ {slot.duration} min</p>
                                                                 <p>👥 {getClientCount(slot)} clientes</p>
                                                             </div>
                                                         </div>

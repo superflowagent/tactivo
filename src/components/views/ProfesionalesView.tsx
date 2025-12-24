@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ArrowUpDown, UserStar, Pencil, Trash2 } from "lucide-react"
+import { ArrowUpDown, UserStar, Pencil } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -8,7 +8,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
+import ActionButton from "@/components/ui/ActionButton";
 import { Input } from "@/components/ui/input"
 import {
   AlertDialog,
@@ -21,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import pb from "@/lib/pocketbase"
+import { debug, error as logError } from "@/lib/logger";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
 
@@ -62,11 +64,11 @@ export function ProfesionalesView() {
           sort: 'name',
           filter: `company = "${companyId}" && role = "professional"`,
         })
-        console.log('Profesionales cargados:', records)
+        debug('Profesionales cargados:', records)
         setProfesionales(records)
         setFilteredProfesionales(records)
       } catch (err: any) {
-        console.error('Error al cargar profesionales:', err)
+        logError('Error al cargar profesionales:', err)
         const errorMsg = err?.message || 'Error desconocido'
         setError(`Error al cargar los profesionales: ${errorMsg}`)
       } finally {
@@ -119,16 +121,13 @@ export function ProfesionalesView() {
       const freshProfesional = await pb.collection('users').getOne<Profesional>(profesional.id)
       setSelectedProfesional(freshProfesional)
     } catch (err) {
-      console.error('Error al cargar profesional:', err)
+      logError('Error al cargar profesional:', err)
       setSelectedProfesional(profesional) // Usar datos en cache si falla
     }
     setDialogOpen(true)
   }
 
-  const handleDeleteClick = (id: string) => {
-    setProfesionalToDelete(id)
-    setDeleteDialogOpen(true)
-  }
+
 
   const handleDeleteConfirm = async () => {
     if (!profesionalToDelete) return
@@ -141,7 +140,7 @@ export function ProfesionalesView() {
       setDeleteDialogOpen(false)
       setProfesionalToDelete(null)
     } catch (err) {
-      console.error('Error al eliminar profesional:', err)
+      logError('Error al eliminar profesional:', err)
       alert('Error al eliminar el profesional')
     }
   }
@@ -158,7 +157,7 @@ export function ProfesionalesView() {
       setProfesionales(records)
       setFilteredProfesionales(records)
     } catch (err) {
-      console.error('Error al recargar profesionales:', err)
+      logError('Error al recargar profesionales:', err)
     }
   }
 
@@ -183,7 +182,7 @@ export function ProfesionalesView() {
       <div className="flex items-center gap-4">
         <Input
           placeholder="Buscar profesionales..."
-          className="max-w-sm"
+          className="section-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -244,14 +243,9 @@ export function ProfesionalesView() {
                   <div className="flex justify-end gap-0.5">
                     {/* Solo puede editar su propio perfil */}
                     {profesional.id === user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(profesional)}
-                        className="hover:bg-slate-200"
-                      >
+                      <ActionButton tooltip="Editar" onClick={() => handleEdit(profesional)} aria-label="Editar profesional">
                         <Pencil className="h-4 w-4" />
-                      </Button>
+                      </ActionButton>
                     )}
                   </div>
                 </TableCell>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { format } from "date-fns"
 import {
     Dialog,
@@ -37,8 +37,9 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, CalendarPlus, Edit, Trash, AlertCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from "lucide-react"
+import { cn, shouldAutoFocus } from "@/lib/utils"
+import { error as logError, debug } from '@/lib/logger' 
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
@@ -71,8 +72,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
-    const [clientDropdownOpen, setClientDropdownOpen] = useState(false)
-    const [clientSearch, setClientSearch] = useState('')
+        const [clientSearch, setClientSearch] = useState('')
+    const clientSearchRef = useRef<HTMLInputElement | null>(null)
     const [loading, setLoading] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [company, setCompany] = useState<any>(null)
@@ -153,13 +154,21 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             setHorasVacaciones(0)
         }
     }, [event, open, initialDateTime])
+
+    useEffect(() => {
+        if (open && shouldAutoFocus()) {
+            setTimeout(() => {
+                clientSearchRef.current?.focus()
+            }, 50)
+        }
+    }, [open])
     const loadCompany = async () => {
         if (!companyId) return
         try {
             const record = await pb.collection('companies').getOne(companyId)
             setCompany(record)
-        } catch (error) {
-            console.error('Error cargando company:', error)
+        } catch (err) {
+            logError('Error cargando company:', err)
         }
     }
     const loadClientes = async () => {
@@ -171,8 +180,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 sort: 'name',
             })
             setClientes(records)
-        } catch (error) {
-            console.error('Error cargando clientes:', error)
+        } catch (err) {
+            logError('Error cargando clientes:', err)
         }
     }
 
@@ -185,8 +194,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 sort: 'name',
             })
             setProfesionales(records)
-        } catch (error) {
-            console.error('Error cargando profesionales:', error)
+        } catch (err) {
+            logError('Error cargando profesionales:', err)
         }
     }
 
@@ -234,8 +243,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             onSave()
             onOpenChange(false)
-        } catch (error) {
-            console.error('Error al guardar evento:', error)
+        } catch (err) {
+            logError('Error al guardar evento:', err)
             alert('Error al guardar el evento')
         } finally {
             setLoading(false)
@@ -253,9 +262,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             onSave()
             onOpenChange(false)
             setShowDeleteDialog(false)
-        } catch (error: any) {
-            console.error('Error al eliminar evento:', error)
-            alert(`Error al eliminar el evento: ${error?.message || 'Error desconocido'}`)
+        } catch (err: any) {
+            logError('Error al eliminar evento:', err)
+            alert(`Error al eliminar el evento: ${err?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
@@ -446,6 +455,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             value={clientSearch}
                                             onChange={(e) => setClientSearch(e.target.value)}
                                             className="text-sm"
+                                            ref={(el: HTMLInputElement) => clientSearchRef.current = el}
                                         />
                                         {clientSearch && (
                                             <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
@@ -636,7 +646,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             {showMaxAssistantsDialog && (
                 <div className="fixed bottom-4 right-4 left-4 md:left-auto z-[100] w-auto md:max-w-md animate-in slide-in-from-right">
-                    <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
+                    <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Número máximo de asistentes alcanzado</AlertTitle>
                         <AlertDescription>
