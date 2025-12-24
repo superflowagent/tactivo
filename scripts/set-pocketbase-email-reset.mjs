@@ -34,16 +34,16 @@ function buildTemplates({ hsl, hex }) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
   <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color: #111;">
-    <div style="max-width:600px;margin:0 auto;padding:24px;">
-      <h2 style="margin:0 0 8px 0;">Hola,</h2>
-      <p style="margin:0 0 16px 0;">Recibimos una solicitud para restablecer tu contraseña. Pulsa el botón de abajo para establecer una nueva contraseña:</p>
+    <div style="max-width:600px;margin:0 auto;padding:24px;text-align:left;">
+      <h2 style="margin:0 0 8px 0;text-align:left;">Hola,</h2>
+      <p style="margin:0 0 16px 0;text-align:left;">Recibimos una solicitud para restablecer tu contraseña. Pulsa el botón de abajo para establecer una nueva contraseña:</p>
       <p style="margin:18px 0;">
         <a href="{{ .PasswordResetURL }}" style="background-color:${hex};display:inline-block;padding:10px 18px;border-radius:8px;color:#fff;text-decoration:none;font-weight:600;">Restablecer contraseña</a>
       </p>
-      <p style="margin:0 0 8px 0;">Si no solicitaste este cambio, puedes ignorar este email.</p>
-      <p style="margin:16px 0 0 0">Saludos,<br/>El equipo de Tactivo</p>
+      <p style="margin:0 0 8px 0;text-align:left;">Si no solicitaste este cambio, puedes ignorar este email.</p>
+      <p style="margin:16px 0 0 0;text-align:left;">Saludos,<br/>El equipo de Tactivo</p>
       <hr style="margin-top:20px;border:none;border-top:1px solid #eee" />
-      <small style="color:#666">Si el botón no funciona, copia y pega este enlace en tu navegador: {{ .PasswordResetURL }}</small>
+      <small style="color:#666;text-align:left;display:block;">Si el botón no funciona, copia y pega este enlace en tu navegador: {{ .PasswordResetURL }}</small>
     </div>
   </body>
 </html>`
