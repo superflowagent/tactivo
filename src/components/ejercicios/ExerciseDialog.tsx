@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import pb from "@/lib/pocketbase";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { AlertCircle, Plus, X, Image as ImageIcon, ChevronDown } from "lucide-react";
+import { AlertCircle, Plus, Trash, Image as ImageIcon, ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import ActionButton from "@/components/ui/ActionButton";
+import { shouldAutoFocus } from "@/lib/utils";
+import { error as logError } from "@/lib/logger";
 import "./ejercicios.css";
 
 interface Exercise {
@@ -46,7 +50,9 @@ interface ExerciseDialogProps {
     anatomy: AnatomyRecord[];
     equipment: EquipmentRecord[];
     onSuccess: () => void;
-    trigger: React.ReactNode;
+    trigger?: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 export default function ExerciseDialog({
@@ -55,13 +61,18 @@ export default function ExerciseDialog({
     equipment,
     onSuccess,
     trigger,
+    open: openProp,
+    onOpenChange,
 }: ExerciseDialogProps) {
     const { user } = useAuth();
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
+    const open = typeof openProp !== 'undefined' ? openProp : internalOpen;
+    const setOpen = onOpenChange ?? setInternalOpen;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     // Form state
+    const nameInputRef = useRef<HTMLInputElement | null>(null)
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [selectedAnatomy, setSelectedAnatomy] = useState<string[]>([]);
@@ -71,44 +82,56 @@ export default function ExerciseDialog({
     const [removeExistingFile, setRemoveExistingFile] = useState(false);
 
     // Inline creation state
+
+    useEffect(() => {
+        if (open && shouldAutoFocus()) {
+            setTimeout(() => {
+                nameInputRef.current?.focus()
+            }, 50)
+        }
+    }, [open])
     const [anatomySearch, setAnatomySearch] = useState("");
     const [equipmentSearch, setEquipmentSearch] = useState("");
     const [creatingAnatomy, setCreatingAnatomy] = useState(false);
     const [creatingEquipment, setCreatingEquipment] = useState(false);
     const [dragOver, setDragOver] = useState(false);
+    const [localAnatomy, setLocalAnatomy] = useState<AnatomyRecord[]>(anatomy);
+    const [localEquipment, setLocalEquipment] = useState<EquipmentRecord[]>(equipment);
 
     // Filter anatomy and equipment based on search
     const filteredAnatomy = useMemo(() => {
-        if (!anatomySearch) return anatomy;
-        return anatomy.filter((a) =>
+        if (!anatomySearch) return localAnatomy;
+        return localAnatomy.filter((a) =>
             a.name.toLowerCase().includes(anatomySearch.toLowerCase())
         );
-    }, [anatomy, anatomySearch]);
+    }, [localAnatomy, anatomySearch]);
 
     const filteredEquipment = useMemo(() => {
-        if (!equipmentSearch) return equipment;
-        return equipment.filter((e) =>
+        if (!equipmentSearch) return localEquipment;
+        return localEquipment.filter((e) =>
             e.name.toLowerCase().includes(equipmentSearch.toLowerCase())
         );
-    }, [equipment, equipmentSearch]);
+    }, [localEquipment, equipmentSearch]);
 
     // Check if anatomy/equipment creation option should show
     const showCreateAnatomy =
         anatomySearch &&
-        !anatomy.some(
+        !localAnatomy.some(
             (a) => a.name.toLowerCase() === anatomySearch.toLowerCase()
         ) &&
         !creatingAnatomy;
 
     const showCreateEquipment =
         equipmentSearch &&
-        !equipment.some(
+        !localEquipment.some(
             (e) => e.name.toLowerCase() === equipmentSearch.toLowerCase()
         ) &&
         !creatingEquipment;
 
     // Initialize form with exercise data
     useEffect(() => {
+        setLocalAnatomy(anatomy);
+        setLocalEquipment(equipment);
         if (exercise) {
             setName(exercise.name);
             setDescription(exercise.description || "");
@@ -121,7 +144,7 @@ export default function ExerciseDialog({
         } else {
             resetForm();
         }
-    }, [exercise, open]);
+    }, [exercise, open, anatomy, equipment]);
 
     const resetForm = () => {
         setName("");
@@ -137,19 +160,22 @@ export default function ExerciseDialog({
     };
 
     // Inline create anatomy
+    const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+
     const handleCreateAnatomy = async () => {
         if (!user?.company) return;
         setCreatingAnatomy(true);
 
         try {
             const newAnatomy = await pb.collection("anatomy").create({
-                name: anatomySearch.trim(),
+                name: capitalize(anatomySearch.trim()),
                 company: user.company,
             });
+            setLocalAnatomy((prev) => [...prev, newAnatomy as any]);
             setSelectedAnatomy([...selectedAnatomy, newAnatomy.id]);
             setAnatomySearch("");
         } catch (err) {
-            console.error("Error creating anatomy:", err);
+            logError("Error creating anatomy:", err);
             setError("Error creating anatomy");
         } finally {
             setCreatingAnatomy(false);
@@ -163,13 +189,14 @@ export default function ExerciseDialog({
 
         try {
             const newEquipment = await pb.collection("equipment").create({
-                name: equipmentSearch.trim(),
+                name: capitalize(equipmentSearch.trim()),
                 company: user.company,
             });
+            setLocalEquipment((prev) => [...prev, newEquipment as any]);
             setSelectedEquipment([...selectedEquipment, newEquipment.id]);
             setEquipmentSearch("");
         } catch (err) {
-            console.error("Error creating equipment:", err);
+            logError("Error creating equipment:", err);
             setError("Error creating equipment");
         } finally {
             setCreatingEquipment(false);
@@ -250,7 +277,7 @@ export default function ExerciseDialog({
             resetForm();
             onSuccess();
         } catch (err) {
-            console.error("Error saving exercise:", err);
+            logError("Error saving exercise:", err);
             setError("Error al guardar el ejercicio");
         } finally {
             setLoading(false);
@@ -259,7 +286,13 @@ export default function ExerciseDialog({
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{trigger}</DialogTrigger>
+            {trigger && onOpenChange ? (
+                // Controlled usage: render trigger that opens via onOpenChange
+                React.isValidElement(trigger) ? React.cloneElement(trigger as any, { onClick: () => onOpenChange(true) }) : trigger
+            ) : (
+                // Uncontrolled usage: let the trigger open the internal dialog
+                trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null
+            )}
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
                 <DialogHeader>
                     <DialogTitle className="text-xl sm:text-2xl">{exercise ? "Editar Ejercicio" : "Crear Ejercicio"}</DialogTitle>
@@ -272,7 +305,7 @@ export default function ExerciseDialog({
 
                 <div className="space-y-6">
                     {error && (
-                        <Alert variant="destructive">
+                        <Alert className="border-destructive/50 text-destructive">
                             <AlertCircle className="h-4 w-4" />
                             <AlertDescription>{error}</AlertDescription>
                         </Alert>
@@ -287,6 +320,7 @@ export default function ExerciseDialog({
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             disabled={loading}
+                            ref={(el: HTMLInputElement) => nameInputRef.current = el}
                         />
                     </div>
 
@@ -300,17 +334,18 @@ export default function ExerciseDialog({
                                     className="w-full h-full object-cover"
                                     controls
                                 />
-                                <button
-                                    type="button"
+                                <ActionButton
+                                    tooltip="Eliminar vídeo"
+                                    aria-label="Eliminar vídeo"
                                     onClick={() => {
                                         setImageFile(null);
                                         setImagePreview("");
                                         if (exercise?.file) setRemoveExistingFile(true);
                                     }}
-                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors shadow-md"
+                                    className="absolute top-2 right-2 p-0 bg-[hsl(var(--muted))] transition-none"
                                 >
-                                    <X className="h-4 w-4" />
-                                </button>
+                                    <Trash className="h-4 w-4" />
+                                </ActionButton>
                             </div>
                         ) : (
                             <div
@@ -379,42 +414,41 @@ export default function ExerciseDialog({
                                         <ChevronDown className="h-4 w-4 ml-auto" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80" align="start">
-                                    <div className="space-y-3">
+                                <PopoverContent className="popover-content-width p-2" align="start">
+                                    <div className="space-y-1">
                                         <Input
                                             placeholder="Buscar o crear equipamiento..."
                                             value={equipmentSearch}
                                             onChange={(e) => setEquipmentSearch(e.target.value)}
-                                            autoFocus
+                                            autoFocus={shouldAutoFocus()}
                                         />
-                                        <div className="space-y-2 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
+                                        <div className="space-y-1 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                                             {filteredEquipment.map((e) => (
-                                                <button
-                                                    key={e.id}
-                                                    onClick={() => {
-                                                        if (!selectedEquipment.includes(e.id)) {
-                                                            setSelectedEquipment([...selectedEquipment, e.id]);
-                                                        }
-                                                        setEquipmentSearch("");
-                                                    }}
-                                                    disabled={selectedEquipment.includes(e.id)}
-                                                    className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                                >
-                                                    {e.name}
-                                                </button>
+                                                <label key={e.id} className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer text-sm">
+                                                    <Checkbox
+                                                        checked={selectedEquipment.includes(e.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            const isChecked = Boolean(checked)
+                                                            if (isChecked) setSelectedEquipment(prev => [...prev, e.id])
+                                                            else setSelectedEquipment(prev => prev.filter(id => id !== e.id))
+                                                            setEquipmentSearch("")
+                                                        }}
+                                                    />
+                                                    <span className={selectedEquipment.includes(e.id) ? 'font-medium' : ''}>{e.name}</span>
+                                                </label>
                                             ))}
                                             {showCreateEquipment && (
                                                 <button
                                                     onClick={handleCreateEquipment}
                                                     disabled={creatingEquipment}
-                                                    className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-sm disabled:opacity-50"
+                                                    className="w-full text-left px-2 py-1 rounded hover:bg-slate-100 text-sm disabled:opacity-50"
                                                 >
                                                     {creatingEquipment ? (
                                                         "Creando..."
                                                     ) : (
                                                         <>
                                                             <Plus className="h-3 w-3 inline mr-1" />
-                                                            Crear '{equipmentSearch}'
+                                                            Crear "{equipmentSearch}"
                                                         </>
                                                     )}
                                                 </button>
@@ -426,7 +460,7 @@ export default function ExerciseDialog({
                             {selectedEquipment.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {selectedEquipment.map((id) => {
-                                        const e = equipment.find((x) => x.id === id);
+                                        const e = localEquipment.find((x) => x.id === id);
                                         return (
                                             <Badge key={id} variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
                                                 {e?.name}
@@ -454,42 +488,41 @@ export default function ExerciseDialog({
                                         <ChevronDown className="h-4 w-4 ml-auto" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80" align="start">
-                                    <div className="space-y-3">
+                                <PopoverContent className="popover-content-width p-2" align="start">
+                                    <div className="space-y-1">
                                         <Input
                                             placeholder="Buscar o crear anatomía..."
                                             value={anatomySearch}
                                             onChange={(e) => setAnatomySearch(e.target.value)}
-                                            autoFocus
+                                            autoFocus={shouldAutoFocus()}
                                         />
-                                        <div className="space-y-2 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
+                                        <div className="space-y-1 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                                             {filteredAnatomy.map((a) => (
-                                                <button
-                                                    key={a.id}
-                                                    onClick={() => {
-                                                        if (!selectedAnatomy.includes(a.id)) {
-                                                            setSelectedAnatomy([...selectedAnatomy, a.id]);
-                                                        }
-                                                        setAnatomySearch("");
-                                                    }}
-                                                    disabled={selectedAnatomy.includes(a.id)}
-                                                    className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                                                >
-                                                    {a.name}
-                                                </button>
+                                                <label key={a.id} className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer text-sm">
+                                                    <Checkbox
+                                                        checked={selectedAnatomy.includes(a.id)}
+                                                        onCheckedChange={(checked) => {
+                                                            const isChecked = Boolean(checked)
+                                                            if (isChecked) setSelectedAnatomy(prev => [...prev, a.id])
+                                                            else setSelectedAnatomy(prev => prev.filter(id => id !== a.id))
+                                                            setAnatomySearch("")
+                                                        }}
+                                                    />
+                                                    <span className={selectedAnatomy.includes(a.id) ? 'font-medium' : ''}>{a.name}</span>
+                                                </label>
                                             ))}
                                             {showCreateAnatomy && (
                                                 <button
                                                     onClick={handleCreateAnatomy}
                                                     disabled={creatingAnatomy}
-                                                    className="w-full text-left px-3 py-2 rounded hover:bg-slate-100 text-sm disabled:opacity-50"
+                                                    className="w-full text-left px-2 py-1 rounded hover:bg-slate-100 text-sm disabled:opacity-50"
                                                 >
                                                     {creatingAnatomy ? (
                                                         "Creando..."
                                                     ) : (
                                                         <>
                                                             <Plus className="h-3 w-3 inline mr-1" />
-                                                            Crear '{anatomySearch}'
+                                                            Crear "{anatomySearch}"
                                                         </>
                                                     )}
                                                 </button>
@@ -501,7 +534,7 @@ export default function ExerciseDialog({
                             {selectedAnatomy.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mt-2">
                                     {selectedAnatomy.map((id) => {
-                                        const a = anatomy.find((x) => x.id === id);
+                                        const a = localAnatomy.find((x) => x.id === id);
                                         return (
                                             <Badge key={id} variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">
                                                 {a?.name}

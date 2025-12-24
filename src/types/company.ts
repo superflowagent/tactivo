@@ -5,6 +5,7 @@ export interface Company {
     class_block_mins: number
     class_unenroll_mins: number
     logo?: string
+    domain?: string
     open_time: string
     close_time: string
     default_appointment_duration: number
