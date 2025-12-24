@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
-import { Pencil, Plus, ChevronDown } from "lucide-react";
+import { Pencil, Plus, ChevronDown, Trash } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Exercise {
@@ -84,6 +84,34 @@ export function EjerciciosView() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Delete equipment and anatomy from filters
+  const handleDeleteEquipment = async (id: string) => {
+    if (!confirm('¿Eliminar equipamiento? Esta acción no se puede deshacer.')) return;
+    try {
+      await pb.collection('equipment').delete(id);
+      setEquipment(prev => prev.filter(x => x.id !== id));
+      setSelectedEquipment(prev => prev.filter(i => i !== id));
+      // refresh exercises to reflect removal
+      await loadData();
+    } catch (err) {
+      logError('Error deleting equipment:', err);
+      alert('Error al eliminar equipamiento');
+    }
+  };
+
+  const handleDeleteAnatomy = async (id: string) => {
+    if (!confirm('¿Eliminar anatomía? Esta acción no se puede deshacer.')) return;
+    try {
+      await pb.collection('anatomy').delete(id);
+      setAnatomy(prev => prev.filter(x => x.id !== id));
+      setSelectedAnatomy(prev => prev.filter(i => i !== id));
+      await loadData();
+    } catch (err) {
+      logError('Error deleting anatomy:', err);
+      alert('Error al eliminar anatomía');
+    }
+  };
 
   const isVideo = (file?: string) => {
     if (!file) return false;
@@ -202,8 +230,11 @@ export function EjerciciosView() {
                           }}
                         />
                         <span className="text-sm">{eq.name}</span>
+                        <ActionButton tooltip="Eliminar equipamiento" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); handleDeleteEquipment(eq.id); }}>
+                          <Trash className="h-3.5 w-3.5" />
+                        </ActionButton>
                       </label>
-                    ))}
+                    ))} 
                 </div>
               </div>
             </PopoverContent>
@@ -245,6 +276,9 @@ export function EjerciciosView() {
                           }}
                         />
                         <span className="text-sm">{a.name}</span>
+                        <ActionButton tooltip="Eliminar anatomía" className="ml-auto" onClick={(evt) => { evt.stopPropagation(); evt.preventDefault(); handleDeleteAnatomy(a.id); }}>
+                          <Trash className="h-3.5 w-3.5" />
+                        </ActionButton>
                       </label>
                     ))}
                 </div>
