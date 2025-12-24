@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
     Select,
     SelectContent,
@@ -16,8 +17,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { CalendarRange } from "lucide-react"
+import { CalendarRange, AlertCircle } from "lucide-react"
 import pb from "@/lib/pocketbase"
+import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { onBatchEventsCreate } from "@/lib/creditManager"
 
@@ -109,8 +111,8 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
 
             onSuccess()
             onOpenChange(false)
-        } catch (error) {
-            console.error('Error al propagar clases:', error)
+        } catch (err) {
+            logError('Error al propagar clases:', err)
             alert('Error al propagar las clases')
         } finally {
             setLoading(false)
@@ -217,11 +219,14 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                                 </p>
                             </div>
                             {preview.clientCount > 0 && (
-                                <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                                    <p className="text-xs text-blue-800">
-                                        💳 Se deducirán <span className="font-semibold">{preview.creditsPerClient} créditos</span> a cada uno de los {preview.clientCount} cliente(s) asignado(s)
-                                    </p>
-                                </div>
+                                <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 [&>svg]:text-destructive">
+                                    <AlertCircle className="h-4 w-4 text-destructive" />
+                                    <AlertDescription>
+                                        <div className="flex items-start gap-2">
+                                            <p className="text-sm">Esta acción deducirá clases a los clientes involucrados.</p>
+                                        </div>
+                                    </AlertDescription>
+                                </Alert>
                             )}
                         </div>
                     )}

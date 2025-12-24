@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Building2, Save, CheckCircle2, HelpCircle } from "lucide-react"
 import pb from "@/lib/pocketbase"
+import { error as logError } from '@/lib/logger'
 import { useAuth } from "@/contexts/AuthContext"
 import type { Company } from "@/types/company"
 
@@ -47,7 +48,7 @@ export function AjustesView() {
         setLogoPreview(pb.files.getURL(record, record.logo))
       }
     } catch (err: any) {
-      console.error('Error al cargar configuración:', err)
+      logError('Error al cargar configuración:', err)
       setError('Error al cargar la configuración de la empresa')
     } finally {
       setLoading(false)
@@ -105,7 +106,7 @@ export function AjustesView() {
       // Recargar datos
       await loadCompany()
     } catch (err: any) {
-      console.error('Error al guardar configuración:', err)
+      logError('Error al guardar configuración:', err)
       setError('Error al guardar la configuración')
     } finally {
       setSaving(false)
@@ -140,7 +141,7 @@ export function AjustesView() {
           </CardHeader>
           <CardContent className="space-y-6">
             {error && (
-              <Alert variant="destructive">
+              <Alert className="border-destructive/50 text-destructive">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}

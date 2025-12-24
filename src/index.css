@@ -29,10 +29,15 @@
     /* Event colors */
     --class-color: 28, 100%, 50%;
     /* hsl(28, 100%, 50%) */
-    --class-color-light: 28, 100%, 60%;
-    /* hsl(28, 100%, 60%) - lighter for hover */
+    --class-color-light: 28, 100%, 65%;
+    /* hsl(28, 100%, 65%) - lighter for hover */
     --appointment-color: 155, 80%, 44%;
     /* hsl(155, 80%, 44%) */
+    --calendar-today: 217, 90%, 92%;
+    /* hsl(217, 90%, 92%) */
+
+    /* Layout helpers */
+    --section-search-width: 20rem;
 
     /* Aliases */
     --card: var(--background);
@@ -54,6 +59,17 @@
     --sidebar-accent-foreground: var(--foreground);
     --sidebar-border: var(--border);
     --sidebar-ring: var(--primary);
+
+    /* On colors */
+    --on-primary: 0 0% 100%;
+    /* white */
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    /* On-accent (text color for accent backgrounds) */
+    --on-accent: 0 0% 0%;
+    /* black */
   }
 
   * {
@@ -109,6 +125,83 @@
 
   .ProseMirror p:last-child {
     margin-bottom: 0;
+  }
+
+  /* Layout helpers */
+  .section-search {
+    max-width: var(--section-search-width);
+    width: 100%;
+  }
+
+  .popover-content-width {
+    width: var(--section-search-width);
+  }
+
+  /* Utilities for event action buttons using theme variables */
+  .btn-propagate {
+    background-color: hsl(var(--class-color));
+    color: hsl(var(--on-primary));
+    transition: background-color .12s ease;
+  }
+
+  .btn-propagate:hover,
+  .btn-propagate:focus-visible {
+    background-color: hsl(var(--class-color-light));
+  }
+
+  /* Action icon (reusable) */
+  .action-icon {
+    height: 1.75rem;
+    /* h-7 */
+    width: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius);
+    transition: background-color .12s ease, color .12s ease, transform .08s ease;
+    outline: none;
+    box-shadow: none;
+    /* No background by default; hover will show accent */
+    background-color: transparent;
+    color: inherit;
+  }
+
+  /* Hover visuals only on devices that support hover (desktop) */
+  @media (hover: hover) and (pointer: fine) {
+
+    .action-icon:hover,
+    .action-icon:focus-visible {
+      background-color: hsl(var(--sidebar-accent));
+      color: hsl(var(--on-accent));
+      border: 1px solid hsl(var(--sidebar-border));
+      box-shadow: var(--shadow-sm);
+    }
+  }
+
+  /* Disable hover visuals on touch devices (mobile) - apply broadly to buttons and interactive elements */
+  @media (hover: none) and (pointer: coarse) {
+
+    .action-icon:hover,
+    .action-icon:focus-visible,
+    button:hover,
+    button:active,
+    [role="button"]:hover,
+    [role="button"]:active,
+    a.button:hover,
+    a[role="button"]:hover {
+      background-color: transparent !important;
+      color: inherit !important;
+      border: none !important;
+      box-shadow: none !important;
+      transform: none !important;
+      filter: none !important;
+      transition: none !important;
+    }
+
+    /* Also remove hover-based focus outlines for touch */
+    :focus:not(:focus-visible) {
+      outline: none !important;
+    }
   }
 
   /* Drag and drop styling */

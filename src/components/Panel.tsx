@@ -1,7 +1,8 @@
 import { useState } from "react"
-import { useAuth } from "@/contexts/AuthContext"
 import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
+import ActionButton from "@/components/ui/ActionButton";
+import { Menu } from "lucide-react"
 import { CalendarioView } from "@/components/views/CalendarioView"
 import { ClientesView } from "@/components/views/ClientesView"
 import { ClasesView } from "@/components/views/ClasesView"
@@ -10,6 +11,20 @@ import { AjustesView } from "@/components/views/AjustesView"
 import { EjerciciosView } from "@/components/views/EjerciciosView"
 
 export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
+
+function MobileHamburgerButton() {
+  const { toggleSidebar } = useSidebar()
+  return (
+    <ActionButton
+      tooltip="Expandir menú"
+      className="md:hidden h-7 w-7"
+      onClick={toggleSidebar}
+      aria-label="Expandir menú"
+    >
+      <Menu className="h-5 w-5" />
+    </ActionButton>
+  )
+}
 
 export function Panel() {
   const [currentView, setCurrentView] = useState<ViewType>("calendario")
@@ -47,7 +62,7 @@ export function Panel() {
       <AppSidebar currentView={currentView} onViewChange={setCurrentView} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-          <SidebarTrigger className="md:hidden" />
+          <MobileHamburgerButton />
           <h1 className="text-xl md:text-2xl font-bold">{viewTitles[currentView]}</h1>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">

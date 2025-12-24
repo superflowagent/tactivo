@@ -1,12 +1,9 @@
-import { useState, useEffect } from 'react'
-import FullCalendar from '@fullcalendar/react'
-import dayGridPlugin from '@fullcalendar/daygrid'
-import timeGridPlugin from '@fullcalendar/timegrid'
-import interactionPlugin from '@fullcalendar/interaction'
-import esLocale from '@fullcalendar/core/locales/es'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+
+const FullCalendarLazy = lazy(() => import('./FullCalendarWrapper'))
 import {
   Select,
   SelectContent,
@@ -16,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { CalendarPlus } from "lucide-react"
 import pb from '@/lib/pocketbase'
+import { error as logError } from '@/lib/logger'
 import type { Event } from '@/types/event'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -52,8 +50,8 @@ export function CalendarioView() {
         sort: 'name',
       })
       setProfessionals(records)
-    } catch (error) {
-      console.error('Error cargando profesionales:', error)
+    } catch (err) {
+      logError('Error cargando profesionales:', err)
     }
   }
 
@@ -144,8 +142,8 @@ export function CalendarioView() {
 
       setEvents(calendarEvents)
       setFilteredEvents(calendarEvents)
-    } catch (error) {
-      console.error('Error cargando eventos:', error)
+    } catch (err) {
+      logError('Error cargando eventos:', err)
     }
   }
 
@@ -167,8 +165,8 @@ export function CalendarioView() {
 
       setSelectedEvent(eventData)
       setDialogOpen(true)
-    } catch (error) {
-      console.error('Error cargando evento:', error)
+    } catch (err) {
+      logError('Error cargando evento:', err)
     }
   }
 
@@ -199,8 +197,8 @@ export function CalendarioView() {
 
       // Recargar eventos
       loadEvents()
-    } catch (error) {
-      console.error('Error moviendo evento:', error)
+    } catch (err) {
+      logError('Error moviendo evento:', err)
       info.revert() // Revertir si falla
     }
   }
@@ -223,8 +221,8 @@ export function CalendarioView() {
 
       // Recargar eventos
       loadEvents()
-    } catch (error) {
-      console.error('Error redimensionando evento:', error)
+    } catch (err) {
+      logError('Error redimensionando evento:', err)
       info.revert() // Revertir si falla
     }
   }
@@ -241,12 +239,12 @@ export function CalendarioView() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
         <Input
           placeholder="Buscar eventos..."
-          className="max-w-sm"
+          className="section-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-          <SelectTrigger className="max-w-sm">
+          <SelectTrigger className="section-search">
             <SelectValue placeholder="Profesional" />
           </SelectTrigger>
           <SelectContent>
@@ -272,39 +270,39 @@ export function CalendarioView() {
 
       <Card>
         <CardContent className="pt-6">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-            initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-            locale={esLocale}
-            headerToolbar={{
-              left: isMobile ? 'prev,next' : 'prev,next today',
-              center: 'title',
-              right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
-            }}
-            buttonText={{
-              today: 'Hoy',
-              month: 'Mes',
-              week: 'Semana',
-              day: 'Día'
-            }}
-            slotMinTime="08:00:00"
-            slotMaxTime="20:00:00"
-            allDaySlot={false}
-            height={isMobile ? "calc(100vh - 340px)" : "calc(100vh - 240px)"}
-            slotDuration="00:30:00"
-            events={filteredEvents}
-            dateClick={handleDateClick}
-            eventClick={handleEventClick}
-            editable={true}
-            selectable={true}
-            selectMirror={true}
-            dayMaxEvents={true}
-            weekends={true}
-            eventDrop={handleEventDrop}
-            eventResize={handleEventResize}
-            titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
-            dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
-          />
+          <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
+            <FullCalendarLazy
+              initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+              headerToolbar={{
+                left: isMobile ? 'prev,next' : 'prev,next today',
+                center: 'title',
+                right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
+              }}
+              buttonText={{
+                today: 'Hoy',
+                month: 'Mes',
+                week: 'Semana',
+                day: 'Día'
+              }}
+              slotMinTime="08:00:00"
+              slotMaxTime="20:00:00"
+              allDaySlot={false}
+              height={isMobile ? "calc(100vh - 120px)" : "calc(100vh - 240px)"}
+              slotDuration="00:30:00"
+              events={filteredEvents}
+              dateClick={handleDateClick}
+              eventClick={handleEventClick}
+              editable={true}
+              selectable={true}
+              selectMirror={true}
+              dayMaxEvents={true}
+              weekends={true}
+              eventDrop={handleEventDrop}
+              eventResize={handleEventResize}
+              titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
+              dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
+            />
+          </Suspense>
         </CardContent>
       </Card>
 

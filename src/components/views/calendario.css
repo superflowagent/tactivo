@@ -99,7 +99,7 @@
 }
 
 .fc .fc-day-today {
-  background-color: hsl(var(--muted)) !important;
+  background-color: hsl(var(--calendar-today)) !important;
 }
 
 /* Eventos */
@@ -159,7 +159,7 @@
   background-color: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .fc .fc-popover-header {
