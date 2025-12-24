@@ -298,6 +298,7 @@ export function ClasesView() {
                 slot={selectedSlot}
                 dayOfWeek={selectedDay}
                 onSave={loadTemplateSlots}
+                onDeleteRequest={(slot) => handleDelete(slot)}
             />
             <PropagateDialog
                 open={propagateDialogOpen}

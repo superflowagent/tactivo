@@ -11,16 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+
 import {
     Select,
     SelectContent,
@@ -42,6 +33,7 @@ interface ClassSlotDialogProps {
     slot?: Event | null
     dayOfWeek: number // 1=Monday, 2=Tuesday, etc.
     onSave: () => void
+    onDeleteRequest?: (slot: Event) => void
 }
 
 export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }: ClassSlotDialogProps) {
@@ -61,7 +53,22 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
     const [clientSearch, setClientSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+
+    const handleInternalDelete = async () => {
+        if (!slot?.id) return
+        if (!confirm('¿Eliminar plantilla? Esta acción no se puede deshacer.')) return
+        try {
+            setLoading(true)
+            await pb.collection('classes_template').delete(slot.id)
+            onSave()
+            onOpenChange(false)
+        } catch (err: any) {
+            logError('Error eliminando plantilla:', err)
+            alert(`Error al eliminar la plantilla: ${err?.message || 'Error desconocido'}`)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
         if (showMaxAssistantsDialog) {
@@ -413,7 +420,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                         <div className="flex w-full justify-between">
                             <div>
                                 {slot?.id && (
-                                    <Button type="button" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={loading}>
+                                    <Button type="button" variant="destructive" onClick={() => onDeleteRequest ? onDeleteRequest(slot) : handleInternalDelete()} disabled={loading}>
                                         Eliminar
                                     </Button>
                                 )}
