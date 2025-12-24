@@ -449,7 +449,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                                 onSave();
                                 onOpenChange(false);
                                 setShowDeleteDialog(false);
-                            } catch (err) {
+                            } catch (err: any) {
                                 logError('Error eliminando plantilla:', err);
                                 alert(`Error al eliminar la plantilla: ${err?.message || 'Error desconocido'}`);
                             } finally {
