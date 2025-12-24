@@ -23,7 +23,7 @@ import ExerciseDialog from "@/components/ejercicios/ExerciseDialog";
 import { ExerciseBadgeGroup } from "@/components/ejercicios/ExerciseBadgeGroup";
 import { Pencil, Plus, ChevronDown, Trash } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { normalizeString } from "@/lib/utils";
+import { normalizeForSearch } from "@/lib/utils";
 
 interface Exercise {
   id: string;
@@ -59,6 +59,31 @@ export function EjerciciosView() {
   const [anatomyFilterQuery, setAnatomyFilterQuery] = useState("");
   const [equipmentFilterQuery, setEquipmentFilterQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  // Exercise deletion state
+  const [exerciseDeleteOpen, setExerciseDeleteOpen] = useState(false);
+  const [exerciseToDelete, setExerciseToDelete] = useState<Exercise | null>(null);
+  const [exerciseDeleteLoading, setExerciseDeleteLoading] = useState(false);
+
+  const requestDeleteExercise = (ex: Exercise) => {
+    setExerciseToDelete(ex);
+    setExerciseDeleteOpen(true);
+  };
+
+  const handleDeleteExerciseConfirm = async () => {
+    if (!exerciseToDelete?.id) return;
+    setExerciseDeleteLoading(true);
+    try {
+      await pb.collection('exercises').delete(exerciseToDelete.id);
+      await loadData();
+      setExerciseDeleteOpen(false);
+      setExerciseToDelete(null);
+    } catch (err) {
+      logError('Error deleting exercise:', err);
+      alert('Error al eliminar ejercicio');
+    } finally {
+      setExerciseDeleteLoading(false);
+    }
+  };
 
 
   // Cargar ejercicios, anatomías y equipamiento
@@ -151,8 +176,8 @@ export function EjerciciosView() {
   const filteredExercises = exercises.filter((exercise) => {
     // Filtro de búsqueda
     const matchesSearch =
-      normalizeString(exercise.name).includes(normalizeString(searchTerm)) ||
-      normalizeString(exercise.description || '').includes(normalizeString(searchTerm));
+      normalizeForSearch(exercise.name).includes(normalizeForSearch(searchTerm)) ||
+      normalizeForSearch(exercise.description || '').includes(normalizeForSearch(searchTerm));
 
     if (!matchesSearch) return false;
 
@@ -243,7 +268,7 @@ export function EjerciciosView() {
                 />
                 <div className="max-h-56 overflow-y-auto space-y-1" onWheel={(e) => e.stopPropagation()}>
                   {equipment
-                    .filter((eq) => normalizeString(eq.name).includes(normalizeString(equipmentFilterQuery)))
+                    .filter((eq) => normalizeForSearch(eq.name).includes(normalizeForSearch(equipmentFilterQuery)))
                     .map((eq) => (
                       <label key={eq.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
                         <Checkbox
@@ -289,7 +314,7 @@ export function EjerciciosView() {
                 />
                 <div className="max-h-56 overflow-y-auto space-y-1" onWheel={(e) => e.stopPropagation()}>
                   {anatomy
-                    .filter((a) => normalizeString(a.name).includes(normalizeString(anatomyFilterQuery)))
+                    .filter((a) => normalizeForSearch(a.name).includes(normalizeForSearch(anatomyFilterQuery)))
                     .map((a) => (
                       <label key={a.id} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-100 cursor-pointer">
                         <Checkbox
@@ -382,6 +407,24 @@ export function EjerciciosView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete confirmation dialog for exercises (from cards) */}
+      <AlertDialog open={exerciseDeleteOpen} onOpenChange={setExerciseDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar ejercicio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {exerciseToDelete?.name ? `Vas a eliminar "${exerciseToDelete.name}". Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteExerciseConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={exerciseDeleteLoading}>
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Resultados */}
       <div>
         <p className="text-sm text-slate-600 mb-4">
@@ -420,6 +463,10 @@ export function EjerciciosView() {
                           </ActionButton>
                         }
                       />
+
+                      <ActionButton tooltip="Eliminar ejercicio" onClick={() => requestDeleteExercise(exercise)} aria-label="Eliminar ejercicio">
+                        <Trash className="h-4 w-4" />
+                      </ActionButton>
                     </div>
 
                     {/* Badge Area with Overflow Tooltip */}
