@@ -173,6 +173,41 @@ export default function ExerciseDialog({
     // Inline create anatomy
     const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
+    // Delete equipment/anatomy
+    const handleDeleteEquipment = async (id: string) => {
+        if (!confirm('¿Eliminar equipamiento? Esta acción no se puede deshacer.')) return;
+        setLoading(true);
+        try {
+            await pb.collection('equipment').delete(id);
+            setLocalEquipment(prev => prev.filter(x => x.id !== id));
+            setEquipment(prev => prev.filter(x => x.id !== id));
+            setSelectedEquipment(prev => prev.filter(i => i !== id));
+            setEquipmentSearch("");
+        } catch (err: any) {
+            logError('Error deleting equipment:', err);
+            setError('Error al eliminar equipamiento');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const handleDeleteAnatomy = async (id: string) => {
+        if (!confirm('¿Eliminar anatomía? Esta acción no se puede deshacer.')) return;
+        setLoading(true);
+        try {
+            await pb.collection('anatomy').delete(id);
+            setLocalAnatomy(prev => prev.filter(x => x.id !== id));
+            setAnatomy(prev => prev.filter(x => x.id !== id));
+            setSelectedAnatomy(prev => prev.filter(i => i !== id));
+            setAnatomySearch("");
+        } catch (err: any) {
+            logError('Error deleting anatomy:', err);
+            setError('Error al eliminar anatomía');
+        } finally {
+            setLoading(false);
+        }
+    }
+
     const handleCreateAnatomy = async () => {
         if (!user?.company) return;
         setCreatingAnatomy(true);
@@ -464,6 +499,14 @@ export default function ExerciseDialog({
                                                         }}
                                                     />
                                                     <span className={selectedEquipment.includes(e.id) ? 'font-medium' : ''}>{e.name}</span>
+
+                                                    <button
+                                                        onClick={(evt) => { evt.stopPropagation(); handleDeleteEquipment(e.id) }}
+                                                        className="ml-auto p-1 rounded hover:bg-red-50 text-red-600"
+                                                        title="Eliminar equipamiento"
+                                                    >
+                                                        <Trash className="h-3 w-3" />
+                                                    </button>
                                                 </label>
                                             ))}
                                             {showCreateEquipment && (
@@ -538,6 +581,14 @@ export default function ExerciseDialog({
                                                         }}
                                                     />
                                                     <span className={selectedAnatomy.includes(a.id) ? 'font-medium' : ''}>{a.name}</span>
+
+                                                    <button
+                                                        onClick={(evt) => { evt.stopPropagation(); handleDeleteAnatomy(a.id) }}
+                                                        className="ml-auto p-1 rounded hover:bg-red-50 text-red-600"
+                                                        title="Eliminar anatomía"
+                                                    >
+                                                        <Trash className="h-3 w-3" />
+                                                    </button>
                                                 </label>
                                             ))}
                                             {showCreateAnatomy && (
