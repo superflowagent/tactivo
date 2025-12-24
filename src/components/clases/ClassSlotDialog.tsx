@@ -12,6 +12,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -51,6 +61,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
     const [clientSearch, setClientSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
     useEffect(() => {
         if (showMaxAssistantsDialog) {
@@ -188,9 +199,9 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
 
             onSave()
             onOpenChange(false)
-        } catch (error: any) {
-            error('Error al guardar clase:', error)
-            alert(`Error al guardar la clase: ${error?.message || 'Error desconocido'}`)
+        } catch (err: any) {
+            logError('Error al guardar clase:', err)
+            alert(`Error al guardar la clase: ${err?.message || 'Error desconocido'}`)
         } finally {
             setLoading(false)
         }
@@ -399,15 +410,57 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }:
                     </form>
 
                     <DialogFooter className="mt-4">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancelar
-                        </Button>
-                        <Button type="submit" form="class-form" disabled={loading}>
-                            {loading ? "Guardando..." : "Guardar"}
-                        </Button>
+                        <div className="flex w-full justify-between">
+                            <div>
+                                {slot?.id && (
+                                    <Button type="button" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={loading}>
+                                        Eliminar
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" form="class-form" disabled={loading}>
+                                    {loading ? "Guardando..." : "Guardar"}
+                                </Button>
+                            </div>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar plantilla?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta acción no se puede deshacer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={async () => {
+                            if (!slot?.id) return;
+                            try {
+                                setLoading(true);
+                                await pb.collection('classes_template').delete(slot.id);
+                                onSave();
+                                onOpenChange(false);
+                                setShowDeleteDialog(false);
+                            } catch (err) {
+                                logError('Error eliminando plantilla:', err);
+                                alert(`Error al eliminar la plantilla: ${err?.message || 'Error desconocido'}`);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {showMaxAssistantsDialog && (
                 <div className="fixed bottom-4 right-4 left-4 md:left-auto z-[100] w-auto md:max-w-md animate-in slide-in-from-right">

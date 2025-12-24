@@ -17,6 +17,16 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertCircle, Plus, Trash, Image as ImageIcon, ChevronDown } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import ActionButton from "@/components/ui/ActionButton";
 import { shouldAutoFocus } from "@/lib/utils";
@@ -70,6 +80,7 @@ export default function ExerciseDialog({
     const setOpen = onOpenChange ?? setInternalOpen;
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     // Form state
     const nameInputRef = useRef<HTMLInputElement | null>(null)
@@ -284,7 +295,25 @@ export default function ExerciseDialog({
         }
     };
 
+    const handleDelete = async () => {
+        if (!exercise?.id) return;
+        setLoading(true);
+        try {
+            await pb.collection('exercises').delete(exercise.id);
+            setShowDeleteDialog(false);
+            setOpen(false);
+            resetForm();
+            onSuccess();
+        } catch (err) {
+            logError('Error deleting exercise:', err);
+            alert(`Error al eliminar el ejercicio: ${err?.message || 'Error desconocido'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
+        <>
         <Dialog open={open} onOpenChange={setOpen}>
             {trigger && onOpenChange ? (
                 // Controlled usage: render trigger that opens via onOpenChange
@@ -553,23 +582,55 @@ export default function ExerciseDialog({
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 justify-end pt-4 border-t">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setOpen(false);
-                                resetForm();
-                            }}
-                            disabled={loading}
-                        >
-                            Cancelar
-                        </Button>
-                        <Button onClick={handleSave} disabled={loading}>
-                            {loading ? "Guardando..." : "Guardar"}
-                        </Button>
+                    <div className="flex w-full justify-between pt-4 border-t">
+                        <div>
+                            {exercise?.id && (
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    onClick={() => setShowDeleteDialog(true)}
+                                    disabled={loading}
+                                >
+                                    Eliminar
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setOpen(false);
+                                    resetForm();
+                                }}
+                                disabled={loading}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button onClick={handleSave} disabled={loading}>
+                                {loading ? "Guardando..." : "Guardar"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Eliminar ejercicio?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Eliminar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+        </>
     );
 }
