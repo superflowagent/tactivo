@@ -304,7 +304,7 @@ export default function ExerciseDialog({
             setOpen(false);
             resetForm();
             onSuccess();
-        } catch (err) {
+        } catch (err: any) {
             logError('Error deleting exercise:', err);
             alert(`Error al eliminar el ejercicio: ${err?.message || 'Error desconocido'}`);
         } finally {
