@@ -18,7 +18,8 @@ import type { Event } from '@/types/event'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
-import './calendario.css'
+import { normalizeString } from '@/lib/utils'
+import './calendario.css' 
 
 export function CalendarioView() {
   const { companyId } = useAuth()
@@ -60,11 +61,11 @@ export function CalendarioView() {
 
     // Filtrar por búsqueda de texto
     if (searchQuery) {
+      const q = normalizeString(searchQuery)
       filtered = filtered.filter(event => {
-        const query = searchQuery.toLowerCase()
-        const titleMatch = event.title?.toLowerCase().includes(query)
-        const notesMatch = event.extendedProps?.notes?.toLowerCase().includes(query)
-        return titleMatch || notesMatch
+        const titleMatch = event.title && normalizeString(event.title).includes(q)
+        const notesMatch = event.extendedProps?.notes && normalizeString(event.extendedProps.notes).includes(q)
+        return Boolean(titleMatch || notesMatch)
       })
     }
 
