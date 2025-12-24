@@ -144,9 +144,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Si existe domain, usarlo; sino fallback al name y normalizar
       const companyUrlName = company?.domain ? sanitizeDomain(company.domain) : normalizeCompanyName(company?.name || authData.record.company || 'company')
       setCompanyName(companyUrlName)
-    } catch (error: any) {
-      error('Login error:', error)
-      throw error
+    } catch (err: any) {
+      error('Login error:', err)
+      throw err
     }
   }
 
