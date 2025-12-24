@@ -40,7 +40,7 @@ export function LoginView() {
       if (err.message === 'Solo los profesionales pueden acceder al panel') {
         setError(err.message)
       } else if (err.status === 400) {
-        setError('Credenciales incorrectas. Por favor, verifica tu email y contraseña.')
+        setError('Email o contraseña incorrecta')
       } else if (err.status === 0 || err.isAbort) {
         setError('Error de conexión. Verifica tu conexión a internet.')
       } else {
@@ -101,7 +101,7 @@ export function LoginView() {
       {error && (
         <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
           <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-4 w-4 text-destructive" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         </div>
