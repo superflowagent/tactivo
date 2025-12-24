@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { error as logError } from '@/lib/logger'
+import { AlertCircle } from 'lucide-react' 
 
 export function LoginView() {
   const [email, setEmail] = useState('')
@@ -32,9 +33,9 @@ export function LoginView() {
       await login(email, password)
       // La navegación se hará en el useEffect cuando companyName esté disponible
     } catch (err: any) {
-      console.error('Login error:', err)
-      console.error('Error status:', err.status)
-      console.error('Error data:', err.data)
+      logError('Login error:', err)
+      logError('Error status:', err.status)
+      logError('Error data:', err.data)
 
       if (err.message === 'Solo los profesionales pueden acceder al panel') {
         setError(err.message)
@@ -99,7 +100,7 @@ export function LoginView() {
       {/* Alert en esquina inferior derecha */}
       {error && (
         <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
-          <Alert variant="destructive" className="[&>svg]:top-3.5 [&>svg+div]:translate-y-0">
+          <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
