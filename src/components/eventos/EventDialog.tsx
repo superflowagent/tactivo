@@ -39,7 +39,7 @@ import {
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from "lucide-react"
 import { cn, shouldAutoFocus } from "@/lib/utils"
-import { error as logError, debug } from '@/lib/logger' 
+import { error as logError } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
@@ -72,7 +72,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
-        const [clientSearch, setClientSearch] = useState('')
+    const [clientSearch, setClientSearch] = useState('')
     const clientSearchRef = useRef<HTMLInputElement | null>(null)
     const [loading, setLoading] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
