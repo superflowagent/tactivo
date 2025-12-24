@@ -1,7 +1,11 @@
+# Track media files with Git LFS
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.mov filter=lfs diff=lfs merge=lfs -text
 *.webm filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.jpeg filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
+*.gif filter=lfs diff=lfs merge=lfs -text
+public/test_exercises/* filter=lfs diff=lfs merge=lfs -text
+public/test_equipment/* filter=lfs diff=lfs merge=lfs -text
 public/landing/exercises/* !text !filter !merge !diff
