@@ -38,31 +38,26 @@ export function ExerciseBadgeGroup({
                 <Badge
                     key={item.id}
                     variant="secondary"
-                    className={`text-xs truncate ${bgClass}`}
-                    title={item.name}
+                    className={`text-xs truncate ${bgClass} cursor-default`}
+
                 >
                     {item.name}
                 </Badge>
             ))}
             {hasOverflow && (
-                <TooltipProvider>
+                <TooltipProvider delayDuration={0}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Badge
-                                variant="secondary"
-                                className={`text-xs cursor-help ${bgClass}`}
+                            <button
+                                type="button"
+                                aria-label={`Mostrar ${hiddenItems.length} elementos`}
+                                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-normal ${bgClass} cursor-default`}
                             >
                                 +{hiddenItems.length}
-                            </Badge>
+                            </button>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                            <div className="space-y-1">
-                                {hiddenItems.map((item) => (
-                                    <div key={item.id} className="text-sm">
-                                        {item.name}
-                                    </div>
-                                ))}
-                            </div>
+                        <TooltipContent className={`${color === 'orange' ? 'bg-orange-100 border-orange-200' : 'bg-blue-100 border-blue-200'} border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default`}>
+                            {hiddenItems.map(i => i.name).join(', ')}
                         </TooltipContent>
                     </Tooltip>
                 </TooltipProvider>

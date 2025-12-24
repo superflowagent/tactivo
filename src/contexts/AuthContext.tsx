@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import pb from '@/lib/pocketbase'
+import { error, debug, info } from '@/lib/logger'
 
 interface User {
   id: string
@@ -42,6 +43,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .replace(/[^a-z0-9-]/g, '') // Eliminar caracteres especiales excepto guiones
   }
 
+  // Sanitizar un dominio (ej: https://example.com/path -> example.com)
+  const sanitizeDomain = (domain: string): string => {
+    try {
+      // Quitar protocolo si existe
+      let d = domain.replace(/^https?:\/\//i, '')
+      // Quedarse solo con el hostname
+      d = d.split('/')[0]
+      // Lowercase y eliminar caracteres raros
+      return d.toLowerCase().replace(/[^a-z0-9.-]/g, '')
+    } catch {
+      return domain.toLowerCase().replace(/[^a-z0-9.-]/g, '')
+    }
+  }
+
+  const getCompanyUrlName = (companyData: any) => {
+    if (!companyData) return 'company'
+    if (companyData.domain) return sanitizeDomain(companyData.domain)
+    if (companyData.name) return normalizeCompanyName(companyData.name)
+    return 'company'
+  }
+
   const checkAuth = async () => {
     try {
       if (pb.authStore.isValid && pb.authStore.model) {
@@ -67,15 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           })
           // Guardar el ID de la compañía
           setCompanyId(userData.company)
-          // Normalizar el nombre de la compañía para la URL
-          const companyUrlName = companyData?.name ? normalizeCompanyName(companyData.name) : 'company'
+          // Obtener la URL de la compañía (domain si existe, si no normalizar name)
+          const companyUrlName = getCompanyUrlName(companyData)
           setCompanyName(companyUrlName)
         } else {
           pb.authStore.clear()
         }
       }
-    } catch (error) {
-      console.error('Error checking auth:', error)
+    } catch (err) {
+      error('Error checking auth:', err)
       pb.authStore.clear()
     } finally {
       setIsLoading(false)
@@ -103,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           company = await pb.collection('companies').getOne(authData.record.company)
         } catch (err) {
-          console.error('Error obteniendo compañía:', err)
+          error('Error obteniendo compañía:', err)
         }
       }
 
@@ -119,12 +141,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Guardar el ID de la compañía
       setCompanyId(authData.record.company)
-      // Si no se pudo obtener el nombre de la compañía, usar el ID como fallback
-      const companyName = company?.name || authData.record.company || 'company'
-      const companyUrlName = normalizeCompanyName(companyName)
+      // Si existe domain, usarlo; sino fallback al name y normalizar
+      const companyUrlName = company?.domain ? sanitizeDomain(company.domain) : normalizeCompanyName(company?.name || authData.record.company || 'company')
       setCompanyName(companyUrlName)
     } catch (error: any) {
-      console.error('Login error:', error)
+      error('Login error:', error)
       throw error
     }
   }
