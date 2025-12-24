@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Calendar } from "@/components/ui/calendar"
 import {
     Popover,
@@ -18,21 +19,13 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, UserStar, X, Mail } from "lucide-react"
+import { CalendarIcon, UserStar, X, Mail, CheckCircle } from "lucide-react"
+import { createPortal } from "react-dom"
 import { cn, shouldAutoFocus } from "@/lib/utils"
 import { error } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+
 
 interface Profesional {
     id?: string
@@ -115,24 +108,21 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
         setPhoneError("")
     }, [profesional, open])
 
-    const [resetDialogOpen, setResetDialogOpen] = useState(false)
     const [sendingReset, setSendingReset] = useState(false)
+    const [showResetSent, setShowResetSent] = useState(false)
 
     const handleSendResetConfirm = async () => {
         if (!formData.email) {
             alert('El profesional no tiene email')
-            setResetDialogOpen(false)
             return
         }
         setSendingReset(true)
         try {
             // PocketBase: POST /api/collections/users/request-password-reset with body { email }
             await pb.collection('users').requestPasswordReset(formData.email)
-            setResetDialogOpen(false)
-            alert('Email de restablecimiento enviado')
-        } catch (err) {
-            error('Error al enviar reset password:', err)
-            alert('Error al enviar email de restablecimiento')
+            // show success alert
+            setShowResetSent(true)
+            setTimeout(() => setShowResetSent(false), 5000)
         } finally {
             setSendingReset(false)
         }
@@ -258,8 +248,9 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <div className="flex items-center gap-2">
                         <UserStar className="h-5 w-5" />
@@ -270,8 +261,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     </DialogDescription>
                 </DialogHeader>
 
-                <form id="profesional-form" onSubmit={handleSubmit}>
-                    <div className="space-y-6 py-4">
+                <form id="profesional-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1 mt-4">
+                    <div className="space-y-4">
                         {/* Datos personales */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -324,19 +315,29 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
                         <div className="space-y-2">
                             <Label htmlFor="email">Email *</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email || ''}
-                                onChange={(e) => handleChange('email', e.target.value)}
-                                disabled={!!profesional?.id}
-                                required
-                            />
-                        </div>
-                    </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email || ''}
+                                    onChange={(e) => handleChange('email', e.target.value)}
+                                    disabled={!!profesional?.id}
+                                    required
+                                    className="w-full h-10"
+                                />
 
-                    {/* Campos Opcionales */}
-                    <div className="space-y-4 pt-4 border-t">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleSendResetConfirm}
+                                    disabled={!profesional?.id || !formData.email || sendingReset}
+                                    className="w-full justify-center h-10"
+                                >
+                                    <Mail className="mr-2 h-4 w-4" />
+                                    {sendingReset ? 'Enviando...' : 'Restablecer contraseña'}
+                                </Button>
+                            </div>
+                        </div>
                         {/* Foto y Dirección en la misma línea */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -453,38 +454,45 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     </div>
                 </form>
 
-                <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Enviar email de restablecimiento</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Se enviará un email de restablecimiento a <strong>{formData.email}</strong>. ¿Continuar?
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleSendResetConfirm}>
-                                {sendingReset ? 'Enviando...' : 'Enviar'}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+
 
                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                        Cancelar
-                    </Button>
+                    <div className="flex-1" />
 
-                    <Button type="button" variant="ghost" onClick={() => setResetDialogOpen(true)} disabled={!profesional?.id || !formData.email}>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Enviar reset
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancelar
+                        </Button>
 
-                    <Button type="submit" form="profesional-form" disabled={loading}>
-                        {loading ? 'Guardando...' : 'Guardar'}
-                    </Button>
+                        <Button type="submit" form="profesional-form" disabled={loading}>
+                            {loading ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
+
+
         </Dialog>
+
+        {
+        showResetSent && createPortal(
+            <div className="fixed bottom-4 right-4 z-[99999] w-96 pointer-events-none">
+                <div className="pointer-events-auto">
+                    <Alert variant="success" className="shadow-lg [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertDescription>
+                            <div className="flex items-start gap-2">
+                                <div>
+                                    <p className="font-semibold text-green-800">Email enviado a {formData.email}</p>
+                                </div>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                </div>
+            </div>,
+            document.body
+        )
+    }
+        </>
     )
 }
