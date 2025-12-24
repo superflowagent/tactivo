@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ArrowUpDown, UserPlus, Pencil, Trash2 } from "lucide-react"
+import { ArrowUpDown, UserPlus, Pencil, Trash } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -24,7 +24,7 @@ import {
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
 import pb from "@/lib/pocketbase"
 import { debug, error as logError } from '@/lib/logger'
-import { normalizeString } from '@/lib/utils' 
+import { normalizeForSearch } from '@/lib/utils'
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -75,13 +75,13 @@ export function ClientesView() {
     if (searchQuery.trim() === "") {
       setFilteredClientes(clientes)
     } else {
-      const q = normalizeString(searchQuery)
+      const q = normalizeForSearch(searchQuery)
       const filtered = clientes.filter(cliente =>
-        (cliente.name && normalizeString(cliente.name).includes(q)) ||
-        (cliente.last_name && normalizeString(cliente.last_name).includes(q)) ||
-        (cliente.dni && normalizeString(cliente.dni).includes(q)) ||
-        (cliente.phone && normalizeString(cliente.phone).includes(q)) ||
-        (cliente.email && normalizeString(cliente.email).includes(q))
+        (cliente.name && normalizeForSearch(cliente.name).includes(q)) ||
+        (cliente.last_name && normalizeForSearch(cliente.last_name).includes(q)) ||
+        (cliente.dni && normalizeForSearch(cliente.dni).includes(q)) ||
+        (cliente.phone && normalizeForSearch(cliente.phone).includes(q)) ||
+        (cliente.email && normalizeForSearch(cliente.email).includes(q))
       )
       setFilteredClientes(filtered)
     }
@@ -245,7 +245,7 @@ export function ClientesView() {
                     <ActionButton tooltip="Eliminar" onClick={() => {
                       if (!cliente.id) return; handleDeleteClick(cliente.id);
                     }} aria-label="Eliminar cliente">
-                      <Trash2 className="h-4 w-4" />
+                      <Trash className="h-4 w-4" />
                     </ActionButton>
                   </div>
                 </TableCell>

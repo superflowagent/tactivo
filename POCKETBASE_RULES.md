@@ -110,6 +110,22 @@ Equipamiento por company. Reglas: `@request.auth.id != "" && @request.auth.role 
 
 ---
 
+## ✉️ Personalizar plantilla de email: restablecer contraseña
+
+He añadido un script para actualizar la plantilla de email de "restablecer contraseña" en PocketBase con contenido en español y un CTA que usa el color **--primary** del tema.
+
+- Script: `scripts/set-pocketbase-email-reset.mjs`
+- Uso (localmente):
+  - Exporta variables de entorno: `PB_URL`, `PB_ADMIN_EMAIL`, `PB_ADMIN_PASSWORD`
+  - Ejecuta: `node scripts/set-pocketbase-email-reset.mjs` para aplicar la plantilla
+  - Opcional: `node scripts/set-pocketbase-email-reset.mjs --test` enviará un email de prueba al admin (útil para verificar)
+
+Notas:
+- El script lee `--primary` desde `src/index.css` y genera un color de respaldo en HEX para compatibilidad con clientes de email.
+- No se ejecuta automáticamente; requiere credenciales de admin y tu confirmación para correrlo en el servidor de producción.
+
+---
+
 ## ⚙️ Collection: `equipment`
 
 **CollectionId:** `pbc_3071488795`
