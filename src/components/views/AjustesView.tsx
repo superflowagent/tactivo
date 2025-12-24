@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip"
 import { Building2, Save, CheckCircle2, HelpCircle } from "lucide-react"
 import pb from "@/lib/pocketbase"
-import { debug, error as logError } from '@/lib/logger' 
+import { error as logError } from '@/lib/logger'
 import { useAuth } from "@/contexts/AuthContext"
 import type { Company } from "@/types/company"
 
