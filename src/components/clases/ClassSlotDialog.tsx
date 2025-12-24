@@ -20,6 +20,16 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Dumbbell, AlertCircle } from "lucide-react"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import pb from "@/lib/pocketbase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
@@ -36,7 +46,8 @@ interface ClassSlotDialogProps {
     onDeleteRequest?: (slot: Event) => void
 }
 
-export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave }: ClassSlotDialogProps) {
+export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, onDeleteRequest }: ClassSlotDialogProps) {
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const { companyId } = useAuth()
     const [company, setCompany] = useState<any>(null)
     const [formData, setFormData] = useState<Partial<Event>>({
