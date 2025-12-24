@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import pb from "@/lib/pocketbase"
 import { debug, error as logError } from "@/lib/logger";
+import { normalizeString } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
 
@@ -84,13 +85,13 @@ export function ProfesionalesView() {
     if (searchQuery.trim() === "") {
       setFilteredProfesionales(profesionales)
     } else {
-      const query = searchQuery.toLowerCase()
+      const q = normalizeString(searchQuery)
       const filtered = profesionales.filter(profesional =>
-        (profesional.name && profesional.name.toLowerCase().includes(query)) ||
-        (profesional.last_name && profesional.last_name.toLowerCase().includes(query)) ||
-        (profesional.dni && profesional.dni.toLowerCase().includes(query)) ||
-        (profesional.phone && profesional.phone.toLowerCase().includes(query)) ||
-        (profesional.email && profesional.email.toLowerCase().includes(query))
+        (profesional.name && normalizeString(profesional.name).includes(q)) ||
+        (profesional.last_name && normalizeString(profesional.last_name).includes(q)) ||
+        (profesional.dni && normalizeString(profesional.dni).includes(q)) ||
+        (profesional.phone && normalizeString(profesional.phone).includes(q)) ||
+        (profesional.email && normalizeString(profesional.email).includes(q))
       )
       setFilteredProfesionales(filtered)
     }

@@ -24,6 +24,7 @@ import {
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
 import pb from "@/lib/pocketbase"
 import { debug, error as logError } from '@/lib/logger'
+import { normalizeString } from '@/lib/utils' 
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -74,13 +75,13 @@ export function ClientesView() {
     if (searchQuery.trim() === "") {
       setFilteredClientes(clientes)
     } else {
-      const query = searchQuery.toLowerCase()
+      const q = normalizeString(searchQuery)
       const filtered = clientes.filter(cliente =>
-        (cliente.name && cliente.name.toLowerCase().includes(query)) ||
-        (cliente.last_name && cliente.last_name.toLowerCase().includes(query)) ||
-        (cliente.dni && cliente.dni.toLowerCase().includes(query)) ||
-        (cliente.phone && cliente.phone.toLowerCase().includes(query)) ||
-        (cliente.email && cliente.email.toLowerCase().includes(query))
+        (cliente.name && normalizeString(cliente.name).includes(q)) ||
+        (cliente.last_name && normalizeString(cliente.last_name).includes(q)) ||
+        (cliente.dni && normalizeString(cliente.dni).includes(q)) ||
+        (cliente.phone && normalizeString(cliente.phone).includes(q)) ||
+        (cliente.email && normalizeString(cliente.email).includes(q))
       )
       setFilteredClientes(filtered)
     }

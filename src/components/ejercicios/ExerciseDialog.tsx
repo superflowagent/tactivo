@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import ActionButton from "@/components/ui/ActionButton";
-import { shouldAutoFocus } from "@/lib/utils";
+import { shouldAutoFocus, normalizeString } from "@/lib/utils";
 import { error as logError } from "@/lib/logger";
 import "./ejercicios.css";
 
@@ -113,14 +113,14 @@ export default function ExerciseDialog({
     const filteredAnatomy = useMemo(() => {
         if (!anatomySearch) return localAnatomy;
         return localAnatomy.filter((a) =>
-            a.name.toLowerCase().includes(anatomySearch.toLowerCase())
+            normalizeString(a.name).includes(normalizeString(anatomySearch))
         );
     }, [localAnatomy, anatomySearch]);
 
     const filteredEquipment = useMemo(() => {
         if (!equipmentSearch) return localEquipment;
         return localEquipment.filter((e) =>
-            e.name.toLowerCase().includes(equipmentSearch.toLowerCase())
+            normalizeString(e.name).includes(normalizeString(equipmentSearch))
         );
     }, [localEquipment, equipmentSearch]);
 
