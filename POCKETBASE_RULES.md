@@ -1,16 +1,9 @@
 # PocketBase API Rules — Tactivo
 
-Resumen claro y práctico de las reglas recomendadas para aplicar en PocketBase. Mantén estas reglas en el panel `API Rules` de cada collection y pruébalas con usuarios de distintas compañías.
+**Resumen**: reglas y snippets para configurar las **API Rules** en PocketBase. Enfoca en **aislamiento por company**, control por **roles** y evitar operaciones administrativas desde clientes.
 
 ---
 
-## Resumen rápido
-- Aislamiento por company: siempre validar `@request.auth.company = company` o similar
-- Roles: `professional` (gestiona datos de su company) y `client` (usuarios finales)
-- No permitir operaciones de administración (crear/eliminar companies) desde la app
-- Probar con usuarios de distintas companies para validar el aislamiento
-
----
 
 ## Convenciones
 - `@request.auth.id != ""` → usuario autenticado

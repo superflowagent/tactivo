@@ -7,14 +7,14 @@ import esLocale from '@fullcalendar/core/locales/es'
 
 // Lightweight wrapper so calendar can be lazy-loaded as a separate chunk
 export default function FullCalendarWrapper(props: any) {
-  const { locale = esLocale, events, ...rest } = props
+    const { locale = esLocale, events, ...rest } = props
 
-  return (
-    <FullCalendar
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-      locale={locale}
-      events={events}
-      {...rest}
-    />
-  )
+    return (
+        <FullCalendar
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            locale={locale}
+            events={events}
+            {...rest}
+        />
+    )
 }

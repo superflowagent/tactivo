@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { error as logError } from '@/lib/logger'
-import { AlertCircle } from 'lucide-react' 
+import { AlertCircle } from 'lucide-react'
 
 export function LoginView() {
   const [email, setEmail] = useState('')

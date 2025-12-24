@@ -3,7 +3,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin'
 import tsParser from '@typescript-eslint/parser'
 import { defineConfig } from 'eslint/config'
 
-export default [
+export default defineConfig([
   { ignores: ['dist', 'vite.config.ts'] },
 
   // TypeScript files (use project parser)
@@ -38,6 +38,6 @@ export default [
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
     }
   }
-]
+])
 
 

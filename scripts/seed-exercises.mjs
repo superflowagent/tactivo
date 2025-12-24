@@ -96,7 +96,7 @@ async function upsertByName(pb, collection, name) {
                 requestKey: null,
             });
         return existing;
-    } catch (err) {
+    } catch {
         // not found
     }
     const data = { name, company: COMPANY_ID };
@@ -116,13 +116,13 @@ async function createEquipment(pb, names) {
         try {
             const blob = await loadBlob(filePath, "image/jpeg");
             fd.append("file", blob, fileName);
-        } catch (err) {
+        } catch {
             // file optional; ignore
         }
         try {
             const rec = await pb.collection("equipment").create(fd);
             records.push(rec);
-        } catch (err) {
+        } catch {
             // retry without file if schema disallows file
             try {
                 const rec = await pb.collection("equipment").create({ name, company: COMPANY_ID });
@@ -172,14 +172,14 @@ async function createExercises(pb, names, anatomy, equipment, mediaFiles) {
         try {
             const blob = await loadBlob(videoPath, "video/mp4");
             fd.append("file", blob, videoName);
-        } catch (err) {
+        } catch {
             // optional
         }
 
         try {
             const rec = await pb.collection("exercises").create(fd);
             records.push(rec);
-        } catch (err) {
+        } catch {
             // fallback without file
             try {
                 const rec = await pb.collection("exercises").create({
@@ -203,7 +203,6 @@ async function main() {
     await login(pb);
 
     // Load media filenames
-    const equipmentMedia = await readdir(equipmentMediaDir);
     const exerciseMedia = await readdir(exerciseMediaDir);
 
     const anatomyRecords = await createAnatomy(pb, anatomyNames);

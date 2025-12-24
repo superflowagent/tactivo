@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import pb from '@/lib/pocketbase'
-import { error, debug, info } from '@/lib/logger'
+import { error } from '@/lib/logger'
 
 interface User {
   id: string

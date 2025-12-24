@@ -20,7 +20,7 @@ import {
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, UserStar, X } from "lucide-react"
 import { cn, shouldAutoFocus } from "@/lib/utils"
-import { error, debug } from '@/lib/logger'
+import { error } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
 

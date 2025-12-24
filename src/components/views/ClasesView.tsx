@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from "lucide-react"
 import pb from '@/lib/pocketbase'
-import { error as logError, debug } from '@/lib/logger' 
+import { error as logError } from '@/lib/logger'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Event } from '@/types/event'
 import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog'
