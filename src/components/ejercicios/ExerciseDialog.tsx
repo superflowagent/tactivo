@@ -498,13 +498,7 @@ export default function ExerciseDialog({
                                                         />
                                                         <span className={selectedEquipment.includes(e.id) ? 'font-medium' : ''}>{e.name}</span>
 
-                                                        <button
-                                                            onClick={(evt) => { evt.stopPropagation(); handleDeleteEquipment(e.id) }}
-                                                            className="ml-auto p-1 rounded hover:bg-red-50 text-red-600"
-                                                            title="Eliminar equipamiento"
-                                                        >
-                                                            <Trash className="h-3 w-3" />
-                                                        </button>
+
                                                     </label>
                                                 ))}
                                                 {showCreateEquipment && (
@@ -580,13 +574,7 @@ export default function ExerciseDialog({
                                                         />
                                                         <span className={selectedAnatomy.includes(a.id) ? 'font-medium' : ''}>{a.name}</span>
 
-                                                        <button
-                                                            onClick={(evt) => { evt.stopPropagation(); handleDeleteAnatomy(a.id) }}
-                                                            className="ml-auto p-1 rounded hover:bg-red-50 text-red-600"
-                                                            title="Eliminar anatomía"
-                                                        >
-                                                            <Trash className="h-3 w-3" />
-                                                        </button>
+
                                                     </label>
                                                 ))}
                                                 {showCreateAnatomy && (
