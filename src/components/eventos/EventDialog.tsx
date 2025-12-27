@@ -436,12 +436,20 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                         {selectedClients.map((clientId) => {
                                             const cliente = clientes.find(c => c.id === clientId)
                                             return cliente ? (
-                                                <div key={clientId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
-                                                    <span>{cliente.name} {cliente.last_name}</span>
+                                                <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                                    {cliente.photo ? (
+                                                        <img src={`https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`} alt={`${cliente.name} ${cliente.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                    ) : (
+                                                        <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                            {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <span className="truncate">{cliente.name} {cliente.last_name}</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
-                                                        className="hover:text-destructive"
+                                                        className="hover:text-destructive ml-2"
+                                                        aria-label={`Eliminar ${cliente.name} ${cliente.last_name}`}
                                                     >
                                                         ×
                                                     </button>
@@ -519,12 +527,20 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     {selectedProfessionals.map((profId) => {
                                         const prof = profesionales.find(p => p.id === profId)
                                         return prof ? (
-                                            <div key={profId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
-                                                <span>{prof.name} {prof.last_name}</span>
+                                            <div key={profId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                                {prof.photo ? (
+                                                    <img src={`https://pocketbase.superflow.es/api/files/users/${prof.id}/${prof.photo}`} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                ) : (
+                                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                        {prof.name.charAt(0)}{prof.last_name.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <span className="truncate">{prof.name} {prof.last_name}</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
-                                                    className="hover:text-destructive"
+                                                    className="hover:text-destructive ml-2"
+                                                    aria-label={`Eliminar ${prof.name} ${prof.last_name}`}
                                                 >
                                                     ×
                                                 </button>
@@ -546,7 +562,16 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     <SelectContent>
                                         {profesionales.map((prof) => (
                                             <SelectItem key={prof.id} value={prof.id}>
-                                                {prof.name} {prof.last_name}
+                                                <div className="flex items-center gap-2">
+                                                    {prof.photo ? (
+                                                        <img src={`https://pocketbase.superflow.es/api/files/users/${prof.id}/${prof.photo}`} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                    ) : (
+                                                        <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                            {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <span>{prof.name} {prof.last_name}</span>
+                                                </div>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
