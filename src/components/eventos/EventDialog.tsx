@@ -377,6 +377,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     required
                                                     readOnly={isClientView}
                                                     tabIndex={isClientView ? -1 : undefined}
+                                                    onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                    onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
                                                     className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
@@ -392,6 +394,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     required
                                                     readOnly={isClientView}
                                                     tabIndex={isClientView ? -1 : undefined}
+                                                    onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                    onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
                                                     className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
@@ -408,6 +412,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 required
                                                 readOnly={isClientView}
                                                 tabIndex={isClientView ? -1 : undefined}
+                                                onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
                                                 className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </>
@@ -452,6 +458,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 tabIndex={-1}
                                                 className="flex-1"
                                                 value={`${hora}:${minutos}`}
+                                                onMouseDown={(e) => { e.preventDefault() }}
+                                                onFocus={(e) => { (e.target as HTMLInputElement).blur() }}
                                             />
                                         ) : (
                                             <>
@@ -533,6 +541,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             )
                                         })}
                                     </div>
+                                    {!isClientView && (
                                     <div className="space-y-2">
                                         <Input
                                             placeholder="Buscar cliente..."
@@ -540,7 +549,6 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             onChange={(e) => setClientSearch(e.target.value)}
                                             className="text-sm"
                                             ref={(el: HTMLInputElement) => clientSearchRef.current = el}
-                                            readOnly={isClientView}
                                         />
                                         {clientSearch && (
                                             <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
@@ -593,7 +601,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     })}
                                             </div>
                                         )}
-                                    </div>
+                                            </div>
+                                        )}
                                 </div>
                             )}
 
@@ -674,6 +683,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 required
                                                 readOnly={isClientView}
                                                 tabIndex={isClientView ? -1 : undefined}
+                                                onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
                                                 className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </div>
