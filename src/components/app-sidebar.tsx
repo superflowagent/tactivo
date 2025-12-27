@@ -51,7 +51,14 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
 
   const photoUrl = getUserPhotoUrl()
 
-  const mainNavItems = [
+  // Show full navigation for professionals, restricted navigation for clients
+  const mainNavItems = user?.role === 'client' ? [
+    {
+      title: "Calendario",
+      view: "calendario" as ViewType,
+      icon: Calendar,
+    },
+  ] : [
     {
       title: "Calendario",
       view: "calendario" as ViewType,
@@ -135,25 +142,27 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
       <SidebarContent>
         <NavMain items={mainNavItems} currentView={currentView} onViewChange={onViewChange} />
       </SidebarContent>
-      <SidebarFooter className="mt-auto">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              isActive={currentView === "ajustes"}
-              onClick={() => {
-                onViewChange("ajustes")
-                if (isMobile) {
-                  // Cerrar sidebar en móvil
-                  toggleSidebar()
-                }
-              }}
-            >
-              <Settings />
-              Ajustes
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+      {user?.role !== 'client' && (
+        <SidebarFooter className="mt-auto">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentView === "ajustes"}
+                onClick={() => {
+                  onViewChange("ajustes")
+                  if (isMobile) {
+                    // Cerrar sidebar en móvil
+                    toggleSidebar()
+                  }
+                }}
+              >
+                <Settings />
+                Ajustes
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   )
 }

@@ -16,9 +16,15 @@ async function adjustCredits(changes: CreditChange[]): Promise<void> {
             const currentCredits = client.class_credits || 0
             const newCredits = currentCredits + change
 
-            await pb.collection('users').update(clientId, {
+            const updated = await pb.collection('users').update(clientId, {
                 class_credits: newCredits
             })
+
+            // NOTE: Do NOT sync `user_cards` from the credit manager — credits are not part of the
+            // user_cards summary and syncing here would be unnecessary. Any user_cards sync should
+            // be triggered by explicit user updates (e.g., in Cliente/Profesional dialogs) or by
+            // dedicated server-side processes.
+            info(`Updated class_credits for client ${clientId}: ${currentCredits} -> ${newCredits}`)
         } catch (err) {
             error(`Failed to adjust credits for client ${clientId}:`, err)
         }

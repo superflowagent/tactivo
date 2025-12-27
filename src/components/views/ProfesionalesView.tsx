@@ -135,6 +135,12 @@ export function ProfesionalesView() {
 
     try {
       await pb.collection('users').delete(profesionalToDelete)
+      try {
+        const { deleteUserCardForUser } = await import('@/lib/userCards')
+        await deleteUserCardForUser(profesionalToDelete)
+      } catch (e) {
+        logError('Error deleting associated user_card:', e)
+      }
       const updatedProfesionales = profesionales.filter(p => p.id !== profesionalToDelete)
       setProfesionales(updatedProfesionales)
       setFilteredProfesionales(updatedProfesionales)

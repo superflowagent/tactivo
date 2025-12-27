@@ -52,9 +52,7 @@ export function LoginView() {
       logError('Error status:', err.status)
       logError('Error data:', err.data)
 
-      if (err.message === 'Solo los profesionales pueden acceder al panel') {
-        setError(err.message)
-      } else if (err.status === 400) {
+      if (err.status === 400) {
         setError('Email o contraseña incorrecta')
       } else if (err.status === 0 || err.isAbort) {
         setError('Error de conexión. Verifica tu conexión a internet.')
@@ -145,7 +143,6 @@ export function LoginView() {
                     setResetSent(false)
                   } else {
                     setResetOpen(true)
-                    setTimeout(() => resetInputRef.current?.focus(), 60)
                   }
                 }}>{resetOpen ? 'Cancelar' : 'Restablecer contraseña'}</Button>
               </div>
