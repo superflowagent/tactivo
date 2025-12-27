@@ -38,13 +38,14 @@ import {
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from "lucide-react"
-import { cn, shouldAutoFocus } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { error as logError } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 import { onEventCreate, onEventUpdate, onEventDelete } from "@/lib/creditManager"
+import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 
 interface EventDialogProps {
     open: boolean
@@ -68,11 +69,42 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [minutos, setMinutos] = useState<string>('00')
     const [dias, setDias] = useState<number>(1)
     const [horasVacaciones, setHorasVacaciones] = useState<number>(0)
-    const [clientes, setClientes] = useState<Cliente[]>([])
+    const [clientes, setClientes] = useState<any[]>([])
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
     const [clientSearch, setClientSearch] = useState('')
+    const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
+    const [missingUserCards, setMissingUserCards] = useState<string[]>([])
+
+    useEffect(() => {
+        let mounted = true
+        if (!selectedClients || selectedClients.length === 0) {
+            setUserCardsMap({})
+            setMissingUserCards([])
+            return
+        }
+
+        ; (async () => {
+            try {
+                const map = await getUserCardsByIds(selectedClients)
+                if (!mounted) return
+                setUserCardsMap(map)
+                // Detect missing cards
+                const missing = selectedClients.filter(id => !map[id])
+                if (missing.length) {
+                    setMissingUserCards(missing)
+                    logError('Missing user_cards for ids:', missing)
+                } else {
+                    setMissingUserCards([])
+                }
+            } catch (err) {
+                logError('Error cargando user_cards para asistentes:', err)
+            }
+        })()
+
+        return () => { mounted = false }
+    }, [selectedClients])
     const clientSearchRef = useRef<HTMLInputElement | null>(null)
     const [loading, setLoading] = useState(false)
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -155,13 +187,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         }
     }, [event, open, initialDateTime])
 
-    useEffect(() => {
-        if (open && shouldAutoFocus()) {
-            setTimeout(() => {
-                clientSearchRef.current?.focus()
-            }, 50)
-        }
-    }, [open])
+    // Autofocus removed per UX decision
     const loadCompany = async () => {
         if (!companyId) return
         try {
@@ -175,13 +201,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         if (!companyId) return
 
         try {
-            const records = await pb.collection('users').getFullList<Cliente>({
-                filter: `role="client" && company="${companyId}"`,
-                sort: 'name',
-            })
+            const records = await getUserCardsByRole(companyId, 'client')
             setClientes(records)
         } catch (err) {
-            logError('Error cargando clientes:', err)
+            logError('Error cargando clientes desde user_cards:', err)
         }
     }
 
@@ -189,13 +212,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         if (!companyId) return
 
         try {
-            const records = await pb.collection('users').getFullList({
-                filter: `role="professional" && company="${companyId}"`,
-                sort: 'name',
-            })
+            const records = await getUserCardsByRole(companyId, 'professional')
             setProfesionales(records)
         } catch (err) {
-            logError('Error cargando profesionales:', err)
+            logError('Error cargando profesionales desde user_cards:', err)
         }
     }
 
@@ -303,6 +323,18 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
                     <form id="event-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
                         <div className="space-y-4">
+                            {missingUserCards.length > 0 && (
+                                <div className="fixed left-4 right-4 md:left-auto md:right-auto z-[100]">
+                                    <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
+                                        <AlertCircle className="h-4 w-4" />
+                                        <div>
+                                            <div className="font-semibold">Falta información en <code>user_cards</code></div>
+                                            <div className="text-sm">Faltan user_cards para los IDs: {missingUserCards.join(', ')}. Contacta al administrador para sincronizar.</div>
+                                        </div>
+                                    </Alert>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="type">Tipo *</Label>
@@ -434,27 +466,37 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     </Label>
                                     <div className="flex flex-wrap gap-2 mb-2">
                                         {selectedClients.map((clientId) => {
-                                            const cliente = clientes.find(c => c.id === clientId)
-                                            return cliente ? (
-                                                <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
-                                                    {cliente.photo ? (
-                                                        <img src={`https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`} alt={`${cliente.name} ${cliente.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
-                                                    ) : (
-                                                        <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                            {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                    <span className="truncate">{cliente.name} {cliente.last_name}</span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
-                                                        className="hover:text-destructive ml-2"
-                                                        aria-label={`Eliminar ${cliente.name} ${cliente.last_name}`}
-                                                    >
-                                                        ×
-                                                    </button>
+                                            const card = userCardsMap[clientId]
+
+                                            if (card) {
+                                                return (
+                                                    <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                                        {card.photo ? (
+                                                            <img src={card.photo} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                        ) : (
+                                                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                                {String(card.name || '')?.charAt(0)}{String(card.last_name || '')?.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <span className="truncate">{card.name} {card.last_name}</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                            className="hover:text-destructive ml-2"
+                                                            aria-label={`Eliminar ${card.name} ${card.last_name}`}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                )
+                                            }
+
+                                            return (
+                                                <div key={clientId} className="flex items-center gap-2 bg-red-100 border border-red-200 px-2 py-1 rounded-md text-sm">
+                                                    <div className="text-sm font-medium text-destructive">⚠ Tarjeta no encontrada</div>
+                                                    <div className="ml-2 text-xs text-destructive">ID: {clientId}</div>
                                                 </div>
-                                            ) : null
+                                            )
                                         })}
                                     </div>
                                     <div className="space-y-2">
@@ -473,14 +515,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                         const normalizedClientName = (cliente.name + ' ' + cliente.last_name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
                                                         return normalizedClientName.includes(normalizedSearch)
                                                     })
-                                                    .filter(cliente => !selectedClients.includes(cliente.id!))
+                                                    .filter(cliente => !selectedClients.includes(cliente.user))
                                                     .map((cliente) => {
-                                                        const photoUrl = cliente.photo
-                                                            ? `https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`
-                                                            : null
+                                                        const photoUrl = cliente.photo ? cliente.photo : null
                                                         return (
                                                             <button
-                                                                key={cliente.id}
+                                                                key={cliente.user}
                                                                 type="button"
                                                                 onClick={() => {
                                                                     // Validar límite de asistentes para clases
@@ -488,7 +528,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                                         setShowMaxAssistantsDialog(true)
                                                                         return
                                                                     }
-                                                                    setSelectedClients(prev => [...prev, cliente.id!])
+                                                                    setSelectedClients(prev => [...prev, cliente.user])
                                                                     setClientSearch('')
                                                                 }}
                                                                 className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"
@@ -525,11 +565,11 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
                                 <div className="flex flex-wrap gap-2 mb-2">
                                     {selectedProfessionals.map((profId) => {
-                                        const prof = profesionales.find(p => p.id === profId)
+                                        const prof = profesionales.find(p => p.user === profId)
                                         return prof ? (
                                             <div key={profId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
                                                 {prof.photo ? (
-                                                    <img src={`https://pocketbase.superflow.es/api/files/users/${prof.id}/${prof.photo}`} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                    <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                 ) : (
                                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                         {prof.name.charAt(0)}{prof.last_name.charAt(0)}
@@ -561,10 +601,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     </SelectTrigger>
                                     <SelectContent>
                                         {profesionales.map((prof) => (
-                                            <SelectItem key={prof.id} value={prof.id}>
+                                            <SelectItem key={prof.user} value={prof.user}>
                                                 <div className="flex items-center gap-2">
                                                     {prof.photo ? (
-                                                        <img src={`https://pocketbase.superflow.es/api/files/users/${prof.id}/${prof.photo}`} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                        <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                     ) : (
                                                         <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                             {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
@@ -643,7 +683,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" form="event-form" disabled={loading}>
+                                <Button type="submit" form="event-form" disabled={loading || missingUserCards.length > 0}>
                                     {loading ? "Guardando..." : "Guardar"}
                                 </Button>
                             </div>

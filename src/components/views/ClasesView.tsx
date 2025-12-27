@@ -202,7 +202,7 @@ export function ClasesView() {
     return (
         <div className="flex flex-1 flex-col gap-4">
             <div className="flex justify-end">
-                <Button className="btn-propagate">
+                <Button className="btn-propagate" onClick={() => setPropagateDialogOpen(true)} disabled={templateSlots.length === 0}>
                     <CalendarRange className="mr-2 h-4 w-4" />
                     Propagar
                 </Button>
@@ -252,7 +252,7 @@ export function ClasesView() {
                                                                     <ActionButton tooltip="Editar" onClick={() => handleEdit(slot)} aria-label="Editar plantilla">
                                                                         <Pencil className="h-4 w-4" />
                                                                     </ActionButton>
-                                                                    <ActionButton tooltip="Duplicar" onClick={() => handleDuplicate(slot)} aria-label="Duplicar plantilla">
+                                                                    <ActionButton tooltip="Duplicar" className="hidden lg:inline-flex" onClick={() => handleDuplicate(slot)} aria-label="Duplicar plantilla">
                                                                         <Copy className="h-4 w-4" />
                                                                     </ActionButton>
                                                                     <ActionButton tooltip="Eliminar" onClick={() => handleDelete(slot)} aria-label="Eliminar plantilla">
@@ -319,16 +319,8 @@ export function ClasesView() {
                     <Alert className="border-green-500 bg-green-50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
                         <CheckCircle className="h-4 w-4 text-green-600" />
                         <AlertDescription>
-                            <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <p className="font-semibold text-green-800">Clases propagadas correctamente</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowSuccessAlert(false)}
-                                    className="text-green-600 hover:text-green-800"
-                                >
-                                    ×
-                                </button>
+                            <div className="flex items-start gap-2">
+                                <p className="font-semibold text-green-800">Clases propagadas correctamente</p>
                             </div>
                         </AlertDescription>
                     </Alert>

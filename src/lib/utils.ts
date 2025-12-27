@@ -5,16 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function shouldAutoFocus(): boolean {
-  // On server (SSR), allow autofocus by default
-  if (typeof window === 'undefined') return true
-
-  const hasTouch = 'ontouchstart' in window || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches)
-
-  // Only autofocus when NOT a touch device
-  return !hasTouch
-}
-
+// Autofocus utility removed per UX decision. Use explicit focus only where needed (currently none).
 
 
 export function normalizeForSearch(s: string) {

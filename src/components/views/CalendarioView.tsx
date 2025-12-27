@@ -19,6 +19,7 @@ import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeForSearch } from '@/lib/utils'
+import { getUserCardsByRole } from '@/lib/userCards'
 import './calendario.css'
 
 export function CalendarioView() {
@@ -46,13 +47,10 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      const records = await pb.collection('users').getFullList({
-        filter: `role="professional" && company="${companyId}"`,
-        sort: 'name',
-      })
+      const records = await getUserCardsByRole(companyId, 'professional')
       setProfessionals(records)
     } catch (err) {
-      logError('Error cargando profesionales:', err)
+      logError('Error cargando profesionales desde user_cards:', err)
     }
   }
 
@@ -251,7 +249,7 @@ export function CalendarioView() {
           <SelectContent>
             <SelectItem value="all">Todos los profesionales</SelectItem>
             {professionals.map((prof) => (
-              <SelectItem key={prof.id} value={prof.id}>
+              <SelectItem key={prof.user} value={prof.user}>
                 {prof.name} {prof.last_name}
               </SelectItem>
             ))}

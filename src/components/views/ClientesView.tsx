@@ -128,6 +128,12 @@ export function ClientesView() {
 
     try {
       await pb.collection('users').delete(clienteToDelete)
+      try {
+        const { deleteUserCardForUser } = await import('@/lib/userCards')
+        await deleteUserCardForUser(clienteToDelete)
+      } catch (e) {
+        logError('Error deleting associated user_card:', e)
+      }
       const updatedClientes = clientes.filter(c => c.id !== clienteToDelete)
       setClientes(updatedClientes)
       setFilteredClientes(updatedClientes)

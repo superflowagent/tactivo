@@ -42,7 +42,7 @@ import {
 import { Card } from "@/components/ui/card"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
-import { cn, shouldAutoFocus } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import pb from "@/lib/pocketbase"
 import type { Cliente } from "@/types/cliente"
 import type { Event } from "@/types/event"
@@ -74,6 +74,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [loading, setLoading] = useState(false)
     const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [removePhoto, setRemovePhoto] = useState(false)
     const [phoneError, setPhoneError] = useState<string>("")
     const [eventos, setEventos] = useState<Event[]>([])
     const [loadingEventos, setLoadingEventos] = useState(false)
@@ -113,16 +114,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             setEdad(null)
             setPhotoFile(null)
             setPhotoPreview(null)
+            setRemovePhoto(false)
             setEventos([])
         }
         setPhoneError("")
 
-        if (open && shouldAutoFocus()) {
-            // Focus name input when dialog opens (give time for animation)
-            setTimeout(() => {
-                nameInputRef.current?.focus()
-            }, 50)
-        }
+        // Autofocus removed per UX decision
     }, [cliente, open])
 
     const calcularEdad = (fecha: Date) => {
@@ -190,66 +187,80 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         setLoading(true)
 
         try {
-            const formDataToSend = new FormData()
+            // Build payload object for non-file updates
+            const payload: any = {}
 
             // Añadir campos regulares (excluyendo campos especiales y metadata)
             Object.entries(formData).forEach(([key, value]) => {
-                // Excluir campos que se manejan por separado o son metadata
-                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') {
-                    return
-                }
-                // Solo añadir si tiene valor
+                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') return
                 if (value !== undefined && value !== null && value !== '') {
-                    formDataToSend.append(key, String(value))
+                    if (key === 'session_credits' || key === 'class_credits') {
+                        const parsed = parseInt(String(value))
+                        payload[key] = String(isNaN(parsed) ? 0 : parsed)
+                    } else {
+                        payload[key] = String(value)
+                    }
                 }
             })
 
-            // Añadir email solo si es creación o si ha cambiado
+            // Email handling
             if (!cliente?.id) {
-                // Creación: siempre añadir email
                 if (formData.email) {
-                    formDataToSend.append('email', formData.email)
-                    formDataToSend.append('emailVisibility', 'true')
+                    payload.email = formData.email
+                    payload.emailVisibility = 'true'
                 }
             } else if (formData.email && formData.email !== cliente.email) {
-                // Actualización: solo si el email ha cambiado
-                formDataToSend.append('email', formData.email)
-                formDataToSend.append('emailVisibility', 'true')
+                payload.email = formData.email
+                payload.emailVisibility = 'true'
             }
 
-            // Añadir foto si hay una nueva
-            if (photoFile) {
-                formDataToSend.append('photo', photoFile)
-            }
+            // Fecha nacimiento
+            if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, "yyyy-MM-dd")
 
-            // Añadir fecha de nacimiento
-            if (fechaNacimiento) {
-                formDataToSend.append('birth_date', format(fechaNacimiento, "yyyy-MM-dd"))
-            }
-
-            // Añadir role si es nuevo cliente
+            // Role/company for new client
             if (!cliente?.id) {
-                formDataToSend.append('role', 'client')
-                // Auto-asignar company del profesional logueado
-                if (companyId) {
-                    formDataToSend.append('company', companyId)
-                }
-                // Generar contraseña automática para nuevos clientes (requerido por PocketBase)
+                payload.role = 'client'
+                if (companyId) payload.company = companyId
                 const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
-                formDataToSend.append('password', randomPassword)
-                formDataToSend.append('passwordConfirm', randomPassword)
+                payload.password = randomPassword
+                payload.passwordConfirm = randomPassword
             }
 
-            if (cliente?.id) {
-                // Actualizar cliente existente
-                await pb.collection('users').update(cliente.id, formDataToSend)
+            let savedUser: any = null
+
+            if (photoFile) {
+                // We have a new photo: send multipart FormData with file plus payload
+                const formDataToSend = new FormData()
+                Object.entries(payload).forEach(([k, v]) => formDataToSend.append(k, String(v)))
+                formDataToSend.append('photo', photoFile)
+
+                if (cliente?.id) {
+                    savedUser = await pb.collection('users').update(cliente.id, formDataToSend)
+                } else {
+                    savedUser = await pb.collection('users').create(formDataToSend)
+                }
             } else {
-                // Crear nuevo cliente
-                await pb.collection('users').create(formDataToSend)
+                // No new file
+                // If removePhoto is true, explicitly set photo:null
+                if (removePhoto && cliente?.id) payload.photo = null
+
+                if (cliente?.id) {
+                    // Update existing user with JSON payload
+                    savedUser = await pb.collection('users').update(cliente.id, payload)
+                } else {
+                    // Create new user with JSON payload
+                    savedUser = await pb.collection('users').create(payload)
+                }
             }
+
+            // Sync user_cards
+            import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
+                try { syncUserCardOnUpsert(savedUser) } catch (e) { /* ignore */ }
+            })
 
             onSave()
             onOpenChange(false)
+            setRemovePhoto(false)
         } catch (err: any) {
             logError('Error al guardar cliente:', err)
             logError('Error completo:', JSON.stringify(err, null, 2))
@@ -268,6 +279,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         try {
             setLoading(true)
             await pb.collection('users').delete(cliente.id)
+
+            // remove user_cards entry
+            const userIdToDelete = cliente.id!
+            import('@/lib/userCards').then(({ deleteUserCardForUser }) => {
+                try { deleteUserCardForUser(userIdToDelete) } catch (e) { /* ignore */ }
+            })
+
             onSave()
             onOpenChange(false)
             setShowDeleteDialog(false)
@@ -384,10 +402,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 <Label htmlFor="session_credits">Sesiones *</Label>
                                                 <Input
                                                     id="session_credits"
-                                                    type="number"
-                                                    min="0"
-                                                    value={formData.session_credits}
-                                                    onChange={(e) => handleChange('session_credits', parseInt(e.target.value) || 0)}
+                                                    type="text"
+                                                    value={String(formData.session_credits ?? '')}
+                                                    onChange={(e) => handleChange('session_credits', e.target.value)}
                                                     required
                                                 />
                                             </div>
@@ -396,10 +413,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 <Label htmlFor="class_credits">Clases *</Label>
                                                 <Input
                                                     id="class_credits"
-                                                    type="number"
-                                                    min="0"
-                                                    value={formData.class_credits}
-                                                    onChange={(e) => handleChange('class_credits', parseInt(e.target.value) || 0)}
+                                                    type="text"
+                                                    value={String(formData.class_credits ?? '')}
+                                                    onChange={(e) => handleChange('class_credits', e.target.value)}
                                                     required
                                                 />
                                             </div>
@@ -424,6 +440,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                             const file = e.target.files?.[0]
                                                             if (file) {
                                                                 setPhotoFile(file)
+                                                                setRemovePhoto(false)
                                                                 // Crear preview
                                                                 const reader = new FileReader()
                                                                 reader.onloadend = () => {
@@ -447,6 +464,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                                     e.preventDefault()
                                                                     setPhotoFile(null)
                                                                     setPhotoPreview(null)
+                                                                    setRemovePhoto(true)
                                                                     setFormData(prev => ({ ...prev, photo: '' }))
                                                                     // Reset file input
                                                                     const input = document.getElementById('photo') as HTMLInputElement

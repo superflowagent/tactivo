@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
 import ActionButton from "@/components/ui/ActionButton";
@@ -27,7 +28,15 @@ function MobileHamburgerButton() {
 }
 
 export function Panel() {
+  const { user } = useAuth()
   const [currentView, setCurrentView] = useState<ViewType>("calendario")
+
+  // If the user is a client, force the view to 'calendario' and prevent switching
+  useEffect(() => {
+    if (user?.role === 'client') {
+      setCurrentView('calendario')
+    }
+  }, [user])
 
   const viewTitles: Record<ViewType, string> = {
     calendario: "Calendario",
