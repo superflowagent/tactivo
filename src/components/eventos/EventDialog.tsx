@@ -320,7 +320,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className={cn("max-w-3xl max-h-[92vh] flex flex-col", isClientView ? 'cursor-default' : '')}>
+                <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
@@ -671,45 +671,41 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                             {formData.type === 'appointment' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
-                                        {!isClientView && (
-                                            <div className="space-y-2">
-                                                <Label htmlFor="cost">Coste (€)</Label>
-                                                <Input
-                                                    id="cost"
-                                                    type="number"
-                                                    min="0"
-                                                    step="1"
-                                                    value={formData.cost}
-                                                    onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
-                                                    required
-                                                    readOnly={isClientView}
-                                                    tabIndex={isClientView ? -1 : undefined}
-                                                    onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
-                                                    onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
-                                                    className={isClientView ? 'opacity-90' : ''}
-                                                />
-                                            </div>
-                                        )}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="cost">Coste (€)</Label>
+                                            <Input
+                                                id="cost"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={formData.cost}
+                                                onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
+                                                required
+                                                readOnly={isClientView}
+                                                tabIndex={isClientView ? -1 : undefined}
+                                                onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
+                                                className={isClientView ? 'opacity-90' : ''}
+                                            />
+                                        </div>
 
-                                        {!isClientView && (
-                                            <div className="space-y-2">
-                                                <Label>Pagado</Label>
-                                                <div className="flex items-center h-10">
-                                                    <Checkbox
-                                                        id="paid"
-                                                        checked={formData.paid}
-                                                        onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
-                                                        tabIndex={isClientView ? -1 : undefined}
-                                                    />
-                                                    <label
-                                                        htmlFor="paid"
-                                                        className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                                    >
-                                                        Sí
-                                                    </label>
-                                                </div>
+                                        <div className="space-y-2">
+                                            <Label>Pagado</Label>
+                                            <div className="flex items-center h-10">
+                                                <Checkbox
+                                                    id="paid"
+                                                    checked={formData.paid}
+                                                    onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
+                                                    tabIndex={isClientView ? -1 : undefined}
+                                                />
+                                                <label
+                                                    htmlFor="paid"
+                                                    className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                >
+                                                    Sí
+                                                </label>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -726,7 +722,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                         </div>
                     </form>
 
-                    <DialogFooter className={cn("mt-4", isClientView ? 'client-modal-footer' : '')}>
+                    <DialogFooter className="mt-4">
                         <div className="flex w-full justify-between">
                             <div>
                                 {event?.id && !isClientView && (

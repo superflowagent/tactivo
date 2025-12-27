@@ -9,21 +9,3 @@
     display: none !important;
 }
 
-/* Force default cursor for form fields in client view */
-.cursor-default input,
-.cursor-default textarea,
-.cursor-default select,
-.cursor-default .ProseMirror,
-.cursor-default .ProseMirror * {
-  cursor: default !important;
-}
-
-/* Make all buttons default cursor to avoid pointer/I-beam confusion */
-.cursor-default button {
-  cursor: default !important;
-}
-
-/* Except footer buttons - keep interactive pointer */
-.client-modal-footer button {
-  cursor: pointer !important;
-}
