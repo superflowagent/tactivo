@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import pb from "@/lib/pocketbase";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext'
 
+// Cleanup: simplify password reset handler and remove unused variables
 export function PasswordResetView() {
     const { token: paramToken } = useParams<{ token?: string }>();
     const navigate = useNavigate();
@@ -15,6 +19,8 @@ export function PasswordResetView() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+
+    const { logout } = useAuth();
 
     useEffect(() => {
         if (!token) {
@@ -32,10 +38,6 @@ export function PasswordResetView() {
             setError("Token no encontrado");
             return;
         }
-        if (password.length < 8) {
-            setError("La contraseña debe tener al menos 8 caracteres.");
-            return;
-        }
         if (password !== passwordConfirm) {
             setError("Las contraseñas no coinciden.");
             return;
@@ -44,52 +46,85 @@ export function PasswordResetView() {
         setLoading(true);
         try {
             await pb.collection("users").confirmPasswordReset(token, password, passwordConfirm);
+            // Clear any existing session so the app does not auto-redirect to the panel
+            try {
+                logout()
+            } catch {
+                // ignore logout errors
+            }
+
             setSuccess(true);
             setTimeout(() => navigate("/"), 1800);
         } catch (err: any) {
             // pocketbase may return structured error
-            const msg = err?.response?.data?.message || err?.message || "Error al restablecer contraseña";
-            setError(String(msg));
+            import('@/lib/pocketbaseErrors').then(({ formatPocketbaseError }) => {
+                const msg = formatPocketbaseError(err)
+                setError(msg)
+            })
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex-1 flex items-center justify-center p-6">
-            <div className="w-full max-w-md">
-                <h2 className="text-xl font-semibold mb-4">Restablecer contraseña</h2>
+        <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6">
+            <Card className="w-full max-w-md mx-4">
+                <CardHeader className="space-y-1">
+                    <CardTitle className="text-2xl font-bold text-center">Bienvenido a Tactivo</CardTitle>
+                    <CardDescription className="text-center">Restablecer contraseña</CardDescription>
+                </CardHeader>
 
-                {error && (
-                    <div className="mb-4">
-                        <Alert>
-                            <AlertDescription>{error}</AlertDescription>
-                        </Alert>
-                    </div>
-                )}
+                <CardContent>
+                    {success ? (
+                        <div className="bg-green-50 border border-green-200 p-4 rounded">
+                            <p className="font-medium">Contraseña restablecida correctamente.</p>
+                            <p className="text-sm">Serás redirigido al login en breve.</p>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Nueva contraseña</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    autoComplete="new-password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    disabled={loading}
+                                />
+                            </div>
 
-                {success ? (
-                    <div className="bg-green-50 border border-green-200 p-4 rounded">
-                        <p className="font-medium">Contraseña restablecida correctamente.</p>
-                        <p className="text-sm">Serás redirigido al login en breve.</p>
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div>
-                            <Label htmlFor="password">Nueva contraseña</Label>
-                            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                        </div>
-                        <div>
-                            <Label htmlFor="passwordConfirm">Confirmar contraseña</Label>
-                            <Input id="passwordConfirm" type="password" value={passwordConfirm} onChange={(e) => setPasswordConfirm(e.target.value)} />
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="passwordConfirm">Confirmar contraseña</Label>
+                                <Input
+                                    id="passwordConfirm"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    autoComplete="new-password"
+                                    value={passwordConfirm}
+                                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                                    required
+                                    disabled={loading}
+                                />
+                            </div>
 
-                        <div className="flex items-center justify-between">
-                            <Button type="submit" disabled={loading}>{loading ? "Procesando..." : "Cambiar contraseña"}</Button>
-                        </div>
-                    </form>
-                )}
-            </div>
+                            <Button type="submit" className="w-full" disabled={loading}>{loading ? "Procesando..." : "Restablecer contraseña"}</Button>
+                        </form>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Alert en esquina inferior derecha */}
+            {error && (
+                <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
+                    <Alert variant="destructive" className="border-destructive/50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                </div>
+            )}
         </div>
     );
 }
