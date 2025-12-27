@@ -726,7 +726,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                         </div>
                     </form>
 
-                    <DialogFooter className="mt-4">
+                    <DialogFooter className={cn("mt-4", isClientView ? 'client-modal-footer' : '')}>
                         <div className="flex w-full justify-between">
                             <div>
                                 {event?.id && !isClientView && (
