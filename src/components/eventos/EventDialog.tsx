@@ -245,7 +245,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 ...formData,
                 datetime: datetime.toISOString(),
                 duration,
-                client: selectedClients,
+                client: formData.type === 'vacation' ? [] : selectedClients,
                 professional: selectedProfessionals,
             }
 
@@ -302,11 +302,19 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     newData.duration = 60
                 } else if (value === 'class') {
                     newData.duration = 90
+                } else if (value === 'vacation') {
+                    // Vacaciones no deben tener clientes asociados
+                    newData.client = []
                 }
             }
 
             return newData
         })
+
+        // Limpia selectedClients si el tipo cambia a vacaciones
+        if (field === 'type' && value === 'vacation') {
+            setSelectedClients([])
+        }
     }
 
     return (
