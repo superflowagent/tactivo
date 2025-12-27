@@ -15,6 +15,7 @@ import { CalendarPlus } from "lucide-react"
 import pb from '@/lib/pocketbase'
 import { error as logError } from '@/lib/logger'
 import type { Event } from '@/types/event'
+import type { Company } from '@/types/company'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
@@ -34,9 +35,11 @@ export function CalendarioView() {
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all')
   const [professionals, setProfessionals] = useState<any[]>([])
   const [showMyEvents, setShowMyEvents] = useState<boolean>(false) // Toggle for clients: show only events where user is an attendee
+  const [company, setCompany] = useState<Company | null>(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
+    loadCompany()
     loadEvents()
     loadProfessionals()
   }, [companyId])
@@ -53,6 +56,17 @@ export function CalendarioView() {
       setProfessionals(records)
     } catch (err) {
       logError('Error cargando profesionales desde user_cards:', err)
+    }
+  }
+
+  const loadCompany = async () => {
+    if (!companyId) return
+
+    try {
+      const record = await pb.collection('companies').getOne<Company>(companyId)
+      setCompany(record)
+    } catch (err) {
+      logError('Error cargando configuración de company:', err)
     }
   }
 
@@ -285,7 +299,7 @@ export function CalendarioView() {
   }
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Botón crear - siempre arriba en móvil */}
       <Button onClick={isClient ? () => { } : handleAdd} className="w-full sm:hidden">
         <CalendarPlus className="mr-0 h-4 w-4" />
@@ -343,40 +357,62 @@ export function CalendarioView() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
+      <Card className="flex-1">
+        <CardContent className="pt-6 flex-1 min-h-0">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
-            <FullCalendarLazy
-              initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
-              headerToolbar={{
-                left: isMobile ? 'prev,next' : 'prev,next today',
-                center: 'title',
-                right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
-              }}
-              buttonText={{
-                today: 'Hoy',
-                month: 'Mes',
-                week: 'Semana',
-                day: 'Día'
-              }}
-              slotMinTime="08:00:00"
-              slotMaxTime="20:00:00"
-              allDaySlot={false}
-              height={isMobile ? "calc(100vh - 120px)" : "calc(100vh - 240px)"}
-              slotDuration="00:30:00"
-              events={filteredEvents}
-              dateClick={handleDateClick}
-              eventClick={handleEventClick}
-              editable={true}
-              selectable={true}
-              selectMirror={true}
-              dayMaxEvents={true}
-              weekends={true}
-              eventDrop={handleEventDrop}
-              eventResize={handleEventResize}
-              titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
-              dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
-            />
+            {company && (() => {
+              // Calculate slot height to fit all schedule without scroll
+              const openTime = company.open_time || '08:00'
+              const closeTime = company.close_time || '20:00'
+              
+              // Parse hours and minutes
+              const [openHour, openMin] = openTime.split(':').map(Number)
+              const [closeHour, closeMin] = closeTime.split(':').map(Number)
+              
+              // Calculate total minutes in schedule
+              const totalMinutes = (closeHour * 60 + closeMin) - (openHour * 60 + openMin)
+              const numSlots = totalMinutes / 30 // 30-minute slots
+              
+              // Available height (approximate): full card minus header/padding
+              const availableHeight = isMobile ? window.innerHeight - 280 : window.innerHeight - 340
+              const slotMinHeight = Math.floor(availableHeight / numSlots)
+              
+              return (
+                <FullCalendarLazy
+                  initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+                  headerToolbar={{
+                    left: isMobile ? 'prev,next' : 'prev,next today',
+                    center: 'title',
+                    right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                  }}
+                  buttonText={{
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana',
+                    day: 'Día'
+                  }}
+                  slotMinTime={openTime}
+                  slotMaxTime={closeTime}
+                  allDaySlot={false}
+                  height="100%"
+                  contentHeight="auto"
+                  slotDuration="00:30:00"
+                  slotMinHeight={slotMinHeight}
+                  events={filteredEvents}
+                  dateClick={handleDateClick}
+                  eventClick={handleEventClick}
+                  editable={true}
+                  selectable={true}
+                  selectMirror={true}
+                  dayMaxEvents={true}
+                  weekends={true}
+                  eventDrop={handleEventDrop}
+                  eventResize={handleEventResize}
+                  titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
+                  dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
+                />
+              )
+            })()}
           </Suspense>
         </CardContent>
       </Card>

@@ -74,7 +74,7 @@ export function Panel() {
           <MobileHamburgerButton />
           <h1 className="text-xl md:text-2xl font-bold">{viewTitles[currentView]}</h1>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">
           {renderView()}
         </div>
       </SidebarInset>

@@ -504,7 +504,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             </span>
                                         )}
                                     </Label>
-                                    <div className="flex flex-wrap gap-2 mb-2">
+                                    <div className="flex flex-wrap gap-2">
                                         {selectedClients.map((clientId) => {
                                             const card = userCardsMap[clientId]
 
@@ -608,7 +608,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
                             <div className="space-y-2">
                                 <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
-                                <div className="flex flex-wrap gap-2 mb-2">
+                                <div className="flex flex-wrap gap-2">
                                     {selectedProfessionals.map((profId) => {
                                         const prof = profesionales.find(p => p.user === profId)
                                         return prof ? (
@@ -671,41 +671,45 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                             {formData.type === 'appointment' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="cost">Coste (€)</Label>
-                                            <Input
-                                                id="cost"
-                                                type="number"
-                                                min="0"
-                                                step="1"
-                                                value={formData.cost}
-                                                onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
-                                                required
-                                                readOnly={isClientView}
-                                                tabIndex={isClientView ? -1 : undefined}
-                                                onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
-                                                onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
-                                                className={isClientView ? 'opacity-90' : ''}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Pagado</Label>
-                                            <div className="flex items-center h-10">
-                                                <Checkbox
-                                                    id="paid"
-                                                    checked={formData.paid}
-                                                    onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
+                                        {!isClientView && (
+                                            <div className="space-y-2">
+                                                <Label htmlFor="cost">Coste (€)</Label>
+                                                <Input
+                                                    id="cost"
+                                                    type="number"
+                                                    min="0"
+                                                    step="1"
+                                                    value={formData.cost}
+                                                    onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
+                                                    required
+                                                    readOnly={isClientView}
                                                     tabIndex={isClientView ? -1 : undefined}
+                                                    onMouseDown={(e) => { if (isClientView) e.preventDefault() }}
+                                                    onFocus={(e) => { if (isClientView) (e.target as HTMLInputElement).blur() }}
+                                                    className={isClientView ? 'opacity-90' : ''}
                                                 />
-                                                <label
-                                                    htmlFor="paid"
-                                                    className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                                >
-                                                    Sí
-                                                </label>
                                             </div>
-                                        </div>
+                                        )}
+
+                                        {!isClientView && (
+                                            <div className="space-y-2">
+                                                <Label>Pagado</Label>
+                                                <div className="flex items-center h-10">
+                                                    <Checkbox
+                                                        id="paid"
+                                                        checked={formData.paid}
+                                                        onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
+                                                        tabIndex={isClientView ? -1 : undefined}
+                                                    />
+                                                    <label
+                                                        htmlFor="paid"
+                                                        className="ml-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                    >
+                                                        Sí
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}
