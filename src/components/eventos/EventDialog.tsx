@@ -347,12 +347,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="type">Tipo *</Label>
+                                    <Label htmlFor="type">Tipo</Label>
                                     <Select
                                         value={formData.type}
                                         onValueChange={(value) => { if (isClientView) return; handleChange('type', value as Event['type']) }}
                                     >
-                                        <SelectTrigger className={isClientView ? 'pointer-events-none opacity-90' : ''}>
+                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90' : ''}>
                                             <SelectValue placeholder="Selecciona un tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -367,7 +367,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     {formData.type === 'vacation' ? (
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="dias">Días *</Label>
+                                                <Label htmlFor="dias">Días</Label>
                                                 <Input
                                                     id="dias"
                                                     type="number"
@@ -376,11 +376,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     onChange={(e) => setDias(parseInt(e.target.value) || 0)}
                                                     required
                                                     readOnly={isClientView}
+                                                    tabIndex={isClientView ? -1 : undefined}
                                                     className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label htmlFor="horas-vac">Horas *</Label>
+                                                <Label htmlFor="horas-vac">Horas</Label>
                                                 <Input
                                                     id="horas-vac"
                                                     type="number"
@@ -390,13 +391,14 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     onChange={(e) => setHorasVacaciones(parseInt(e.target.value) || 0)}
                                                     required
                                                     readOnly={isClientView}
+                                                    tabIndex={isClientView ? -1 : undefined}
                                                     className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
                                         </div>
                                     ) : (
                                         <>
-                                            <Label htmlFor="duration">Duración (min) *</Label>
+                                            <Label htmlFor="duration">Duración (min)</Label>
                                             <Input
                                                 id="duration"
                                                 type="number"
@@ -405,6 +407,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 onChange={(e) => { if (isClientView) return; handleChange('duration', parseInt(e.target.value)) }}
                                                 required
                                                 readOnly={isClientView}
+                                                tabIndex={isClientView ? -1 : undefined}
                                                 className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </>
@@ -414,15 +417,15 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Fecha *</Label>
+                                    <Label>Fecha</Label>
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant="outline"
+                                                tabIndex={isClientView ? -1 : undefined}
                                                 className={cn(
                                                     "w-full justify-start text-left font-normal",
-                                                    !fecha && "text-muted-foreground"
-                                                ,
+                                                    !fecha && "text-muted-foreground",
                                                     isClientView && 'pointer-events-none opacity-90'
                                                 )}
                                             >
@@ -441,18 +444,19 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="hora">Hora *</Label>
+                                    <Label htmlFor="hora">Hora</Label>
                                     <div className="flex gap-2">
                                         {isClientView ? (
                                             <Input
                                                 readOnly
+                                                tabIndex={-1}
                                                 className="flex-1"
                                                 value={`${hora}:${minutos}`}
                                             />
                                         ) : (
                                             <>
                                                 <Select value={hora} onValueChange={(v) => setHora(v)}>
-                                                    <SelectTrigger className="flex-1">
+                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -465,7 +469,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 </Select>
                                                 <span className="flex items-center">:</span>
                                                 <Select value={minutos} onValueChange={(v) => setMinutos(v)}>
-                                                    <SelectTrigger className="flex-1">
+                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -622,42 +626,44 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                         ) : null
                                     })}
                                 </div>
-                                <Select
-                                    value=""
-                                    onValueChange={(value) => {
-                                        if (isClientView) return
-                                        if (value && !selectedProfessionals.includes(value)) {
-                                            setSelectedProfessionals(prev => [...prev, value])
-                                        }
-                                    }}
-                                >
-                                    <SelectTrigger className={isClientView ? 'pointer-events-none opacity-90' : ''}>
-                                        <SelectValue placeholder="Añadir profesional" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {profesionales.map((prof) => (
-                                            <SelectItem key={prof.user} value={prof.user}>
-                                                <div className="flex items-center gap-2">
-                                                    {prof.photo ? (
-                                                        <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
-                                                    ) : (
-                                                        <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                            {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                    <span>{prof.name} {prof.last_name}</span>
-                                                </div>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                {!isClientView && (
+                                    <Select
+                                        value=""
+                                        onValueChange={(value) => {
+                                            if (isClientView) return
+                                            if (value && !selectedProfessionals.includes(value)) {
+                                                setSelectedProfessionals(prev => [...prev, value])
+                                            }
+                                        }}
+                                    >
+                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90' : ''}>
+                                            <SelectValue placeholder="Añadir profesional" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {profesionales.map((prof) => (
+                                                <SelectItem key={prof.user} value={prof.user}>
+                                                    <div className="flex items-center gap-2">
+                                                        {prof.photo ? (
+                                                            <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                        ) : (
+                                                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                                {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <span>{prof.name} {prof.last_name}</span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                )}
                             </div>
 
                             {formData.type === 'appointment' && (
                                 <>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="cost">Coste (€) *</Label>
+                                            <Label htmlFor="cost">Coste (€)</Label>
                                             <Input
                                                 id="cost"
                                                 type="number"
@@ -667,6 +673,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
                                                 required
                                                 readOnly={isClientView}
+                                                tabIndex={isClientView ? -1 : undefined}
                                                 className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </div>
@@ -678,6 +685,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     id="paid"
                                                     checked={formData.paid}
                                                     onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
+                                                    tabIndex={isClientView ? -1 : undefined}
                                                 />
                                                 <label
                                                     htmlFor="paid"
@@ -695,7 +703,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <Label>Notas</Label>
                                 <RichTextEditor
                                     value={formData.notes || ""}
-                                    onChange={(value) => handleChange('notes', value)}
+                                    onChange={(value) => { if (isClientView) return; handleChange('notes', value) }}
                                     placeholder=""
                                     readOnly={isClientView}
                                 />
