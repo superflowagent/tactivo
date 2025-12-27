@@ -19,8 +19,6 @@ async function adjustCredits(changes: CreditChange[]): Promise<void> {
             await pb.collection('users').update(clientId, {
                 class_credits: newCredits
             })
-
-            debug(`💳 Client ${clientId}: ${currentCredits} → ${newCredits}`)
         } catch (err) {
             error(`Failed to adjust credits for client ${clientId}:`, err)
         }
