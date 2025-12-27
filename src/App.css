@@ -1,1 +1,10 @@
 /* Global app styles */
+
+/* UI tweaks for client read-only modal */
+.cursor-default input[placeholder="Buscar cliente..."] {
+    display: none !important;
+}
+
+.cursor-default .absolute.z-50 {
+    display: none !important;
+}

@@ -320,7 +320,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col">
+                <DialogContent className={cn("max-w-3xl max-h-[92vh] flex flex-col", isClientView ? 'cursor-default' : '')}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
@@ -352,7 +352,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                         value={formData.type}
                                         onValueChange={(value) => { if (isClientView) return; handleChange('type', value as Event['type']) }}
                                     >
-                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90' : ''}>
+                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90 [&>svg]:hidden' : ''}>
                                             <SelectValue placeholder="Selecciona un tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -542,67 +542,67 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                         })}
                                     </div>
                                     {!isClientView && (
-                                    <div className="space-y-2">
-                                        <Input
-                                            placeholder="Buscar cliente..."
-                                            value={clientSearch}
-                                            onChange={(e) => setClientSearch(e.target.value)}
-                                            className="text-sm"
-                                            ref={(el: HTMLInputElement) => clientSearchRef.current = el}
-                                        />
-                                        {clientSearch && (
-                                            <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
-                                                {clientes
-                                                    .filter(cliente => {
-                                                        const normalizedSearch = clientSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-                                                        const normalizedClientName = (cliente.name + ' ' + cliente.last_name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-                                                        return normalizedClientName.includes(normalizedSearch)
-                                                    })
-                                                    .filter(cliente => !selectedClients.includes(cliente.user))
-                                                    .map((cliente) => {
-                                                        const photoUrl = cliente.photo ? cliente.photo : null
-                                                        return (
-                                                            <button
-                                                                key={cliente.user}
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    if (isClientView) return
-                                                                    // Validar límite de asistentes para clases
-                                                                    if (formData.type === 'class' && company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
-                                                                        setShowMaxAssistantsDialog(true)
-                                                                        return
-                                                                    }
-                                                                    setSelectedClients(prev => [...prev, cliente.user])
-                                                                    setClientSearch('')
-                                                                }}
-                                                                className={isClientView ? "w-full text-left px-2 py-1.5 rounded text-sm opacity-80" : "w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"}
-                                                            >
-                                                                {photoUrl ? (
-                                                                    <img
-                                                                        src={photoUrl}
-                                                                        alt={`${cliente.name} ${cliente.last_name}`}
-                                                                        className="h-8 w-8 rounded object-cover flex-shrink-0"
-                                                                    />
-                                                                ) : (
-                                                                    <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                                        {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex-1 flex items-center justify-between">
-                                                                    <span>{cliente.name} {cliente.last_name}</span>
-                                                                    {formData.type === 'class' && (
-                                                                        <span className={`text-xs font-medium ml-2 ${(cliente.class_credits || 0) <= 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
-                                                                            {cliente.class_credits || 0} créditos
-                                                                        </span>
+                                        <div className="space-y-2">
+                                            <Input
+                                                placeholder="Buscar cliente..."
+                                                value={clientSearch}
+                                                onChange={(e) => setClientSearch(e.target.value)}
+                                                className="text-sm"
+                                                ref={(el: HTMLInputElement) => clientSearchRef.current = el}
+                                            />
+                                            {clientSearch && (
+                                                <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
+                                                    {clientes
+                                                        .filter(cliente => {
+                                                            const normalizedSearch = clientSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                                                            const normalizedClientName = (cliente.name + ' ' + cliente.last_name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                                                            return normalizedClientName.includes(normalizedSearch)
+                                                        })
+                                                        .filter(cliente => !selectedClients.includes(cliente.user))
+                                                        .map((cliente) => {
+                                                            const photoUrl = cliente.photo ? cliente.photo : null
+                                                            return (
+                                                                <button
+                                                                    key={cliente.user}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (isClientView) return
+                                                                        // Validar límite de asistentes para clases
+                                                                        if (formData.type === 'class' && company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
+                                                                            setShowMaxAssistantsDialog(true)
+                                                                            return
+                                                                        }
+                                                                        setSelectedClients(prev => [...prev, cliente.user])
+                                                                        setClientSearch('')
+                                                                    }}
+                                                                    className={isClientView ? "w-full text-left px-2 py-1.5 rounded text-sm opacity-80" : "w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"}
+                                                                >
+                                                                    {photoUrl ? (
+                                                                        <img
+                                                                            src={photoUrl}
+                                                                            alt={`${cliente.name} ${cliente.last_name}`}
+                                                                            className="h-8 w-8 rounded object-cover flex-shrink-0"
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                                            {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                                        </div>
                                                                     )}
-                                                                </div>
-                                                            </button>
-                                                        )
-                                                    })}
-                                            </div>
-                                        )}
-                                            </div>
-                                        )}
+                                                                    <div className="flex-1 flex items-center justify-between">
+                                                                        <span>{cliente.name} {cliente.last_name}</span>
+                                                                        {formData.type === 'class' && (
+                                                                            <span className={`text-xs font-medium ml-2 ${(cliente.class_credits || 0) <= 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>
+                                                                                {cliente.class_credits || 0} créditos
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </button>
+                                                            )
+                                                        })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
