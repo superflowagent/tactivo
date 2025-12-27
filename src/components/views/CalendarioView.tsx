@@ -64,11 +64,13 @@ export function CalendarioView() {
       filtered = filtered.filter(event => {
         const titleMatch = event.title && normalizeForSearch(event.title).includes(q)
         const notesMatch = event.extendedProps?.notes && normalizeForSearch(event.extendedProps.notes).includes(q)
-        return Boolean(titleMatch || notesMatch)
+        const clientMatch = event.extendedProps?.clientNames && normalizeForSearch(event.extendedProps.clientNames).includes(q)
+        const professionalMatch = event.extendedProps?.professionalNames && normalizeForSearch(event.extendedProps.professionalNames).includes(q)
+        return Boolean(titleMatch || notesMatch || clientMatch || professionalMatch)
       })
     }
 
-    // Filtrar por profesional
+    // Filtrar por profesional (por id)
     if (selectedProfessional !== 'all') {
       filtered = filtered.filter(event =>
         event.extendedProps?.professional?.includes(selectedProfessional)
@@ -95,10 +97,22 @@ export function CalendarioView() {
         let backgroundColor = ''
         let borderColor = ''
 
+        // Obtener arrays expandidos (pueden venir de user_cards)
+        const expandedClients = (event as any).expand?.client || []
+        const expandedProfessionals = (event as any).expand?.professional || []
+
+        // Construir strings con nombres para búsqueda
+        const clientNames = Array.isArray(expandedClients)
+          ? expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ')
+          : expandedClients ? `${expandedClients.name} ${expandedClients.last_name}` : ''
+        const professionalNames = Array.isArray(expandedProfessionals)
+          ? expandedProfessionals.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
+          : expandedProfessionals ? `${expandedProfessionals.name} ${expandedProfessionals.last_name}` : ''
+
         // Determinar título y color según tipo
         if (event.type === 'appointment') {
-          // Obtener nombre del cliente
-          const expandedClient = (event as any).expand?.client?.[0]
+          // Obtener nombre del cliente (primero del array expandido si existe)
+          const expandedClient = Array.isArray(expandedClients) ? expandedClients[0] : expandedClients
           title = expandedClient
             ? `${expandedClient.name} ${expandedClient.last_name}`
             : 'Cita'
@@ -110,12 +124,8 @@ export function CalendarioView() {
           borderColor = 'hsl(var(--class-color))'
         } else if (event.type === 'vacation') {
           // Obtener nombres de todos los profesionales
-          const expandedProfessionals = (event as any).expand?.professional
-          if (expandedProfessionals && expandedProfessionals.length > 0) {
-            const names = expandedProfessionals.map((prof: any) =>
-              `${prof.name} ${prof.last_name}`
-            ).join(', ')
-            title = names
+          if (professionalNames) {
+            title = professionalNames
           } else {
             title = 'Vacaciones'
           }
@@ -135,7 +145,9 @@ export function CalendarioView() {
             cost: event.cost,
             paid: event.paid,
             notes: event.notes,
-            professional: event.professional
+            professional: event.professional,
+            clientNames,
+            professionalNames,
           }
         }
       })
