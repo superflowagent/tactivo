@@ -19,7 +19,7 @@ import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeForSearch } from '@/lib/utils'
-import { getUserCardsByRole } from '@/lib/userCards'
+import { getUserCardsByRole, getUserCardsByIds } from '@/lib/userCards'
 import './calendario.css'
 
 export function CalendarioView() {
@@ -33,6 +33,7 @@ export function CalendarioView() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProfessional, setSelectedProfessional] = useState<string>('all')
   const [professionals, setProfessionals] = useState<any[]>([])
+  const [showMyEvents, setShowMyEvents] = useState<boolean>(false) // Toggle for clients: show only events where user is an attendee
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function CalendarioView() {
 
   useEffect(() => {
     filterEvents()
-  }, [events, searchQuery, selectedProfessional])
+  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id])
 
   const loadProfessionals = async () => {
     if (!companyId) return
@@ -77,6 +78,14 @@ export function CalendarioView() {
       )
     }
 
+    // Si el toggle 'Ver mis eventos' está activo para clientes, filtrar por cliente actual
+    if (showMyEvents && isClient && user?.id) {
+      filtered = filtered.filter(event => {
+        const clients = event.extendedProps?.client || []
+        return Array.isArray(clients) && clients.includes(user.id)
+      })
+    }
+
     setFilteredEvents(filtered)
   }
 
@@ -101,8 +110,8 @@ export function CalendarioView() {
         const expandedClients = (event as any).expand?.client || []
         const expandedProfessionals = (event as any).expand?.professional || []
 
-        // Construir strings con nombres para búsqueda
-        const clientNames = Array.isArray(expandedClients)
+        // Construir strings con nombres para búsqueda (por ahora a partir de expand si existe)
+        let clientNames = Array.isArray(expandedClients)
           ? expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ')
           : expandedClients ? `${expandedClients.name} ${expandedClients.last_name}` : ''
         const professionalNames = Array.isArray(expandedProfessionals)
@@ -146,11 +155,43 @@ export function CalendarioView() {
             paid: event.paid,
             notes: event.notes,
             professional: event.professional,
+            client: event.client || [],
             clientNames,
             professionalNames,
-          }
+          },
+          // Also include raw event record so we can augment clientNames afterwards if needed
+          _rawEvent: event
         }
       })
+
+      // If any events lack clientNames (expand missing), fetch user_cards by ids to build names
+      const allClientIds = new Set<string>()
+      calendarEvents.forEach(ce => {
+        const ids = ce.extendedProps?.client || []
+        if (Array.isArray(ids)) ids.forEach((id: string) => allClientIds.add(id))
+      })
+
+      if (allClientIds.size > 0) {
+        try {
+          const idsArray = Array.from(allClientIds)
+          const cardsMap = await getUserCardsByIds(idsArray)
+          // fill missing clientNames where necessary
+          calendarEvents.forEach(ce => {
+            if ((!ce.extendedProps?.clientNames || ce.extendedProps.clientNames === '') && Array.isArray(ce.extendedProps.client) && ce.extendedProps.client.length) {
+              const names = ce.extendedProps.client.map((id: string) => {
+                const c = cardsMap[id]
+                return c ? `${c.name} ${c.last_name}` : null
+              }).filter(Boolean).join(', ')
+
+              if (names) {
+                ce.extendedProps.clientNames = names
+              }
+            }
+          })
+        } catch (err) {
+          logError('Error cargando user_cards para clientNames:', err)
+        }
+      }
 
       setEvents(calendarEvents)
       setFilteredEvents(calendarEvents)
@@ -259,19 +300,37 @@ export function CalendarioView() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-        <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
-          <SelectTrigger className="section-search">
-            <SelectValue placeholder="Profesional" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los profesionales</SelectItem>
-            {professionals.map((prof) => (
-              <SelectItem key={prof.user} value={prof.user}>
-                {prof.name} {prof.last_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!isClient ? (
+          <Select value={selectedProfessional} onValueChange={setSelectedProfessional}>
+            <SelectTrigger className="section-search">
+              <SelectValue placeholder="Profesional" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los profesionales</SelectItem>
+              {professionals.map((prof) => (
+                <SelectItem key={prof.user} value={prof.user}>
+                  {prof.name} {prof.last_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="flex items-center gap-3">
+            <label htmlFor="show-my-events" className="text-sm font-medium cursor-pointer">Ver mis eventos</label>
+            <label className="flex items-center cursor-pointer">
+              <input
+                id="show-my-events"
+                type="checkbox"
+                className="peer sr-only"
+                checked={showMyEvents}
+                onChange={(e) => setShowMyEvents(e.target.checked)}
+              />
+              <div className="h-5 w-9 rounded-full bg-muted relative peer-checked:bg-primary transition-colors">
+                <div className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-background shadow transform transition-transform ${showMyEvents ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+            </label>
+          </div>
+        )}
         {(searchQuery || selectedProfessional !== 'all') && (
           <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
             Limpiar filtros
