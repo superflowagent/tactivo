@@ -234,7 +234,7 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button onClick={isClient ? () => {} : handleAdd} className="w-full sm:hidden">
+      <Button onClick={isClient ? () => { } : handleAdd} className="w-full sm:hidden">
         <CalendarPlus className="mr-0 h-4 w-4" />
         {isClient ? 'Agendar cita' : 'Crear Evento'}
       </Button>
@@ -266,7 +266,7 @@ export function CalendarioView() {
           </Button>
         )}
         <div className="hidden sm:block flex-1" />
-        <Button onClick={isClient ? () => {} : handleAdd} className="hidden sm:flex">
+        <Button onClick={isClient ? () => { } : handleAdd} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
           {isClient ? 'Agendar cita' : 'Crear Evento'}
         </Button>

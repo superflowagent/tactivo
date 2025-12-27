@@ -350,10 +350,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     <Label htmlFor="type">Tipo *</Label>
                                     <Select
                                         value={formData.type}
-                                        onValueChange={(value) => handleChange('type', value as Event['type'])}
-                                        disabled={isClientView}
+                                        onValueChange={(value) => { if (isClientView) return; handleChange('type', value as Event['type']) }}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className={isClientView ? 'pointer-events-none opacity-90' : ''}>
                                             <SelectValue placeholder="Selecciona un tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -376,7 +375,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     value={dias}
                                                     onChange={(e) => setDias(parseInt(e.target.value) || 0)}
                                                     required
-                                                    disabled={isClientView}
+                                                    readOnly={isClientView}
+                                                    className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -389,7 +389,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     value={horasVacaciones}
                                                     onChange={(e) => setHorasVacaciones(parseInt(e.target.value) || 0)}
                                                     required
-                                                    disabled={isClientView}
+                                                    readOnly={isClientView}
+                                                    className={isClientView ? 'opacity-90' : ''}
                                                 />
                                             </div>
                                         </div>
@@ -401,9 +402,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 type="number"
                                                 min="1"
                                                 value={formData.duration}
-                                                onChange={(e) => handleChange('duration', parseInt(e.target.value))}
+                                                onChange={(e) => { if (isClientView) return; handleChange('duration', parseInt(e.target.value)) }}
                                                 required
-                                                disabled={isClientView}
+                                                readOnly={isClientView}
+                                                className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </>
                                     )}
@@ -420,7 +422,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 className={cn(
                                                     "w-full justify-start text-left font-normal",
                                                     !fecha && "text-muted-foreground"
-                                                )}                                                disabled={isClientView}                                            >
+                                                ,
+                                                    isClientView && 'pointer-events-none opacity-90'
+                                                )}
+                                            >
                                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                                 {fecha ? format(fecha, "dd/MM/yyyy") : "Seleccionar fecha"}
                                             </Button>
@@ -438,31 +443,41 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <div className="space-y-2">
                                     <Label htmlFor="hora">Hora *</Label>
                                     <div className="flex gap-2">
-                                        <Select value={hora} onValueChange={setHora} disabled={isClientView}>
-                                            <SelectTrigger className="flex-1">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {Array.from({ length: 24 }, (_, i) => i).map((h) => (
-                                                    <SelectItem key={h} value={h.toString().padStart(2, '0')}>
-                                                        {h.toString().padStart(2, '0')}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <span className="flex items-center">:</span>
-                                        <Select value={minutos} onValueChange={setMinutos} disabled={isClientView}>
-                                            <SelectTrigger className="flex-1">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {['00', '15', '30', '45'].map((m) => (
-                                                    <SelectItem key={m} value={m}>
-                                                        {m}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        {isClientView ? (
+                                            <Input
+                                                readOnly
+                                                className="flex-1"
+                                                value={`${hora}:${minutos}`}
+                                            />
+                                        ) : (
+                                            <>
+                                                <Select value={hora} onValueChange={(v) => setHora(v)}>
+                                                    <SelectTrigger className="flex-1">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {Array.from({ length: 24 }, (_, i) => i).map((h) => (
+                                                            <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+                                                                {h.toString().padStart(2, '0')}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                                <span className="flex items-center">:</span>
+                                                <Select value={minutos} onValueChange={(v) => setMinutos(v)}>
+                                                    <SelectTrigger className="flex-1">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {['00', '15', '30', '45'].map((m) => (
+                                                            <SelectItem key={m} value={m}>
+                                                                {m}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -492,15 +507,16 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                             </div>
                                                         )}
                                                         <span className="truncate">{card.name} {card.last_name}</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={!isClientView ? () => setSelectedClients(prev => prev.filter(id => id !== clientId)) : undefined}
-                                                            className={isClientView ? "ml-2 opacity-50 cursor-not-allowed" : "hover:text-destructive ml-2"}
-                                                            aria-label={`Eliminar ${card.name} ${card.last_name}`}
-                                                            disabled={isClientView}
-                                                        >
-                                                            ×
-                                                        </button>
+                                                        {!isClientView && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                                className="hover:text-destructive ml-2"
+                                                                aria-label={`Eliminar ${card.name} ${card.last_name}`}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 )
                                             }
@@ -520,7 +536,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             onChange={(e) => setClientSearch(e.target.value)}
                                             className="text-sm"
                                             ref={(el: HTMLInputElement) => clientSearchRef.current = el}
-                                            disabled={isClientView}
+                                            readOnly={isClientView}
                                         />
                                         {clientSearch && (
                                             <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
@@ -547,8 +563,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                                     setSelectedClients(prev => [...prev, cliente.user])
                                                                     setClientSearch('')
                                                                 }}
-                                                                className={isClientView ? "w-full text-left px-2 py-1.5 rounded text-sm opacity-50" : "w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"}
-                                                                disabled={isClientView}
+                                                                className={isClientView ? "w-full text-left px-2 py-1.5 rounded text-sm opacity-80" : "w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"}
                                                             >
                                                                 {photoUrl ? (
                                                                     <img
@@ -593,15 +608,16 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     </div>
                                                 )}
                                                 <span className="truncate">{prof.name} {prof.last_name}</span>
-                                                <button
-                                                    type="button"
-                                                    onClick={!isClientView ? () => setSelectedProfessionals(prev => prev.filter(id => id !== profId)) : undefined}
-                                                    className={isClientView ? "ml-2 opacity-50 cursor-not-allowed" : "hover:text-destructive ml-2"}
-                                                    aria-label={`Eliminar ${prof.name} ${prof.last_name}`}
-                                                    disabled={isClientView}
-                                                >
-                                                    ×
-                                                </button>
+                                                {!isClientView && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
+                                                        className="hover:text-destructive ml-2"
+                                                        aria-label={`Eliminar ${prof.name} ${prof.last_name}`}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                )}
                                             </div>
                                         ) : null
                                     })}
@@ -614,9 +630,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             setSelectedProfessionals(prev => [...prev, value])
                                         }
                                     }}
-                                    disabled={isClientView}
                                 >
-                                    <SelectTrigger>
+                                    <SelectTrigger className={isClientView ? 'pointer-events-none opacity-90' : ''}>
                                         <SelectValue placeholder="Añadir profesional" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -649,9 +664,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 min="0"
                                                 step="1"
                                                 value={formData.cost}
-                                                onChange={(e) => handleChange('cost', parseFloat(e.target.value))}
+                                                onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
                                                 required
-                                                disabled={isClientView}
+                                                readOnly={isClientView}
+                                                className={isClientView ? 'opacity-90' : ''}
                                             />
                                         </div>
 
@@ -661,8 +677,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 <Checkbox
                                                     id="paid"
                                                     checked={formData.paid}
-                                                    onCheckedChange={(checked) => handleChange('paid', checked)}
-                                                    disabled={isClientView}
+                                                    onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
                                                 />
                                                 <label
                                                     htmlFor="paid"
