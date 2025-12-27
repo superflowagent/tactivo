@@ -56,7 +56,8 @@ interface EventDialogProps {
 }
 
 export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime }: EventDialogProps) {
-    const { companyId } = useAuth()
+    const { companyId, user } = useAuth()
+    const isClientView = user?.role === 'client'
     const [formData, setFormData] = useState<Partial<Event>>({
         type: 'appointment',
         duration: 60,
@@ -221,6 +222,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (isClientView) return
         setLoading(true)
 
         try {
@@ -341,6 +343,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     <Select
                                         value={formData.type}
                                         onValueChange={(value) => handleChange('type', value as Event['type'])}
+                                        disabled={isClientView}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Selecciona un tipo" />
@@ -365,6 +368,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     value={dias}
                                                     onChange={(e) => setDias(parseInt(e.target.value) || 0)}
                                                     required
+                                                    disabled={isClientView}
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -377,6 +381,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     value={horasVacaciones}
                                                     onChange={(e) => setHorasVacaciones(parseInt(e.target.value) || 0)}
                                                     required
+                                                    disabled={isClientView}
                                                 />
                                             </div>
                                         </div>
@@ -390,6 +395,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 value={formData.duration}
                                                 onChange={(e) => handleChange('duration', parseInt(e.target.value))}
                                                 required
+                                                disabled={isClientView}
                                             />
                                         </>
                                     )}
@@ -406,8 +412,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 className={cn(
                                                     "w-full justify-start text-left font-normal",
                                                     !fecha && "text-muted-foreground"
-                                                )}
-                                            >
+                                                )}                                                disabled={isClientView}                                            >
                                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                                 {fecha ? format(fecha, "dd/MM/yyyy") : "Seleccionar fecha"}
                                             </Button>
@@ -425,7 +430,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <div className="space-y-2">
                                     <Label htmlFor="hora">Hora *</Label>
                                     <div className="flex gap-2">
-                                        <Select value={hora} onValueChange={setHora}>
+                                        <Select value={hora} onValueChange={setHora} disabled={isClientView}>
                                             <SelectTrigger className="flex-1">
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -438,7 +443,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             </SelectContent>
                                         </Select>
                                         <span className="flex items-center">:</span>
-                                        <Select value={minutos} onValueChange={setMinutos}>
+                                        <Select value={minutos} onValueChange={setMinutos} disabled={isClientView}>
                                             <SelectTrigger className="flex-1">
                                                 <SelectValue />
                                             </SelectTrigger>
@@ -481,9 +486,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                         <span className="truncate">{card.name} {card.last_name}</span>
                                                         <button
                                                             type="button"
-                                                            onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
-                                                            className="hover:text-destructive ml-2"
+                                                            onClick={!isClientView ? () => setSelectedClients(prev => prev.filter(id => id !== clientId)) : undefined}
+                                                            className={isClientView ? "ml-2 opacity-50 cursor-not-allowed" : "hover:text-destructive ml-2"}
                                                             aria-label={`Eliminar ${card.name} ${card.last_name}`}
+                                                            disabled={isClientView}
                                                         >
                                                             ×
                                                         </button>
@@ -506,6 +512,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             onChange={(e) => setClientSearch(e.target.value)}
                                             className="text-sm"
                                             ref={(el: HTMLInputElement) => clientSearchRef.current = el}
+                                            disabled={isClientView}
                                         />
                                         {clientSearch && (
                                             <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
@@ -523,6 +530,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                                 key={cliente.user}
                                                                 type="button"
                                                                 onClick={() => {
+                                                                    if (isClientView) return
                                                                     // Validar límite de asistentes para clases
                                                                     if (formData.type === 'class' && company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
                                                                         setShowMaxAssistantsDialog(true)
@@ -531,7 +539,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                                     setSelectedClients(prev => [...prev, cliente.user])
                                                                     setClientSearch('')
                                                                 }}
-                                                                className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"
+                                                                className={isClientView ? "w-full text-left px-2 py-1.5 rounded text-sm opacity-50" : "w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"}
+                                                                disabled={isClientView}
                                                             >
                                                                 {photoUrl ? (
                                                                     <img
@@ -578,9 +587,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 <span className="truncate">{prof.name} {prof.last_name}</span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
-                                                    className="hover:text-destructive ml-2"
+                                                    onClick={!isClientView ? () => setSelectedProfessionals(prev => prev.filter(id => id !== profId)) : undefined}
+                                                    className={isClientView ? "ml-2 opacity-50 cursor-not-allowed" : "hover:text-destructive ml-2"}
                                                     aria-label={`Eliminar ${prof.name} ${prof.last_name}`}
+                                                    disabled={isClientView}
                                                 >
                                                     ×
                                                 </button>
@@ -591,10 +601,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <Select
                                     value=""
                                     onValueChange={(value) => {
+                                        if (isClientView) return
                                         if (value && !selectedProfessionals.includes(value)) {
                                             setSelectedProfessionals(prev => [...prev, value])
                                         }
                                     }}
+                                    disabled={isClientView}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Añadir profesional" />
@@ -631,6 +643,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 value={formData.cost}
                                                 onChange={(e) => handleChange('cost', parseFloat(e.target.value))}
                                                 required
+                                                disabled={isClientView}
                                             />
                                         </div>
 
@@ -641,6 +654,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     id="paid"
                                                     checked={formData.paid}
                                                     onCheckedChange={(checked) => handleChange('paid', checked)}
+                                                    disabled={isClientView}
                                                 />
                                                 <label
                                                     htmlFor="paid"
@@ -660,6 +674,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     value={formData.notes || ""}
                                     onChange={(value) => handleChange('notes', value)}
                                     placeholder=""
+                                    readOnly={isClientView}
                                 />
                             </div>
                         </div>
@@ -668,7 +683,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     <DialogFooter className="mt-4">
                         <div className="flex w-full justify-between">
                             <div>
-                                {event?.id && (
+                                {event?.id && !isClientView && (
                                     <Button
                                         type="button"
                                         variant="destructive"
@@ -683,7 +698,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" form="event-form" disabled={loading || missingUserCards.length > 0}>
+                                <Button type="submit" form="event-form" disabled={loading || missingUserCards.length > 0 || isClientView}>
                                     {loading ? "Guardando..." : "Guardar"}
                                 </Button>
                             </div>
