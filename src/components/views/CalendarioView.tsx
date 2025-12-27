@@ -23,7 +23,8 @@ import { getUserCardsByRole } from '@/lib/userCards'
 import './calendario.css'
 
 export function CalendarioView() {
-  const { companyId } = useAuth()
+  const { companyId, user } = useAuth()
+  const isClient = user?.role === 'client'
   const [events, setEvents] = useState<any[]>([])
   const [filteredEvents, setFilteredEvents] = useState<any[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -147,6 +148,9 @@ export function CalendarioView() {
   }
 
   const handleDateClick = (arg: any) => {
+    // Clientes no pueden crear eventos desde el calendario (sin funcionalidad por ahora)
+    if (isClient) return
+
     // Abrir modal de crear evento con la fecha/hora clickeada
     setClickedDateTime(arg.dateStr)
     setSelectedEvent(null)
@@ -170,6 +174,7 @@ export function CalendarioView() {
   }
 
   const handleAdd = () => {
+    if (isClient) return // No-op for clients (show 'Agendar cita' button without functionality)
     setClickedDateTime(null)
     setSelectedEvent(null)
     setDialogOpen(true)
@@ -229,9 +234,9 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button onClick={handleAdd} className="w-full sm:hidden">
+      <Button onClick={isClient ? () => {} : handleAdd} className="w-full sm:hidden">
         <CalendarPlus className="mr-0 h-4 w-4" />
-        Crear Evento
+        {isClient ? 'Agendar cita' : 'Crear Evento'}
       </Button>
 
       {/* Filtros */}
@@ -261,9 +266,9 @@ export function CalendarioView() {
           </Button>
         )}
         <div className="hidden sm:block flex-1" />
-        <Button onClick={handleAdd} className="hidden sm:flex">
+        <Button onClick={isClient ? () => {} : handleAdd} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
-          Crear Evento
+          {isClient ? 'Agendar cita' : 'Crear Evento'}
         </Button>
       </div>
 
