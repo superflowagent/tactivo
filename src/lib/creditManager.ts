@@ -1,5 +1,5 @@
 import pb from './pocketbase'
-import { debug, info, error } from './logger'
+import { info, error } from './logger'
 
 interface CreditChange {
     clientId: string

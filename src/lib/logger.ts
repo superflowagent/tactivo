@@ -1,4 +1,4 @@
-export const logLevel = (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.NODE_ENV === 'production') ? 'error' : 'debug'
+const logLevel = (typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.NODE_ENV === 'production') ? 'error' : 'debug'
 
 export function debug(...args: any[]) {
     if (logLevel === 'debug') console.debug('[DEBUG]', ...args)

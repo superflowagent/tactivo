@@ -7,7 +7,7 @@ import {
     TooltipProvider,
 } from "@/components/ui/tooltip";
 
-export interface ActionButtonProps
+interface ActionButtonProps
     extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     tooltip?: React.ReactNode;
     tooltipClassName?: string;

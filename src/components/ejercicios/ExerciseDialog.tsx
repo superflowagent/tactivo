@@ -173,38 +173,7 @@ export default function ExerciseDialog({
     // Inline create anatomy
     const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
-    // Delete equipment/anatomy
-    const handleDeleteEquipment = async (id: string) => {
-        if (!confirm('¿Eliminar equipamiento? Esta acción no se puede deshacer.')) return;
-        setLoading(true);
-        try {
-            await pb.collection('equipment').delete(id);
-            setLocalEquipment((prev: EquipmentRecord[]) => prev.filter(x => x.id !== id));
-            setSelectedEquipment(prev => prev.filter(i => i !== id));
-            setEquipmentSearch("");
-        } catch (err: any) {
-            logError('Error deleting equipment:', err);
-            setError('Error al eliminar equipamiento');
-        } finally {
-            setLoading(false);
-        }
-    }
 
-    const handleDeleteAnatomy = async (id: string) => {
-        if (!confirm('¿Eliminar anatomía? Esta acción no se puede deshacer.')) return;
-        setLoading(true);
-        try {
-            await pb.collection('anatomy').delete(id);
-            setLocalAnatomy((prev: AnatomyRecord[]) => prev.filter(x => x.id !== id));
-            setSelectedAnatomy(prev => prev.filter(i => i !== id));
-            setAnatomySearch("");
-        } catch (err: any) {
-            logError('Error deleting anatomy:', err);
-            setError('Error al eliminar anatomía');
-        } finally {
-            setLoading(false);
-        }
-    }
 
     const handleCreateAnatomy = async () => {
         if (!user?.company) return;
