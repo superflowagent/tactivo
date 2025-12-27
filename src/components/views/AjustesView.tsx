@@ -43,9 +43,11 @@ export function AjustesView() {
       setCompany(record)
       setFormData(record)
 
-      // Cargar preview del logo existente
+      // Cargar preview del logo existente (o limpiar si no hay logo)
       if (record.logo) {
         setLogoPreview(pb.files.getURL(record, record.logo))
+      } else {
+        setLogoPreview(null)
       }
     } catch (err: any) {
       logError('Error al cargar configuración:', err)
@@ -93,8 +95,8 @@ export function AjustesView() {
       // Añadir logo si hay uno nuevo
       if (logoFile) {
         formDataToSend.append('logo', logoFile)
-      } else if (!logoPreview && formData.logo) {
-        // Si no hay preview y antes había logo, borrarlo
+      } else if (logoPreview === null) {
+        // Si el usuario eliminó el logo (logoPreview === null), pedir a PocketBase que lo borre
         formDataToSend.append('logo', '')
       }
 
@@ -236,14 +238,14 @@ export function AjustesView() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="max_class_assistants">Número de Asistentes</Label>
+                  <Label htmlFor="max_class_assistants">Capacidad clase</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Máximo de asistentes por clase</p>
+                      <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                        <p>Establece el límite de asistentes. Una vez alcanzado, el sistema no permitirá que más clientes se apunten.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -260,14 +262,14 @@ export function AjustesView() {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="class_block_mins">Bloqueo de Clase</Label>
+                  <Label htmlFor="class_block_mins">Cierre de clase vacía</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Minutos antes de la clase para bloquear reserva</p>
+                      <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                        <p>Si no hay clientes apuntados, la clase se cerrará al llegar a este tiempo antes del inicio (en minutos), impidiendo nuevas inscripciones de última hora.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -284,14 +286,14 @@ export function AjustesView() {
 
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor="class_unenroll_mins">Borrado de Clase</Label>
+                  <Label htmlFor="class_unenroll_mins">Antelación borrado cliente</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Horas antes de la clase para permitir cancelación</p>
+                      <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                        <p>Define cuántos minutos antes del inicio de la clase un cliente aún puede borrarse sin penalización.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
