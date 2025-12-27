@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import ActionButton from "@/components/ui/ActionButton";
-import { shouldAutoFocus, normalizeForSearch } from "@/lib/utils";
+import { normalizeForSearch } from "@/lib/utils";
 import { error as logError } from "@/lib/logger";
 import "./ejercicios.css";
 
@@ -94,13 +94,7 @@ export default function ExerciseDialog({
 
     // Inline creation state
 
-    useEffect(() => {
-        if (open && shouldAutoFocus()) {
-            setTimeout(() => {
-                nameInputRef.current?.focus()
-            }, 50)
-        }
-    }, [open])
+    // Autofocus removed per UX decision
     const [anatomySearch, setAnatomySearch] = useState("");
     const [equipmentSearch, setEquipmentSearch] = useState("");
     const [creatingAnatomy, setCreatingAnatomy] = useState(false);
@@ -149,7 +143,7 @@ export default function ExerciseDialog({
             setSelectedAnatomy(exercise.anatomy || []);
             setSelectedEquipment(exercise.equipment || []);
             if (exercise.file) {
-                setImagePreview(pb.files.getUrl(exercise, exercise.file));
+                setImagePreview(pb.files.getURL(exercise, exercise.file));
                 setRemoveExistingFile(false);
             }
         } else {
@@ -451,7 +445,6 @@ export default function ExerciseDialog({
                                                 placeholder="Buscar o crear equipamiento..."
                                                 value={equipmentSearch}
                                                 onChange={(e) => setEquipmentSearch(e.target.value)}
-                                                autoFocus={shouldAutoFocus()}
                                             />
                                             <div className="space-y-1 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                                                 {filteredEquipment.map((e) => (
@@ -527,7 +520,6 @@ export default function ExerciseDialog({
                                                 placeholder="Buscar o crear anatomía..."
                                                 value={anatomySearch}
                                                 onChange={(e) => setAnatomySearch(e.target.value)}
-                                                autoFocus={shouldAutoFocus()}
                                             />
                                             <div className="space-y-1 max-h-48 overflow-y-auto" onWheel={(e) => e.stopPropagation()}>
                                                 {filteredAnatomy.map((a) => (

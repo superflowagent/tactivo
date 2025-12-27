@@ -13,15 +13,15 @@ interface ActionButtonProps
     tooltipClassName?: string;
 }
 
-export function ActionButton({
+export const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(function ActionButton({
     tooltip,
     tooltipClassName,
     className,
     children,
     ...props
-}: ActionButtonProps) {
+}: ActionButtonProps, ref) {
     const button = (
-        <button type="button" className={cn("action-icon", className)} {...props}>
+        <button ref={ref} type="button" className={cn("action-icon", className)} {...props}>
             {children}
         </button>
     );
@@ -38,6 +38,6 @@ export function ActionButton({
             </Tooltip>
         </TooltipProvider>
     );
-}
+});
 
 export default ActionButton;

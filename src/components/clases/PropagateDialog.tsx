@@ -161,7 +161,7 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md" hideClose>
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <CalendarRange className="h-5 w-5" />

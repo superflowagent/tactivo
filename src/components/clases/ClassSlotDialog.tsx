@@ -36,6 +36,7 @@ import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 
 interface ClassSlotDialogProps {
     open: boolean
@@ -57,13 +58,43 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
     })
     const [hora, setHora] = useState<string>('10')
     const [minutos, setMinutos] = useState<string>('00')
-    const [clientes, setClientes] = useState<Cliente[]>([])
+    const [clientes, setClientes] = useState<any[]>([])
     const [profesionales, setProfesionales] = useState<any[]>([])
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
     const [clientSearch, setClientSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
+    const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
+    const [missingUserCards, setMissingUserCards] = useState<string[]>([])
+
+    useEffect(() => {
+        let mounted = true
+        if (!selectedClients || selectedClients.length === 0) {
+            setUserCardsMap({})
+            setMissingUserCards([])
+            return
+        }
+
+        ; (async () => {
+            try {
+                const map = await getUserCardsByIds(selectedClients)
+                if (!mounted) return
+                setUserCardsMap(map)
+                const missing = selectedClients.filter(id => !map[id])
+                if (missing.length) {
+                    setMissingUserCards(missing)
+                    logError('Missing user_cards for ids:', missing)
+                } else {
+                    setMissingUserCards([])
+                }
+            } catch (err) {
+                logError('Error cargando user_cards para asistentes:', err)
+            }
+        })()
+
+        return () => { mounted = false }
+    }, [selectedClients])
 
     const handleInternalDelete = async () => {
         if (!slot?.id) return
@@ -156,13 +187,10 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
         if (!companyId) return
 
         try {
-            const records = await pb.collection('users').getFullList<Cliente>({
-                filter: `company = "${companyId}" && role = "client"`,
-                sort: 'name',
-            })
+            const records = await getUserCardsByRole(companyId, 'client')
             setClientes(records)
         } catch (err) {
-            logError('Error cargando clientes:', err)
+            logError('Error cargando clientes desde user_cards:', err)
         }
     }
 
@@ -170,13 +198,10 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
         if (!companyId) return
 
         try {
-            const records = await pb.collection('users').getFullList({
-                filter: `company = "${companyId}" && role = "professional"`,
-                sort: 'name',
-            })
+            const records = await getUserCardsByRole(companyId, 'professional')
             setProfesionales(records)
         } catch (err) {
-            logError('Error cargando profesionales:', err)
+            logError('Error cargando profesionales desde user_cards:', err)
         }
     }
 
@@ -302,19 +327,37 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                             </Label>
                             <div className="flex flex-wrap gap-2 mb-2">
                                 {selectedClients.map((clientId) => {
-                                    const cliente = clientes.find(c => c.id === clientId)
-                                    return cliente ? (
-                                        <div key={clientId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
-                                            <span>{cliente.name} {cliente.last_name}</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
-                                                className="hover:text-destructive"
-                                            >
-                                                ×
-                                            </button>
+                                    const card = userCardsMap[clientId]
+
+                                    if (card) {
+                                        return (
+                                            <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                                {card.photo ? (
+                                                    <img src={card.photo} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                ) : (
+                                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                        {String(card.name || '')?.charAt(0)}{String(card.last_name || '')?.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <span className="truncate">{card.name} {card.last_name}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                    className="hover:text-destructive ml-2"
+                                                    aria-label={`Eliminar ${card.name} ${card.last_name}`}
+                                                >
+                                                    ×
+                                                </button>
+                                            </div>
+                                        )
+                                    }
+
+                                    return (
+                                        <div key={clientId} className="flex items-center gap-2 bg-red-100 border border-red-200 px-2 py-1 rounded-md text-sm">
+                                            <div className="text-sm font-medium text-destructive">⚠ Tarjeta no encontrada</div>
+                                            <div className="ml-2 text-xs text-destructive">ID: {clientId}</div>
                                         </div>
-                                    ) : null
+                                    )
                                 })}
                             </div>
                             <div className="space-y-2">
@@ -322,7 +365,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                     placeholder="Buscar cliente..."
                                     value={clientSearch}
                                     onChange={(e) => setClientSearch(e.target.value)}
-                                    className="text-sm"
+                                    className="text-sm h-10"
                                 />
                                 {clientSearch && (
                                     <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
@@ -332,21 +375,19 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                                 const normalizedClientName = (cliente.name + ' ' + cliente.last_name).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
                                                 return normalizedClientName.includes(normalizedSearch)
                                             })
-                                            .filter(cliente => !selectedClients.includes(cliente.id!))
+                                            .filter(cliente => !selectedClients.includes(cliente.user))
                                             .map((cliente) => {
-                                                const photoUrl = cliente.photo
-                                                    ? `https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`
-                                                    : null
+                                                const photoUrl = cliente.photo ? cliente.photo : null
                                                 return (
                                                     <button
-                                                        key={cliente.id}
+                                                        key={cliente.user}
                                                         type="button"
                                                         onClick={() => {
                                                             if (company?.max_class_assistants && selectedClients.length >= company.max_class_assistants) {
                                                                 setShowMaxAssistantsDialog(true)
                                                                 return
                                                             }
-                                                            setSelectedClients(prev => [...prev, cliente.id!])
+                                                            setSelectedClients(prev => [...prev, cliente.user])
                                                             setClientSearch('')
                                                         }}
                                                         className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"
@@ -381,14 +422,22 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                             <Label>Profesional *</Label>
                             <div className="flex flex-wrap gap-2 mb-2">
                                 {selectedProfessionals.map((profId) => {
-                                    const prof = profesionales.find(p => p.id === profId)
+                                    const prof = profesionales.find(p => p.user === profId)
                                     return prof ? (
-                                        <div key={profId} className="flex items-center gap-1 bg-muted px-2 py-1 rounded-md text-sm">
-                                            <span>{prof.name} {prof.last_name}</span>
+                                        <div key={profId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                            {prof.photo ? (
+                                                <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                            ) : (
+                                                <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                    {prof.name.charAt(0)}{prof.last_name.charAt(0)}
+                                                </div>
+                                            )}
+                                            <span className="truncate">{prof.name} {prof.last_name}</span>
                                             <button
                                                 type="button"
                                                 onClick={() => setSelectedProfessionals(prev => prev.filter(id => id !== profId))}
-                                                className="hover:text-destructive"
+                                                className="hover:text-destructive ml-2"
+                                                aria-label={`Eliminar ${prof.name} ${prof.last_name}`}
                                             >
                                                 ×
                                             </button>
@@ -404,13 +453,22 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                     }
                                 }}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="h-10">
                                     <SelectValue placeholder="Añadir profesional" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {profesionales.map((prof) => (
-                                        <SelectItem key={prof.id} value={prof.id}>
-                                            {prof.name} {prof.last_name}
+                                        <SelectItem key={prof.user} value={prof.user}>
+                                            <div className="flex items-center gap-2">
+                                                {prof.photo ? (
+                                                    <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                ) : (
+                                                    <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                        {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
+                                                    </div>
+                                                )}
+                                                <span>{prof.name} {prof.last_name}</span>
+                                            </div>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -451,7 +509,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" form="class-form" disabled={loading}>
+                                <Button type="submit" form="class-form" disabled={loading || missingUserCards.length > 0}>
                                     {loading ? "Guardando..." : "Guardar"}
                                 </Button>
                             </div>

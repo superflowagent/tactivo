@@ -494,13 +494,13 @@ export function EjerciciosView() {
                       <>
                         {isVideo(exercise.file) ? (
                           <video
-                            src={pb.files.getUrl(exercise, exercise.file)}
+                            src={pb.files.getURL(exercise, exercise.file)}
                             className="w-full h-full object-cover"
                             controls
                           />
                         ) : (
                           <img
-                            src={pb.files.getUrl(exercise, exercise.file)}
+                            src={pb.files.getURL(exercise, exercise.file)}
                             alt={exercise.name}
                             className="w-full h-full object-cover"
                           />

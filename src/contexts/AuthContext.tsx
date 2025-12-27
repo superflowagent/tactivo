@@ -69,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (pb.authStore.isValid && pb.authStore.model) {
         const authData = pb.authStore.model as any
 
-        // Verificar que sea professional
-        if (authData.role === 'professional') {
+        // Allow professionals and clients to be authenticated
+        if (authData.role === 'professional' || authData.role === 'client') {
           // Obtener el usuario actual con expand de company
           const userData = await pb.collection('users').getOne(authData.id, {
             expand: 'company'
@@ -111,11 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         expand: 'company'
       })
 
-      // Verificar que sea professional
-      if (authData.record.role !== 'professional') {
-        pb.authStore.clear()
-        throw new Error('Solo los profesionales pueden acceder al panel')
-      }
+      // Allow both professionals and clients to login
 
       // Obtener información de la compañía desde el expand o directamente
       let company = authData.record.expand?.company

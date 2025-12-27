@@ -21,7 +21,7 @@ import {
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, UserStar, X, Mail, CheckCircle } from "lucide-react"
 import { createPortal } from "react-dom"
-import { cn, shouldAutoFocus } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { error } from '@/lib/logger'
 import pb from "@/lib/pocketbase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -64,15 +64,10 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     const [edad, setEdad] = useState<number | null>(null)
     const [loading, setLoading] = useState(false)
 
-    useEffect(() => {
-        if (open && shouldAutoFocus()) {
-            setTimeout(() => {
-                nameInputRef.current?.focus()
-            }, 50)
-        }
-    }, [open])
+    // Autofocus removed per UX decision
     const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    const [removePhoto, setRemovePhoto] = useState(false)
     const [phoneError, setPhoneError] = useState<string>("")
 
     useEffect(() => {
@@ -88,6 +83,14 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 setPhotoPreview(pb.files.getURL(profesional, profesional.photo))
             } else {
                 setPhotoPreview(null)
+            }
+            setRemovePhoto(false)
+
+            // Ensure the user_cards entry is up to date when opening the dialog for an existing profesional
+            if (profesional?.id) {
+                import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
+                    try { syncUserCardOnUpsert(profesional) } catch (e) { /* ignore */ }
+                })
             }
         } else {
             setFormData({
@@ -152,66 +155,59 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
         setLoading(true)
 
         try {
-            const formDataToSend = new FormData()
-
-            // Añadir campos regulares (excluyendo campos especiales y metadata)
+            // Build payload for non-file updates
+            const payload: any = {}
             Object.entries(formData).forEach(([key, value]) => {
-                // Excluir campos que se manejan por separado o son metadata
-                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') {
-                    return
-                }
-                // Solo añadir si tiene valor
-                if (value !== undefined && value !== null && value !== '') {
-                    formDataToSend.append(key, String(value))
-                }
+                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') return
+                if (value !== undefined && value !== null && value !== '') payload[key] = String(value)
             })
 
-            // Añadir email solo si es creación o si ha cambiado
+            // Email
             if (!profesional?.id) {
-                // Creación: siempre añadir email
                 if (formData.email) {
-                    formDataToSend.append('email', formData.email)
-                    formDataToSend.append('emailVisibility', 'true')
+                    payload.email = formData.email
+                    payload.emailVisibility = 'true'
                 }
             } else if (formData.email && formData.email !== profesional.email) {
-                // Actualización: solo si el email ha cambiado
-                formDataToSend.append('email', formData.email)
-                formDataToSend.append('emailVisibility', 'true')
+                payload.email = formData.email
+                payload.emailVisibility = 'true'
             }
 
-            // Añadir foto si hay una nueva
-            if (photoFile) {
-                formDataToSend.append('photo', photoFile)
-            }
+            // Fecha
+            if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, "yyyy-MM-dd")
 
-            // Añadir fecha de nacimiento
-            if (fechaNacimiento) {
-                formDataToSend.append('birth_date', format(fechaNacimiento, "yyyy-MM-dd"))
-            }
-
-            // Añadir role si es nuevo profesional
+            // Role/company for create
             if (!profesional?.id) {
-                formDataToSend.append('role', 'professional')
-                // Auto-asignar company del profesional logueado
-                if (companyId) {
-                    formDataToSend.append('company', companyId)
-                }
-                // Generar contraseña automática para nuevos profesionales (requerido por PocketBase)
+                payload.role = 'professional'
+                if (companyId) payload.company = companyId
                 const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
-                formDataToSend.append('password', randomPassword)
-                formDataToSend.append('passwordConfirm', randomPassword)
+                payload.password = randomPassword
+                payload.passwordConfirm = randomPassword
             }
 
-            if (profesional?.id) {
-                // Actualizar profesional existente
-                await pb.collection('users').update(profesional.id, formDataToSend)
+            let savedUser: any = null
+
+            if (photoFile) {
+                const formDataToSend = new FormData()
+                Object.entries(payload).forEach(([k, v]) => formDataToSend.append(k, String(v)))
+                formDataToSend.append('photo', photoFile)
+
+                if (profesional?.id) savedUser = await pb.collection('users').update(profesional.id, formDataToSend)
+                else savedUser = await pb.collection('users').create(formDataToSend)
             } else {
-                // Crear nuevo profesional
-                await pb.collection('users').create(formDataToSend)
+                if (removePhoto && profesional?.id) payload.photo = null
+
+                if (profesional?.id) savedUser = await pb.collection('users').update(profesional.id, payload)
+                else savedUser = await pb.collection('users').create(payload)
             }
+
+            import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
+                try { syncUserCardOnUpsert(savedUser) } catch (e) { /* ignore */ }
+            })
 
             onSave()
             onOpenChange(false)
+            setRemovePhoto(false)
         } catch (err) {
             error('Error al guardar profesional:', err)
             alert('Error al guardar el profesional')
@@ -349,7 +345,10 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                                 type="file"
                                                 accept="image/*"
                                                 className="hidden"
-                                                onChange={handlePhotoChange}
+                                                onChange={(e) => {
+                                                    handlePhotoChange(e)
+                                                    setRemovePhoto(false)
+                                                }}
                                             />
                                             <label
                                                 htmlFor="photo"
@@ -365,6 +364,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                                             e.preventDefault()
                                                             setPhotoFile(null)
                                                             setPhotoPreview(null)
+                                                            setRemovePhoto(true)
                                                             setFormData(prev => ({ ...prev, photo: '' }))
                                                             const input = document.getElementById('photo') as HTMLInputElement
                                                             if (input) input.value = ''
