@@ -302,8 +302,8 @@ export function AjustesView() {
                   id="class_unenroll_mins"
                   type="number"
                   min="0"
-                  value={formData.class_unenroll_mins ? formData.class_unenroll_mins / 60 : ''}
-                  onChange={(e) => handleChange('class_unenroll_mins', parseInt(e.target.value) * 60)}
+                  value={formData.class_unenroll_mins ?? ''}
+                  onChange={(e) => handleChange('class_unenroll_mins', isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))}
                   required
                 />
               </div>

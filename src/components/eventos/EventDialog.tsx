@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { format } from "date-fns"
 import {
     Dialog,
@@ -46,6 +46,7 @@ import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 import { onEventCreate, onEventUpdate, onEventDelete } from "@/lib/creditManager"
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 
 interface EventDialogProps {
     open: boolean
@@ -76,31 +77,26 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
     const [clientSearch, setClientSearch] = useState('')
     const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
-    const [missingUserCards, setMissingUserCards] = useState<string[]>([])
+    const [userCardsLoading, setUserCardsLoading] = useState(false)
 
     useEffect(() => {
         let mounted = true
         if (!selectedClients || selectedClients.length === 0) {
             setUserCardsMap({})
-            setMissingUserCards([])
             return
         }
 
         ; (async () => {
             try {
+                setUserCardsLoading(true)
                 const map = await getUserCardsByIds(selectedClients)
                 if (!mounted) return
                 setUserCardsMap(map)
-                // Detect missing cards
-                const missing = selectedClients.filter(id => !map[id])
-                if (missing.length) {
-                    setMissingUserCards(missing)
-                    logError('Missing user_cards for ids:', missing)
-                } else {
-                    setMissingUserCards([])
-                }
+                // No UI warning for missing cards; leave placeholders empty if card not found
             } catch (err) {
                 logError('Error cargando user_cards para asistentes:', err)
+            } finally {
+                if (mounted) setUserCardsLoading(false)
             }
         })()
 
@@ -123,7 +119,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
     useEffect(() => {
         if (open) {
-            loadClientes()
+            // Solo cargar la lista completa de clientes si NO es vista cliente (los clientes no necesitan buscar)
+            if (!isClientView) loadClientes()
             loadProfesionales()
             loadCompany()
         }
@@ -292,6 +289,93 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         }
     }
 
+    // Cliente: Apuntarme / Borrarme handlers
+    const isSignedUp = !!(user && selectedClients.includes(user.id))
+
+    // Tiempo (minutos) hasta el inicio del evento según la fecha/hora del formulario
+    const minutesUntilStart = useMemo(() => {
+        if (!fecha) return Infinity
+        const dt = new Date(fecha)
+        dt.setHours(parseInt(hora || '0'), parseInt(minutos || '0'), 0, 0)
+        return Math.round((dt.getTime() - Date.now()) / (1000 * 60))
+    }, [fecha, hora, minutos])
+
+    const classUnenrollMins = company?.class_unenroll_mins ?? 0
+    const classBlockMins = company?.class_block_mins ?? 0
+
+    const signDisabledByTime = (selectedClients.length === 0) && (minutesUntilStart < classBlockMins)
+    const unsignDisabledByTime = minutesUntilStart < classUnenrollMins
+
+    // Tooltip texts for disabled buttons (clients)
+    const signTooltip = isSignedUp ? 'Ya estás apuntado' : (signDisabledByTime ? 'Clase cerrada' : null)
+    const unsignTooltip = !isSignedUp ? 'No estás apuntado' : (unsignDisabledByTime ? 'La clase está a punto de empezar' : null)
+
+    // Determine if the event datetime has already passed (for existing events)
+    const eventHasPassed = event?.datetime ? (new Date(event.datetime).getTime() < Date.now()) : false
+
+    // Hide footer for clients when viewing appointments, or when viewing a class that already took place
+    const hideFooterForClient = isClientView && (formData.type === 'appointment' || (formData.type === 'class' && eventHasPassed))
+
+    const handleSignUp = async () => {
+        if (!user?.id) return
+
+        // If no event yet (creating new), just add locally
+        if (!event?.id) {
+            if (!selectedClients.includes(user.id)) {
+                setSelectedClients(prev => [...prev, user.id])
+            }
+            return
+        }
+
+        try {
+            setLoading(true)
+
+            const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
+
+            // Persist to server
+            await pb.collection('events').update(event.id, { client: newClients })
+
+            // Update local state and notify parent
+            setSelectedClients(newClients)
+            onSave()
+        } catch (err: any) {
+            logError('Error apuntando al cliente al evento:', err)
+
+            alert('Error al apuntarme al evento')
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleUnsign = async () => {
+        if (!user?.id) return
+
+        // If no event yet (creating new), just remove locally
+        if (!event?.id) {
+            setSelectedClients(prev => prev.filter(id => id !== user.id))
+            return
+        }
+
+        try {
+            setLoading(true)
+
+            const newClients = selectedClients.filter(id => id !== user.id)
+
+            // Persist to server
+            await pb.collection('events').update(event.id, { client: newClients })
+
+            // Update local state and notify parent
+            setSelectedClients(newClients)
+            onSave()
+        } catch (err: any) {
+            logError('Error borrando cliente del evento:', err)
+
+            alert('Error al borrarme del evento')
+        } finally {
+            setLoading(false)
+        }
+    }
+
     const handleChange = (field: keyof Event, value: any) => {
         setFormData(prev => {
             const newData = { ...prev, [field]: value }
@@ -332,18 +416,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     </DialogHeader>
 
                     <form id="event-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto space-y-6 px-1">
-                        <div className="space-y-4">
-                            {missingUserCards.length > 0 && (
-                                <div className="fixed left-4 right-4 md:left-auto md:right-auto z-[100]">
-                                    <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 bg-[hsl(var(--background))]">
-                                        <AlertCircle className="h-4 w-4" />
-                                        <div>
-                                            <div className="font-semibold">Falta información en <code>user_cards</code></div>
-                                            <div className="text-sm">Faltan user_cards para los IDs: {missingUserCards.join(', ')}. Contacta al administrador para sincronizar.</div>
-                                        </div>
-                                    </Alert>
-                                </div>
-                            )}
+                        <div className="space-y-3">
+
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -533,12 +607,49 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 )
                                             }
 
-                                            return (
-                                                <div key={clientId} className="flex items-center gap-2 bg-red-100 border border-red-200 px-2 py-1 rounded-md text-sm">
-                                                    <div className="text-sm font-medium text-destructive">⚠ Tarjeta no encontrada</div>
-                                                    <div className="ml-2 text-xs text-destructive">ID: {clientId}</div>
-                                                </div>
-                                            )
+                                            if (userCardsLoading) {
+                                                return (
+                                                    <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm animate-pulse">
+                                                        <div className="h-6 w-6 rounded bg-muted-foreground/20" />
+                                                        <div className="flex-1 h-4 bg-muted-foreground/20 rounded" />
+                                                    </div>
+                                                )
+                                            }
+
+                                            // Try to find cliente from preloaded `clientes` to avoid flicker
+                                            const cliente = clientes.find(c => c.user === clientId)
+                                            if (cliente) {
+                                                const photoUrl = cliente.photo ? cliente.photo : null
+                                                return (
+                                                    <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
+                                                        {photoUrl ? (
+                                                            <img
+                                                                src={photoUrl}
+                                                                alt={`${cliente.name} ${cliente.last_name}`}
+                                                                className="h-6 w-6 rounded object-cover flex-shrink-0"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
+                                                                {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <span className="truncate">{cliente.name} {cliente.last_name}</span>
+                                                        {!isClientView && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedClients(prev => prev.filter(id => id !== clientId))}
+                                                                className="hover:text-destructive ml-2"
+                                                                aria-label={`Eliminar ${cliente.name} ${cliente.last_name}`}
+                                                            >
+                                                                ×
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )
+                                            }
+
+                                            // If still not found, show nothing (we removed the 'Tarjeta no encontrada' UI)
+                                            return null
                                         })}
                                     </div>
                                     {!isClientView && (
@@ -726,30 +837,96 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                         </div>
                     </form>
 
-                    <DialogFooter className="mt-4">
-                        <div className="flex w-full justify-between">
-                            <div>
-                                {event?.id && !isClientView && (
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        onClick={() => setShowDeleteDialog(true)}
-                                        disabled={loading}
-                                    >
-                                        Eliminar
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                                    Cancelar
-                                </Button>
-                                <Button type="submit" form="event-form" disabled={loading || missingUserCards.length > 0 || isClientView}>
-                                    {loading ? "Guardando..." : "Guardar"}
-                                </Button>
-                            </div>
-                        </div>
-                    </DialogFooter>
+                    {!hideFooterForClient && (
+                        isClientView && formData.type === 'class' ? (
+                            <DialogFooter className="mt-4">
+                                <div className="flex w-full justify-between">
+                                    <div>
+                                        {unsignTooltip ? (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="inline-block">
+                                                            <Button
+                                                                type="button"
+                                                                variant="destructive"
+                                                                onClick={handleUnsign}
+                                                                disabled={loading || !isSignedUp || unsignDisabledByTime}
+                                                            >
+                                                                Borrarme
+                                                            </Button>
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                        {unsignTooltip}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : (
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={handleUnsign}
+                                                disabled={loading || !isSignedUp || unsignDisabledByTime}
+                                            >
+                                                Borrarme
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                            Cancelar
+                                        </Button>
+                                        {signTooltip ? (
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span className="inline-block">
+                                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime}>
+                                                                {loading ? "Procesando..." : (isSignedUp ? "Apuntado" : "Apuntarme")}
+                                                            </Button>
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                        {signTooltip}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ) : (
+                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime}>
+                                                {loading ? "Procesando..." : (isSignedUp ? "Apuntado" : "Apuntarme")}
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </DialogFooter>
+                        ) : (
+                            <DialogFooter className="mt-4">
+                                <div className="flex w-full justify-between">
+                                    <div>
+                                        {event?.id && !isClientView && (
+                                            <Button
+                                                type="button"
+                                                variant="destructive"
+                                                onClick={() => setShowDeleteDialog(true)}
+                                                disabled={loading}
+                                            >
+                                                Eliminar
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                            Cancelar
+                                        </Button>
+                                        <Button type="submit" form="event-form" disabled={loading || isClientView}>
+                                            {loading ? "Guardando..." : "Guardar"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </DialogFooter>
+                        )
+                    )}
                 </DialogContent>
             </Dialog>
 
