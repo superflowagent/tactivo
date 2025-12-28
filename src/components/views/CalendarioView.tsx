@@ -364,19 +364,15 @@ export function CalendarioView() {
               // Calculate slot height to fit all schedule without scroll
               const openTime = company.open_time || '08:00'
               const closeTime = company.close_time || '20:00'
-              
+
               // Parse hours and minutes
               const [openHour, openMin] = openTime.split(':').map(Number)
               const [closeHour, closeMin] = closeTime.split(':').map(Number)
-              
+
               // Calculate total minutes in schedule
               const totalMinutes = (closeHour * 60 + closeMin) - (openHour * 60 + openMin)
               const numSlots = totalMinutes / 30 // 30-minute slots
-              
-              // Available height (approximate): full card minus header/padding
-              const availableHeight = isMobile ? window.innerHeight - 280 : window.innerHeight - 340
-              const slotMinHeight = Math.floor(availableHeight / numSlots)
-              
+
               return (
                 <FullCalendarLazy
                   initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
@@ -397,7 +393,6 @@ export function CalendarioView() {
                   height="100%"
                   contentHeight="auto"
                   slotDuration="00:30:00"
-                  slotMinHeight={slotMinHeight}
                   events={filteredEvents}
                   dateClick={handleDateClick}
                   eventClick={handleEventClick}
