@@ -44,19 +44,42 @@ async function adminAuth() {
 
     // obtain a new admin token via auth-with-password (users collection)
     const url = `${PB_BASE_URL.replace(/\/$/, '')}/api/collections/users/auth-with-password`
-    const res = await fetch(url, {
+    let res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: PB_SERVICE_EMAIL, password: PB_SERVICE_PASSWORD })
     })
-    if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(`admin auth failed: ${res.status} ${txt}`)
+
+    if (res.ok) {
+        const j = await res.json()
+        adminToken = j.token
+        adminTokenFetchedAt = Date.now()
+        console.info('Acquired admin token via users auth')
+        return
     }
-    const j = await res.json()
-    adminToken = j.token
-    adminTokenFetchedAt = Date.now()
-    console.info('Acquired admin token via users auth')
+
+    // If users auth failed, attempt admin auth endpoint (for superuser in _superusers)
+    try {
+        const adminUrl = `${PB_BASE_URL.replace(/\/$/, '')}/api/admins/auth-with-password`
+        const r2 = await fetch(adminUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: PB_SERVICE_EMAIL, password: PB_SERVICE_PASSWORD })
+        })
+        if (r2.ok) {
+            const j2 = await r2.json()
+            adminToken = j2.token
+            adminTokenFetchedAt = Date.now()
+            console.info('Acquired admin token via admin auth endpoint')
+            return
+        } else {
+            const txt = await res.text()
+            const txt2 = await r2.text().catch(() => '')
+            throw new Error(`admin auth failed: users_auth=${res.status} ${txt}; admins_auth=${r2.status} ${txt2}`)
+        }
+    } catch (err) {
+        throw err
+    }
 }
 
 async function ensureAdminToken() {
