@@ -435,4 +435,16 @@ app.get('/health', async (req, res) => {
     }
 })
 
+// Debug endpoint to force an auth attempt and return full error details (useful for debugging credentials)
+app.get('/debug-auth', async (req, res) => {
+    try {
+        await adminAuth()
+        res.json({ ok: true, authed: !!adminToken, fetchedAt: adminTokenFetchedAt })
+    } catch (err) {
+        console.error('debug-auth error', err)
+        // return more of the original error object as string for debugging
+        res.status(500).json({ ok: false, error: String(err), stack: err.stack ? err.stack.split('\n').slice(0,5) : undefined })
+    }
+})
+
 app.listen(PORT, () => console.log(`pb-credit-worker listening on ${PORT}`))
