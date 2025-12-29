@@ -44,7 +44,7 @@ import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
-import { onEventCreate, onEventUpdate, onEventDelete } from "@/lib/creditManager"
+
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 
@@ -265,17 +265,40 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             }
 
             if (event?.id) {
-                // Update: adjust credits based on changes
-                await onEventUpdate(event, data)
-                await pb.collection('events').update(event.id, data)
+                // Update via server endpoint which will validate and adjust credits atomically
+                const res = await fetch(`/api/events/${event.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${pb.authStore.token}`,
+                    },
+                    body: JSON.stringify({ event: data }),
+                })
+
+                if (!res.ok) {
+                    const err = await res.text()
+                    throw new Error(err || 'Error updating event')
+                }
             } else {
-                // Create: deduct credits for assigned clients
+                // Create via server endpoint which will create the event and deduct credits
                 const dataWithCompany = {
                     ...data,
                     company: companyId,
                 }
-                await pb.collection('events').create(dataWithCompany)
-                await onEventCreate(dataWithCompany)
+
+                const res = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${pb.authStore.token}`,
+                    },
+                    body: JSON.stringify({ event: dataWithCompany }),
+                })
+
+                if (!res.ok) {
+                    const err = await res.text()
+                    throw new Error(err || 'Error creating event')
+                }
             }
 
             onSave()
@@ -293,9 +316,19 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
         try {
             setLoading(true)
-            // Refund credits before deleting
-            await onEventDelete(event)
-            await pb.collection('events').delete(event.id)
+            // Delete via server endpoint which will refund credits if needed
+            const res = await fetch(`/api/events/${event.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${pb.authStore.token}`,
+                }
+            })
+
+            if (!res.ok) {
+                const err = await res.text()
+                throw new Error(err || 'Error deleting event')
+            }
+
             onSave()
             onOpenChange(false)
             setShowDeleteDialog(false)
@@ -364,8 +397,20 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
 
-            // Persist to server
-            await pb.collection('events').update(event.id, { client: newClients })
+            // Persist via server endpoint (server will validate credits and timings)
+            const res = await fetch(`/api/events/${event.id}/sign`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${pb.authStore.token}`,
+                },
+                body: JSON.stringify({ clientId: user.id }),
+            })
+
+            if (!res.ok) {
+                const err = await res.text()
+                throw new Error(err || 'Error signing up')
+            }
 
             // Update local state and notify parent
             setSelectedClients(newClients)
@@ -393,8 +438,20 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.filter(id => id !== user.id)
 
-            // Persist to server
-            await pb.collection('events').update(event.id, { client: newClients })
+            // Persist via server endpoint (server will validate timing rules)
+            const res = await fetch(`/api/events/${event.id}/unsign`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${pb.authStore.token}`,
+                },
+                body: JSON.stringify({ clientId: user.id }),
+            })
+
+            if (!res.ok) {
+                const err = await res.text()
+                throw new Error(err || 'Error unsigning')
+            }
 
             // Update local state and notify parent
             setSelectedClients(newClients)

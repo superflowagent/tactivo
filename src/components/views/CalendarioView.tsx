@@ -372,12 +372,13 @@ export function CalendarioView() {
 
         {isClient && (
           <div className="flex items-center gap-3 sm:ml-4">
-            <div className="text-sm font-medium">Clases restantes: <span className="font-bold ml-1">{clientCredits ?? 0}</span>
-              {(clientCredits ?? 0) <= 0 && (
-                <span className="ml-2 inline-flex items-center text-xs font-semibold text-orange-800" role="img" aria-label="Créditos insuficientes">
-                  <AlertTriangle className="h-4 w-4 text-orange-600" aria-hidden="true" />
-                </span>
-              )}
+            <div className="text-sm font-medium">Clases restantes:
+              <span className="ml-2 inline-flex items-center gap-1">
+                <span className="font-bold">{clientCredits ?? 0}</span>
+                {(clientCredits ?? 0) <= 0 && (
+                  <AlertTriangle className="h-4 w-4 text-orange-600" role="img" aria-label="Créditos insuficientes" />
+                )}
+              </span>
             </div>
           </div>
         )}
