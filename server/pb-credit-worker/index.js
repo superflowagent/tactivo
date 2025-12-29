@@ -22,18 +22,27 @@ app.use(express.json())
 const PB_BASE_URL = process.env.PB_BASE_URL
 const PB_SERVICE_EMAIL = process.env.PB_SERVICE_EMAIL
 const PB_SERVICE_PASSWORD = process.env.PB_SERVICE_PASSWORD
+const PB_ADMIN_TOKEN = process.env.PB_ADMIN_TOKEN
 const PORT = process.env.PORT || 4001
 
-if (!PB_BASE_URL || !PB_SERVICE_EMAIL || !PB_SERVICE_PASSWORD) {
-    console.error('Missing PB_BASE_URL / PB_SERVICE_EMAIL / PB_SERVICE_PASSWORD env vars')
+if (!PB_BASE_URL || (!(PB_SERVICE_EMAIL && PB_SERVICE_PASSWORD) && !PB_ADMIN_TOKEN)) {
+    console.error('Missing PB_BASE_URL and either PB_ADMIN_TOKEN or PB_SERVICE_EMAIL/PB_SERVICE_PASSWORD env vars')
     process.exit(1)
 }
 
-let adminToken = null
-let adminTokenFetchedAt = 0
+let adminToken = PB_ADMIN_TOKEN || null
+let adminTokenFetchedAt = PB_ADMIN_TOKEN ? Date.now() : 0
 
 async function adminAuth() {
-    // obtain a new admin token via auth-with-password
+    // If PB_ADMIN_TOKEN provided, use it and skip password auth
+    if (PB_ADMIN_TOKEN) {
+        adminToken = PB_ADMIN_TOKEN
+        adminTokenFetchedAt = Date.now()
+        console.info('Using PB_ADMIN_TOKEN from env')
+        return
+    }
+
+    // obtain a new admin token via auth-with-password (users collection)
     const url = `${PB_BASE_URL.replace(/\/$/, '')}/api/collections/users/auth-with-password`
     const res = await fetch(url, {
         method: 'POST',
@@ -47,11 +56,12 @@ async function adminAuth() {
     const j = await res.json()
     adminToken = j.token
     adminTokenFetchedAt = Date.now()
-    console.info('Acquired admin token')
+    console.info('Acquired admin token via users auth')
 }
 
 async function ensureAdminToken() {
     if (!adminToken) await adminAuth()
+    // Optionally: could check token expiry here and refresh if needed
 }
 
 async function pbFetch(path, opts = {}) {
