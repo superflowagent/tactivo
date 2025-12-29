@@ -4,8 +4,9 @@ A small worker that manages sign/unsign/create/update/delete for events and adju
 
 Environment variables (required):
 - PB_BASE_URL
-- PB_SERVICE_EMAIL
-- PB_SERVICE_PASSWORD
+- PB_SERVICE_EMAIL (unless PB_ADMIN_TOKEN is used)
+- PB_SERVICE_PASSWORD (unless PB_ADMIN_TOKEN is used)
+- PB_ADMIN_TOKEN (optional) — if set, the worker will use this token directly instead of authenticating with email/password (useful for superuser/admin tokens)
 - PORT (optional, default 4001)
 
 Build:
