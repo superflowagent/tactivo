@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CalendarPlus } from "lucide-react"
+import { CalendarPlus, AlertTriangle } from "lucide-react"
 import pb from '@/lib/pocketbase'
 import { error as logError } from '@/lib/logger'
 import type { Event } from '@/types/event'
@@ -36,13 +36,30 @@ export function CalendarioView() {
   const [professionals, setProfessionals] = useState<any[]>([])
   const [showMyEvents, setShowMyEvents] = useState<boolean>(false) // Toggle for clients: show only events where user is an attendee
   const [company, setCompany] = useState<Company | null>(null)
+  // Client credits state (only used when logged in as a client)
+  const [clientCredits, setClientCredits] = useState<number | null>(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
     loadCompany()
     loadEvents()
     loadProfessionals()
-  }, [companyId])
+    // If the logged-in user is a client, load their credits
+    loadClientCredits()
+  }, [companyId, user?.id, isClient])
+
+  // Load the client's `class_credits` from the `users` collection (uses view rules)
+  const loadClientCredits = async () => {
+    if (!isClient || !user?.id) return
+
+    try {
+      const userRecord = await pb.collection('users').getOne<any>(user.id)
+      setClientCredits(userRecord?.class_credits ?? 0)
+    } catch (err) {
+      logError('Error cargando créditos del usuario:', err)
+      setClientCredits(0)
+    }
+  }
 
   useEffect(() => {
     filterEvents()
@@ -209,6 +226,8 @@ export function CalendarioView() {
 
       setEvents(calendarEvents)
       setFilteredEvents(calendarEvents)
+      // Refresh client credits after loading events (in case they changed)
+      loadClientCredits()
     } catch (err) {
       logError('Error cargando eventos:', err)
     }
@@ -350,6 +369,19 @@ export function CalendarioView() {
             Limpiar filtros
           </Button>
         )}
+
+        {isClient && (
+          <div className="flex items-center gap-3 sm:ml-4">
+            <div className="text-sm font-medium">Clases restantes: <span className="font-bold ml-1">{clientCredits ?? 0}</span>
+              {(clientCredits ?? 0) <= 0 && (
+                <span className="ml-2 inline-flex items-center text-xs font-semibold text-orange-800" role="img" aria-label="Créditos insuficientes">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" aria-hidden="true" />
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="hidden sm:block flex-1" />
         <Button onClick={isClient ? () => { } : handleAdd} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
