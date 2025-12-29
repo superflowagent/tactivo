@@ -1,0 +1,13 @@
+{
+  "name": "pb-credit-worker",
+  "version": "0.1.0",
+  "description": "Worker service to manage class sign/unsign and class_credits via PocketBase API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.4.1"
+  }
+}
