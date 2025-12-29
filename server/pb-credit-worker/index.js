@@ -351,6 +351,66 @@ app.post('/api/events', async (req, res) => {
     }
 })
 
+// DEBUG endpoints (protected by PB_DEBUG_SECRET) — use only for testing
+function checkDebugAuth(req) {
+    const secret = process.env.PB_DEBUG_SECRET
+    if (!secret) return false
+    const got = req.headers['x-debug-secret'] || req.headers['x-debug-token']
+    return !!got && got === secret
+}
+
+app.post('/debug/events/:id/sign', async (req, res) => {
+    try {
+        if (!checkDebugAuth(req)) return res.status(403).json({ error: 'forbidden' })
+        const eventId = req.params.id
+        const { clientId } = req.body || {}
+        if (!clientId) return res.status(400).json({ error: 'clientId required' })
+
+        const evt = await getEvent(eventId)
+        const clients = Array.isArray(evt.client) ? evt.client.slice() : []
+        if (clients.includes(clientId)) return res.status(400).json({ error: 'already signed' })
+        clients.push(clientId)
+        await saveEvent(eventId, { client: clients })
+
+        if (evt.type === 'class') {
+            const u = await getUser(clientId)
+            if (u) {
+                await saveUserCredits(clientId, (u.class_credits || 0) - 1)
+            }
+        }
+
+        return res.json({ ok: true })
+    } catch (err) {
+        console.error('debug sign error', err)
+        return res.status(500).json({ error: String(err) })
+    }
+})
+
+app.post('/debug/events/:id/unsign', async (req, res) => {
+    try {
+        if (!checkDebugAuth(req)) return res.status(403).json({ error: 'forbidden' })
+        const eventId = req.params.id
+        const { clientId } = req.body || {}
+        if (!clientId) return res.status(400).json({ error: 'clientId required' })
+
+        const evt = await getEvent(eventId)
+        const clients = Array.isArray(evt.client) ? evt.client.slice() : []
+        if (!clients.includes(clientId)) return res.status(400).json({ error: 'not signed' })
+        const newClients = clients.filter(c => c !== clientId)
+        await saveEvent(eventId, { client: newClients })
+
+        if (evt.type === 'class') {
+            const u = await getUser(clientId)
+            if (u) await saveUserCredits(clientId, (u.class_credits || 0) + 1)
+        }
+
+        return res.json({ ok: true })
+    } catch (err) {
+        console.error('debug unsign error', err)
+        return res.status(500).json({ error: String(err) })
+    }
+})
+
 // Update event
 app.put('/api/events/:id', async (req, res) => {
     try {
@@ -445,7 +505,7 @@ app.get('/debug-auth', async (req, res) => {
     } catch (err) {
         console.error('debug-auth error', err)
         // return more of the original error object as string for debugging
-        res.status(500).json({ ok: false, error: String(err), stack: err.stack ? err.stack.split('\n').slice(0,5) : undefined })
+        res.status(500).json({ ok: false, error: String(err), stack: err.stack ? err.stack.split('\n').slice(0, 5) : undefined })
     }
 })
 
