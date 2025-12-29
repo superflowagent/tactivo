@@ -21,7 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/models"
+	"github.com/pocketbase/models"
 	"github.com/labstack/echo/v4"
 )
 
