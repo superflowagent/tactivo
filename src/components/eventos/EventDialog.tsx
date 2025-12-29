@@ -78,6 +78,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [clientSearch, setClientSearch] = useState('')
     const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
     const [userCardsLoading, setUserCardsLoading] = useState(false)
+    const [clientCredits, setClientCredits] = useState<number | null>(null)
 
     useEffect(() => {
         let mounted = true
@@ -123,6 +124,23 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             if (!isClientView) loadClientes()
             loadProfesionales()
             loadCompany()
+        }
+
+        // Cargar créditos del cliente cuando el diálogo se abra (solo vista cliente)
+        if (isClientView && user?.id && open) {
+            let mounted = true
+            ;(async () => {
+                try {
+                    const userRecord = await pb.collection('users').getOne<any>(user.id)
+                    if (!mounted) return
+                    setClientCredits(userRecord?.class_credits ?? 0)
+                } catch (err) {
+                    logError('Error cargando créditos del usuario:', err)
+                    if (mounted) setClientCredits(0)
+                }
+            })()
+            // cleanup
+            return () => { mounted = false }
         }
 
         if (event) {
@@ -307,7 +325,15 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const unsignDisabledByTime = minutesUntilStart < classUnenrollMins
 
     // Tooltip texts for disabled buttons (clients)
-    const signTooltip = isSignedUp ? 'Ya estás apuntado' : (signDisabledByTime ? 'Clase cerrada' : null)
+    const signDisabledByCredits = isClientView && (clientCredits ?? 0) <= 0
+    let signTooltip: string | null = null
+    if (isSignedUp) {
+        signTooltip = 'Ya estás apuntado'
+    } else if (signDisabledByTime) {
+        signTooltip = 'Clase cerrada'
+    } else if (signDisabledByCredits) {
+        signTooltip = 'Créditos insuficientes'
+    }
     const unsignTooltip = !isSignedUp ? 'No estás apuntado' : (unsignDisabledByTime ? 'La clase está a punto de empezar' : null)
 
     // Determine if the event datetime has already passed (for existing events)
@@ -318,6 +344,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
     const handleSignUp = async () => {
         if (!user?.id) return
+
+        // Block if client has insufficient credits
+        if (isClientView && (clientCredits ?? 0) <= 0) {
+            alert('Créditos insuficientes')
+            return
+        }
 
         // If no event yet (creating new), just add locally
         if (!event?.id) {
@@ -882,7 +914,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 <Tooltip>
                                                     <TooltipTrigger asChild>
                                                         <span className="inline-block">
-                                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime}>
+                                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime || signDisabledByCredits}>
                                                                 {loading ? "Procesando..." : (isSignedUp ? "Apuntado" : "Apuntarme")}
                                                             </Button>
                                                         </span>
@@ -893,7 +925,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 </Tooltip>
                                             </TooltipProvider>
                                         ) : (
-                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime}>
+                                            <Button type="button" onClick={handleSignUp} disabled={loading || isSignedUp || signDisabledByTime || signDisabledByCredits}>
                                                 {loading ? "Procesando..." : (isSignedUp ? "Apuntado" : "Apuntarme")}
                                             </Button>
                                         )}
