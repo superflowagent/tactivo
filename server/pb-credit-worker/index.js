@@ -434,6 +434,31 @@ app.get('/debug/users/:id', async (req, res) => {
     }
 })
 
+// Find an arbitrary record id across common collections (debug)
+app.get('/debug/find/:id', async (req, res) => {
+    try {
+        if (!checkDebugAuth(req)) return res.status(403).json({ error: 'forbidden' })
+        const id = req.params.id
+        const collections = ['users','events','companies','classes_template','exercises','equipment','anatomy','user_cards','clients','profesionales','clientes','classes']
+        const matches = []
+        for (const col of collections) {
+            try {
+                const r = await pbFetch(`/api/collections/${encodeURIComponent(col)}/records/${encodeURIComponent(id)}`)
+                if (r.ok) {
+                    const rec = await r.json()
+                    matches.push({ collection: col, record: rec })
+                }
+            } catch (e) {
+                // ignore errors for missing collections or permission issues
+            }
+        }
+        return res.json({ id, matches })
+    } catch (err) {
+        console.error('debug find error', err)
+        return res.status(500).json({ error: String(err) })
+    }
+})
+
 // Update event
 app.put('/api/events/:id', async (req, res) => {
     try {
