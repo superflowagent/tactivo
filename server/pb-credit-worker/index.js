@@ -411,6 +411,29 @@ app.post('/debug/events/:id/unsign', async (req, res) => {
     }
 })
 
+// Debug fetch endpoints
+app.get('/debug/events/:id', async (req, res) => {
+    try {
+        if (!checkDebugAuth(req)) return res.status(403).json({ error: 'forbidden' })
+        const evt = await getEvent(req.params.id)
+        return res.json(evt)
+    } catch (err) {
+        console.error('debug get event error', err)
+        return res.status(500).json({ error: String(err) })
+    }
+})
+
+app.get('/debug/users/:id', async (req, res) => {
+    try {
+        if (!checkDebugAuth(req)) return res.status(403).json({ error: 'forbidden' })
+        const u = await getUser(req.params.id)
+        return res.json(u)
+    } catch (err) {
+        console.error('debug get user error', err)
+        return res.status(500).json({ error: String(err) })
+    }
+})
+
 // Update event
 app.put('/api/events/:id', async (req, res) => {
     try {
