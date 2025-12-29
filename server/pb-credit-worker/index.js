@@ -430,6 +430,7 @@ app.get('/health', async (req, res) => {
         await ensureAdminToken()
         res.json({ ok: true, authed: !!adminToken })
     } catch (err) {
+        console.error('health error', err)
         res.status(500).json({ ok: false, error: String(err) })
     }
 })
