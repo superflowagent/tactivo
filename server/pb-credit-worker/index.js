@@ -68,10 +68,12 @@ async function adminAuth() {
 
     // obtain a new admin token via auth-with-password (users collection)
     const url = `${PB_BASE_URL.replace(/\/$/, '')}/api/collections/users/auth-with-password`
+    const payload = { identity: PB_SERVICE_EMAIL, password: PB_SERVICE_PASSWORD }
+    console.info('users auth payload identity present?', !!payload.identity)
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: PB_SERVICE_EMAIL, password: PB_SERVICE_PASSWORD })
+        body: JSON.stringify(payload)
     })
     if (!res.ok) {
         const txt = await res.text()
