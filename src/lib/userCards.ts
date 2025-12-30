@@ -104,9 +104,29 @@ export async function getUserCardsByIds(ids: string[]) {
 
         const records = await pb.collection('user_cards').getFullList({ filter })
         const map: Record<string, any> = {}
+        const userIds: string[] = []
         for (const r of records) {
-            if (r?.user) map[r.user] = r
+            if (r?.user) {
+                map[r.user] = r
+                userIds.push(r.user)
+            }
         }
+
+        // Enrich map entries with class_credits from the users collection when available
+        try {
+            const userFetches = userIds.map(id => pb.collection('users').getOne(id).catch(() => null))
+            const users = await Promise.all(userFetches)
+            for (const u of users) {
+                if (u && u.id && typeof u.class_credits !== 'undefined') {
+                    if (map[u.id]) map[u.id].class_credits = u.class_credits
+                } else if (u && u.id) {
+                    if (map[u.id]) map[u.id].class_credits = 0
+                }
+            }
+        } catch (err) {
+            logError('Error fetching users for credits:', err)
+        }
+
         return map
     } catch (err: any) {
         logError('Error fetching user_cards by ids:', err)
@@ -121,6 +141,27 @@ export async function getUserCardsByRole(companyId: string, role: string) {
         if (!companyId || !role) return []
         const filter = `company = "${companyId}" && role = "${role}"`
         const records = await pb.collection('user_cards').getFullList({ filter, sort: 'name' })
+
+        // Enrich records with class_credits from the users collection
+        try {
+            const userIds = records.map(r => r.user).filter(Boolean)
+            const userFetches = userIds.map(id => pb.collection('users').getOne(id).catch(() => null))
+            const users = await Promise.all(userFetches)
+            const userMap: Record<string, any> = {}
+            for (const u of users) {
+                if (u && u.id) userMap[u.id] = u
+            }
+            for (const r of records) {
+                if (r?.user && userMap[r.user] && typeof userMap[r.user].class_credits !== 'undefined') {
+                    r.class_credits = userMap[r.user].class_credits
+                } else {
+                    r.class_credits = 0
+                }
+            }
+        } catch (err) {
+            logError('Error fetching users for credits:', err)
+        }
+
         return records
     } catch (err) {
         logError('Error fetching user_cards by role:', err)
