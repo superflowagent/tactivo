@@ -18,11 +18,9 @@ if (!url || !key) {
 const supabase = createClient(url, key, { auth: { persistSession: false } });
 
 async function ensureBucket() {
-  const { data: buckets, error } = await supabase.storage.listBuckets();
-  if (error) throw error;
+  const { data: buckets } = await supabase.storage.listBuckets();
   if (!buckets.find(b => b.name === BUCKET)) {
-    const { error: err } = await supabase.storage.createBucket(BUCKET, { public: true });
-    if (err) throw err;
+    await supabase.storage.createBucket(BUCKET, { public: true });
     console.log('Bucket created:', BUCKET);
   }
 }
@@ -51,7 +49,6 @@ async function createUsersAndProfiles(companies) {
   for (let i=0;i<NUM;i++) {
     const email = `test+${i+1}@example.com`;
     const password = `Tactivo2025!${i+1}`;
-    // create auth user (admin)
     const { data: userData, error } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -59,7 +56,6 @@ async function createUsersAndProfiles(companies) {
       user_metadata: { name: `User${i+1}`, last_name: 'Test' }
     });
     if(error) throw error;
-    // create profile linked to auth user
     const profile = {
       id: userData.user.id,
       name: `User${i+1}`,
@@ -128,7 +124,13 @@ async function uploadFiles() {
 (async function main(){
   try {
     await ensureBucket();
-    const companies = await createCompanies();
+    const companies = await (async ()=> {
+      const rows = [];
+      for (let i=0;i<NUM;i++) rows.push({ id: randId(), name: `Company ${i+1}` });
+      const { error } = await supabase.from('companies').insert(rows);
+      if (error) throw error;
+      return rows;
+    })();
     const users = await createUsersAndProfiles(companies);
     await seedEntities(companies, users);
     await uploadFiles();
