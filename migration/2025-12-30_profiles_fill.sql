@@ -41,6 +41,36 @@ SET
 WHERE
   address IS NULL OR occupation IS NULL OR sport IS NULL OR history IS NULL OR diagnosis IS NULL OR notes IS NULL OR allergies IS NULL OR class_credits IS NULL OR session_credits IS NULL;
 
+-- 2) Create an auth.user for each profile without a linked user
+--    Emails are synthetic and include the profile id so we avoid collisions
+INSERT INTO auth.users (id, email, aud, role, email_confirmed_at, created_at, raw_app_meta_data, raw_user_meta_data)
+SELECT
+  gen_random_uuid() AS id,
+  ('no-reply+' || p.id::text || '@seed.local')::text AS email,
+  'authenticated' AS aud,
+  COALESCE(p.role, 'user') AS role,
+  now() AS email_confirmed_at,
+  now() AS created_at,
+  '{}'::jsonb AS raw_app_meta_data,
+  jsonb_build_object('profile_id', p.id::text, 'name', p.name) AS raw_user_meta_data
+FROM public.profiles p
+WHERE p."user" IS NULL
+  AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.email = ('no-reply+' || p.id::text || '@seed.local')::text);
+
+-- 3) Link the newly created users to the profiles
+UPDATE public.profiles p
+SET "user" = u.id
+FROM auth.users u
+WHERE p."user" IS NULL
+  AND u.email = ('no-reply+' || p.id::text || '@seed.local')::text;
+
+-- 4) Ensure auth.users.role matches the profile role
+UPDATE auth.users u
+SET role = p.role
+FROM public.profiles p
+WHERE p."user" = u.id
+  AND u.role IS DISTINCT FROM p.role;
+
 COMMIT;
 
 -- Quick checks
