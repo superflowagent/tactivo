@@ -19,7 +19,6 @@ export default defineConfig({
 
           if (id.includes('@fullcalendar')) return 'calendar'
           if (id.includes('@tiptap') || id.includes('tiptap')) return 'tiptap'
-          if (id.includes('pocketbase')) return 'pocketbase'
           if (id.includes('lucide-react')) return 'icons'
           if (id.includes('react-router-dom')) return 'router'
           if (id.includes('react-dom')) return 'react-dom'
