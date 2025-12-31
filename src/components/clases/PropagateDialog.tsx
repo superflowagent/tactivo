@@ -18,7 +18,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { CalendarRange, AlertCircle } from "lucide-react"
-import pb from "@/lib/pocketbase"
+import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { onBatchEventsCreate } from "@/lib/creditManager"
@@ -100,7 +100,8 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                             notes: slot.notes || '',
                         }
 
-                        await pb.collection('events').create(eventData)
+                        const { error } = await supabase.from('events').insert(eventData)
+                        if (error) throw error
                         createdEvents.push(eventData)
                     }
                 }

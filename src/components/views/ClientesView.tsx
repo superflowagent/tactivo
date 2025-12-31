@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl } from "@/lib/supabase"
 import { debug, error as logError } from '@/lib/logger'
 import { normalizeForSearch } from '@/lib/utils'
 import type { Cliente } from "@/types/cliente"
@@ -41,7 +41,7 @@ export function ClientesView() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [clienteToDelete, setClienteToDelete] = useState<string | null>(null)
 
-  // Cargar clientes desde PocketBase
+  // Cargar clientes desde `profiles` (Supabase)
   useEffect(() => {
     const fetchClientes = async () => {
       if (!companyId) return
@@ -51,13 +51,11 @@ export function ClientesView() {
         setError(null)
 
         // Filtrar solo clientes de la misma company
-        const records = await pb.collection('users').getFullList<Cliente>({
-          sort: 'name',
-          filter: `company = "${companyId}" && role = "client"`,
-        })
+        const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
+        if (error) throw error
         debug('Clientes cargados:', records)
-        setClientes(records)
-        setFilteredClientes(records)
+        setClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+        setFilteredClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
       } catch (err: any) {
         logError('Error al cargar clientes:', err)
         const errorMsg = err?.message || 'Error desconocido'
@@ -105,11 +103,12 @@ export function ClientesView() {
   }
 
   const handleEdit = async (cliente: Cliente) => {
-    // Recargar los datos más recientes del cliente desde PocketBase
+    // Recargar los datos más recientes del cliente desde `profiles` (Supabase)
     if (!cliente.id) return
 
     try {
-      const freshCliente = await pb.collection('users').getOne<Cliente>(cliente.id)
+      const { data: freshCliente, error } = await supabase.from('profiles').select('*').eq('user_id', cliente.id).maybeSingle()
+      if (error) throw error
       setSelectedCliente(freshCliente)
     } catch (err) {
       logError('Error al cargar cliente:', err)
@@ -127,7 +126,8 @@ export function ClientesView() {
     if (!clienteToDelete) return
 
     try {
-      await pb.collection('users').delete(clienteToDelete)
+      const { error } = await supabase.from('profiles').delete().eq('user_id', clienteToDelete)
+      if (error) throw error
       try {
         const { deleteUserCardForUser } = await import('@/lib/userCards')
         await deleteUserCardForUser(clienteToDelete)
@@ -150,12 +150,10 @@ export function ClientesView() {
     try {
       if (!companyId) return
 
-      const records = await pb.collection('users').getFullList<Cliente>({
-        sort: 'name',
-        filter: `company = "${companyId}" && role = "client"`,
-      })
-      setClientes(records)
-      setFilteredClientes(records)
+      const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
+      if (error) throw error
+      setClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+      setFilteredClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
     } catch (err) {
       logError('Error al recargar clientes:', err)
     }
@@ -227,7 +225,7 @@ export function ClientesView() {
                 <TableCell>
                   {cliente.photo ? (
                     <img
-                      src={`https://pocketbase.superflow.es/api/files/users/${cliente.id}/${cliente.photo}`}
+                      src={getFilePublicUrl('users', cliente.id, cliente.photo)}
                       alt={cliente.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />

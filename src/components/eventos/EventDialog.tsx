@@ -40,13 +40,13 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { error as logError } from '@/lib/logger'
-import pb from "@/lib/pocketbase"
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import { supabase } from '@/lib/supabase'
 
 interface EventDialogProps {
     open: boolean
@@ -129,16 +129,17 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         // Cargar créditos del cliente cuando el diálogo se abra (solo vista cliente)
         if (isClientView && user?.id && open) {
             let mounted = true
-            ;(async () => {
-                try {
-                    const userRecord = await pb.collection('users').getOne<any>(user.id)
-                    if (!mounted) return
-                    setClientCredits(userRecord?.class_credits ?? 0)
-                } catch (err) {
-                    logError('Error cargando créditos del usuario:', err)
-                    if (mounted) setClientCredits(0)
-                }
-            })()
+                ; (async () => {
+                    try {
+                        const { data: profile, error } = await supabase.from('profiles').select('class_credits').eq('user_id', user.id).maybeSingle()
+                        if (error) throw error
+                        if (!mounted) return
+                        setClientCredits(profile?.class_credits ?? 0)
+                    } catch (err) {
+                        logError('Error cargando créditos del usuario:', err)
+                        if (mounted) setClientCredits(0)
+                    }
+                })()
             // cleanup
             return () => { mounted = false }
         }
@@ -207,7 +208,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const loadCompany = async () => {
         if (!companyId) return
         try {
-            const record = await pb.collection('companies').getOne(companyId)
+            const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
+            if (error) throw error
             setCompany(record)
         } catch (err) {
             logError('Error cargando company:', err)
@@ -266,11 +268,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             if (event?.id) {
                 // Update via server endpoint which will validate and adjust credits atomically
+                const token = await (await import('@/lib/supabase')).getAuthToken()
                 const res = await fetch(`/api/events/${event.id}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${pb.authStore.token}`,
+                        'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({ event: data }),
                 })
@@ -286,11 +289,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     company: companyId,
                 }
 
+                const token = await (await import('@/lib/supabase')).getAuthToken()
                 const res = await fetch('/api/events', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${pb.authStore.token}`,
+                        'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({ event: dataWithCompany }),
                 })
@@ -317,10 +321,11 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         try {
             setLoading(true)
             // Delete via server endpoint which will refund credits if needed
+            const token = await (await import('@/lib/supabase')).getAuthToken()
             const res = await fetch(`/api/events/${event.id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${pb.authStore.token}`,
+                    'Authorization': `Bearer ${token}`,
                 }
             })
 
@@ -398,11 +403,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
 
             // Persist via server endpoint (server will validate credits and timings)
+            const token = await (await import('@/lib/supabase')).getAuthToken()
             const res = await fetch(`/api/events/${event.id}/sign`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({ clientId: user.id }),
             })
@@ -439,11 +445,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             const newClients = selectedClients.filter(id => id !== user.id)
 
             // Persist via server endpoint (server will validate timing rules)
+            const token = await (await import('@/lib/supabase')).getAuthToken()
             const res = await fetch(`/api/events/${event.id}/unsign`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${pb.authStore.token}`,
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({ clientId: user.id }),
             })

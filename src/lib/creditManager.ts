@@ -1,4 +1,4 @@
-import pb from './pocketbase'
+import { supabase } from './supabase'
 import { info, error } from './logger'
 
 interface CreditChange {
@@ -7,23 +7,21 @@ interface CreditChange {
 }
 
 /**
- * Adjust class_credits for multiple clients
+ * Adjust class_credits for multiple clients using `profiles` table where
+ * user_id references the auth user.
  */
 async function adjustCredits(changes: CreditChange[]): Promise<void> {
     const promises = changes.map(async ({ clientId, change }) => {
         try {
-            const client = await pb.collection('users').getOne(clientId)
-            const currentCredits = client.class_credits || 0
+            const { data: profile, error: fetchErr } = await supabase.from('profiles').select('class_credits').eq('user_id', clientId).maybeSingle()
+            if (fetchErr) throw fetchErr
+
+            const currentCredits = profile?.class_credits ?? 0
             const newCredits = currentCredits + change
 
-            const updated = await pb.collection('users').update(clientId, {
-                class_credits: newCredits
-            })
+            const { error: updateErr } = await supabase.from('profiles').update({ class_credits: newCredits }).eq('user_id', clientId)
+            if (updateErr) throw updateErr
 
-            // NOTE: Do NOT sync `user_cards` from the credit manager — credits are not part of the
-            // user_cards summary and syncing here would be unnecessary. Any user_cards sync should
-            // be triggered by explicit user updates (e.g., in Cliente/Profesional dialogs) or by
-            // dedicated server-side processes.
             info(`Updated class_credits for client ${clientId}: ${currentCredits} -> ${newCredits}`)
         } catch (err) {
             error(`Failed to adjust credits for client ${clientId}:`, err)
@@ -33,9 +31,6 @@ async function adjustCredits(changes: CreditChange[]): Promise<void> {
     await Promise.all(promises)
 }
 
-/**
- * Handle credit adjustments when creating a class event
- */
 export async function onEventCreate(eventData: any): Promise<void> {
     if (eventData.type !== 'class') return
 
@@ -46,9 +41,6 @@ export async function onEventCreate(eventData: any): Promise<void> {
     await adjustCredits(changes)
 }
 
-/**
- * Handle credit adjustments when updating an event
- */
 export async function onEventUpdate(oldData: any, newData: any): Promise<void> {
     const oldType = oldData.type
     const newType = newData.type
@@ -57,16 +49,11 @@ export async function onEventUpdate(oldData: any, newData: any): Promise<void> {
 
     const changes: CreditChange[] = []
 
-    // Case 1: Type changed from class to non-class → refund all old clients
     if (oldType === 'class' && newType !== 'class') {
         oldClients.forEach((id: string) => changes.push({ clientId: id, change: +1 }))
-    }
-    // Case 2: Type changed from non-class to class → deduct all new clients
-    else if (oldType !== 'class' && newType === 'class') {
+    } else if (oldType !== 'class' && newType === 'class') {
         newClients.forEach((id: string) => changes.push({ clientId: id, change: -1 }))
-    }
-    // Case 3: Type remained "class" → handle client list diff
-    else if (oldType === 'class' && newType === 'class') {
+    } else if (oldType === 'class' && newType === 'class') {
         const removed = oldClients.filter((id: string) => !newClients.includes(id))
         const added = newClients.filter((id: string) => !oldClients.includes(id))
 
@@ -79,9 +66,6 @@ export async function onEventUpdate(oldData: any, newData: any): Promise<void> {
     }
 }
 
-/**
- * Handle credit adjustments when deleting a class event
- */
 export async function onEventDelete(eventData: any): Promise<void> {
     if (eventData.type !== 'class') return
 
@@ -92,10 +76,6 @@ export async function onEventDelete(eventData: any): Promise<void> {
     await adjustCredits(changes)
 }
 
-/**
- * Handle batch credit adjustments for propagated events
- * Aggregates changes per client for efficiency
- */
 export async function onBatchEventsCreate(eventsData: any[]): Promise<void> {
     const creditMap = new Map<string, number>()
 

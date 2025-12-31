@@ -43,7 +43,7 @@ import { Card } from "@/components/ui/card"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import type { Cliente } from "@/types/cliente"
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
@@ -91,9 +91,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 setFechaNacimiento(date)
                 calcularEdad(date)
             }
-            // Cargar preview de foto existente
+            // Cargar preview de foto existente (handled by storage)
             if (cliente.photo) {
-                setPhotoPreview(pb.files.getURL(cliente, cliente.photo))
+                setPhotoPreview(getFilePublicUrl('users', cliente.id, cliente.photo) || null)
             } else {
                 setPhotoPreview(null)
             }
@@ -137,12 +137,27 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         setLoadingEventos(true)
         try {
-            const records = await pb.collection('events').getFullList<Event>({
-                filter: `client ~ "${clienteId}" && type = "appointment"`,
-                sort: '-datetime',
-                expand: 'professional',
-            })
-            setEventos(records)
+            const { data: records, error } = await supabase.from('events').select('*').filter('client', 'cs', `{"${clienteId}"}`).eq('type', 'appointment').order('datetime', { ascending: false })
+            if (error) throw error
+            // Enrich professional field
+            const profIds = new Set<string>()
+                ; (records || []).forEach((r: any) => {
+                    const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
+                    pros.forEach((id: string) => profIds.add(id))
+                })
+            let profileMap: Record<string, any> = {}
+            if (profIds.size > 0) {
+                const ids = Array.from(profIds)
+                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
+                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+            }
+            const enriched = (records || []).map((r: any) => ({
+                ...r,
+                expand: {
+                    professional: (Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean)
+                }
+            }))
+            setEventos(enriched)
         } catch (err) {
             logError('Error al cargar eventos:', err)
         } finally {
@@ -152,10 +167,22 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleEditEvent = async (eventId: string) => {
         try {
-            const eventData = await pb.collection('events').getOne<Event>(eventId, {
-                expand: 'client,professional',
-            })
-            setSelectedEvent(eventData)
+            const { data: eventData, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
+            if (error) throw error
+            const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
+            let profileMap: Record<string, any> = {}
+            if (ids.length > 0) {
+                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
+                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+            }
+            const enriched = {
+                ...eventData,
+                expand: {
+                    client: (Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+                    professional: (Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+                }
+            }
+            setSelectedEvent(enriched as any)
             setEventDialogOpen(true)
         } catch (err) {
             logError('Error cargando evento:', err)
@@ -229,27 +256,32 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             let savedUser: any = null
 
             if (photoFile) {
-                // We have a new photo: send multipart FormData with file plus payload
-                const formDataToSend = new FormData()
-                Object.entries(payload).forEach(([k, v]) => formDataToSend.append(k, String(v)))
-                formDataToSend.append('photo', photoFile)
+                // User photos are handled separately; do not attempt upload here. Save metadata if needed.
+                // We'll store the filename in profile.photo but the actual upload must be performed externally.
+                const filename = photoFile.name
+                payload.photo = filename
 
                 if (cliente?.id) {
-                    savedUser = await pb.collection('users').update(cliente.id, formDataToSend)
+                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', cliente.id).select().maybeSingle()
+                    if (error) throw error
+                    savedUser = data
                 } else {
-                    savedUser = await pb.collection('users').create(formDataToSend)
+                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    if (error) throw error
+                    savedUser = data
                 }
             } else {
                 // No new file
-                // If removePhoto is true, explicitly set photo:null
                 if (removePhoto && cliente?.id) payload.photo = null
 
                 if (cliente?.id) {
-                    // Update existing user with JSON payload
-                    savedUser = await pb.collection('users').update(cliente.id, payload)
+                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', cliente.id).select().maybeSingle()
+                    if (error) throw error
+                    savedUser = data
                 } else {
-                    // Create new user with JSON payload
-                    savedUser = await pb.collection('users').create(payload)
+                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    if (error) throw error
+                    savedUser = data
                 }
             }
 
@@ -278,9 +310,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         try {
             setLoading(true)
-            await pb.collection('users').delete(cliente.id)
+            await supabase.from('profiles').delete().eq('user_id', cliente.id)
 
-            // remove user_cards entry
+            // user_cards is deprecated — no-op
             const userIdToDelete = cliente.id!
             import('@/lib/userCards').then(({ deleteUserCardForUser }) => {
                 try { deleteUserCardForUser(userIdToDelete) } catch (e) { /* ignore */ }

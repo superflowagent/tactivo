@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pocketbase";
+import { supabase, getFilePublicUrl } from "@/lib/supabase";
 import { error as logError } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import ActionButton from "@/components/ui/ActionButton";
@@ -73,7 +73,14 @@ export function EjerciciosView() {
     if (!exerciseToDelete?.id) return;
     setExerciseDeleteLoading(true);
     try {
-      await pb.collection('exercises').delete(exerciseToDelete.id);
+      const { error } = await supabase.from('exercises').delete().eq('id', exerciseToDelete.id)
+      if (error) throw error
+      // Optionally delete associated file from storage
+      try {
+        if (exerciseToDelete.file) {
+          await supabase.storage.from('exercise_videos').remove([`${exerciseToDelete.id}/${exerciseToDelete.file}`])
+        }
+      } catch (err) { /* ignore storage cleanup errors */ }
       await loadData();
       setExerciseDeleteOpen(false);
       setExerciseToDelete(null);
@@ -94,22 +101,19 @@ export function EjerciciosView() {
       setLoading(true);
 
       // Cargar ejercicios
-      const exercisesResult = await pb.collection("exercises").getFullList({
-        filter: `company = "${user.company}"`,
-      });
-      setExercises(exercisesResult as unknown as Exercise[]);
+      const { data: exercisesResult, error: exErr } = await supabase.from('exercises').select('*').eq('company', user.company).order('name')
+      if (exErr) throw exErr
+      setExercises(exercisesResult as Exercise[] || []);
 
       // Cargar anatomías
-      const anatomyResult = await pb.collection("anatomy").getFullList({
-        filter: `company = "${user.company}"`,
-      });
-      setAnatomy(anatomyResult as unknown as AnatomyRecord[]);
+      const { data: anatomyResult, error: anErr } = await supabase.from('anatomy').select('*').eq('company', user.company).order('name')
+      if (anErr) throw anErr
+      setAnatomy(anatomyResult as AnatomyRecord[] || []);
 
       // Cargar equipamiento
-      const equipmentResult = await pb.collection("equipment").getFullList({
-        filter: `company = "${user.company}"`,
-      });
-      setEquipment(equipmentResult as unknown as EquipmentRecord[]);
+      const { data: equipmentResult, error: eqErr } = await supabase.from('equipment').select('*').eq('company', user.company).order('name')
+      if (eqErr) throw eqErr
+      setEquipment(equipmentResult as EquipmentRecord[] || []);
     } catch (err) {
       logError("Error loading exercises data:", err);
     } finally {
@@ -145,7 +149,8 @@ export function EjerciciosView() {
     setDeleteLoading(true);
     try {
       const collection = deleteTarget.type === "equipment" ? "equipment" : "anatomy";
-      await pb.collection(collection).delete(deleteTarget.id);
+      const { error } = await supabase.from(collection).delete().eq('id', deleteTarget.id)
+      if (error) throw error
 
       if (deleteTarget.type === "equipment") {
         setEquipment((prev) => prev.filter((x) => x.id !== deleteTarget.id));
@@ -494,15 +499,13 @@ export function EjerciciosView() {
                       <>
                         {isVideo(exercise.file) ? (
                           <video
-                            src={pb.files.getURL(exercise, exercise.file)}
+                            src={getFilePublicUrl('exercise_videos', exercise.id, exercise.file) || undefined}
                             className="w-full h-full object-cover"
                             controls
                           />
                         ) : (
                           <img
-                            src={pb.files.getURL(exercise, exercise.file)}
-                            alt={exercise.name}
-                            className="w-full h-full object-cover"
+                            src={getFilePublicUrl('exercise_videos', exercise.id, exercise.file) || undefined}
                           />
                         )}
 

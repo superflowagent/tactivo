@@ -2,7 +2,7 @@ import * as React from "react"
 import { Calendar, Users, UserStar, Settings, ChevronLeft, ChevronRight, ArrowLeftFromLine, Dumbbell, ListChecks } from "lucide-react"
 import type { ViewType } from "@/App"
 import { useAuth } from "@/contexts/AuthContext"
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl } from "@/lib/supabase"
 
 import { NavMain } from "@/components/nav-main"
 import {
@@ -43,10 +43,10 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
     return `${user.name} ${user.last_name}`.trim()
   }
 
-  // Obtener URL de la foto del usuario desde PocketBase
+  // Obtener URL de la foto del usuario desde Storage de Supabase
   const getUserPhotoUrl = () => {
     if (!user?.id || !user?.photo) return null
-    return pb.files.getURL({ collectionId: 'users', id: user.id }, user.photo)
+    return getFilePublicUrl('users', user.id, user.photo)
   }
 
   const photoUrl = getUserPhotoUrl()
