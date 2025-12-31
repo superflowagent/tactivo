@@ -52,7 +52,7 @@ export function ClasesView() {
 
         try {
             setLoading(true)
-            const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+            const cid = companyId
             const { data: records, error } = await supabase.from('classes_template').select('*').eq('company', cid).order('datetime')
             if (error) throw error
 

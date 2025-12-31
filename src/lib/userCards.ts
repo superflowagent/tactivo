@@ -64,7 +64,7 @@ export async function getUserCardsByRole(companyId: string, role: string) {
     try {
         if (!companyId || !role) return []
 
-        const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+        const cid = companyId
 
         const { data: profiles, error } = await supabase
             .from('profiles')
