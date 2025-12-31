@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl } from "@/lib/supabase"
 import { debug, error as logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
@@ -51,7 +51,7 @@ export function ProfesionalesView() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProfesional, setSelectedProfesional] = useState<Profesional | null>(null)
 
-  // Cargar profesionales desde PocketBase
+  // Cargar profesionales desde `profiles` (Supabase)
   useEffect(() => {
     const fetchProfesionales = async () => {
       if (!companyId) return
@@ -61,13 +61,11 @@ export function ProfesionalesView() {
         setError(null)
 
         // Filtrar solo profesionales de la misma company
-        const records = await pb.collection('users').getFullList<Profesional>({
-          sort: 'name',
-          filter: `company = "${companyId}" && role = "professional"`,
-        })
+        const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, role, company').eq('company', companyId).eq('role', 'professional').order('name')
+        if (error) throw error
         debug('Profesionales cargados:', records)
-        setProfesionales(records)
-        setFilteredProfesionales(records)
+        setProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+        setFilteredProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
       } catch (err: any) {
         logError('Error al cargar profesionales:', err)
         const errorMsg = err?.message || 'Error desconocido'
@@ -115,11 +113,12 @@ export function ProfesionalesView() {
   }
 
   const handleEdit = async (profesional: Profesional) => {
-    // Recargar los datos más recientes del profesional desde PocketBase
+    // Recargar los datos más recientes del profesional desde `profiles` (Supabase)
     if (!profesional.id) return
 
     try {
-      const freshProfesional = await pb.collection('users').getOne<Profesional>(profesional.id)
+      const { data: freshProfesional, error } = await supabase.from('profiles').select('*').eq('user_id', profesional.id).maybeSingle()
+      if (error) throw error
       setSelectedProfesional(freshProfesional)
     } catch (err) {
       logError('Error al cargar profesional:', err)
@@ -134,7 +133,8 @@ export function ProfesionalesView() {
     if (!profesionalToDelete) return
 
     try {
-      await pb.collection('users').delete(profesionalToDelete)
+      const { error } = await supabase.from('profiles').delete().eq('user_id', profesionalToDelete)
+      if (error) throw error
       try {
         const { deleteUserCardForUser } = await import('@/lib/userCards')
         await deleteUserCardForUser(profesionalToDelete)
@@ -157,12 +157,10 @@ export function ProfesionalesView() {
     try {
       if (!companyId) return
 
-      const records = await pb.collection('users').getFullList<Profesional>({
-        sort: 'name',
-        filter: `company = "${companyId}" && role = "professional"`,
-      })
-      setProfesionales(records)
-      setFilteredProfesionales(records)
+      const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, role, company').eq('company', companyId).eq('role', 'professional').order('name')
+      if (error) throw error
+      setProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+      setFilteredProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
     } catch (err) {
       logError('Error al recargar profesionales:', err)
     }
@@ -232,7 +230,7 @@ export function ProfesionalesView() {
                 <TableCell>
                   {profesional.photo ? (
                     <img
-                      src={`https://pocketbase.superflow.es/api/files/users/${profesional.id}/${profesional.photo}`}
+                      src={getFilePublicUrl('users', profesional.id, profesional.photo)}
                       alt={profesional.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />

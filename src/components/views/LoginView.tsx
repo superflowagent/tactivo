@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { error as logError } from '@/lib/logger'
 import { AlertCircle, CheckCircle } from 'lucide-react'
-import pb from '@/lib/pocketbase'
+import { supabase } from '@/lib/supabase'
 
 // Cleanup: removed nested <form>, fixed unused vars and streamlined password reset inline UI
 export function LoginView() {
@@ -73,15 +73,13 @@ export function LoginView() {
     }
     setSendingReset(true)
     try {
-      await pb.collection('users').requestPasswordReset(resetEmail)
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo: window.location.origin + '/auth/password-reset' })
+      if (error) throw error
       setResetSent(true)
       // clear input after sending — keep success message visible until user cancels
       setResetEmail('')
     } catch (err: any) {
-      import('@/lib/pocketbaseErrors').then(({ formatPocketbaseError }) => {
-        const msg = formatPocketbaseError(err, { field: 'reset-email' })
-        setResetError(msg)
-      })
+      setResetError(err?.message || 'Error enviando correo de restablecimiento')
     } finally {
       setSendingReset(false)
     }

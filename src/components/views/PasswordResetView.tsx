@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import pb from "@/lib/pocketbase";
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -45,22 +45,26 @@ export function PasswordResetView() {
 
         setLoading(true);
         try {
-            await pb.collection("users").confirmPasswordReset(token, password, passwordConfirm);
+            // Supabase: ensure session available then update password
+            const sessionRes = await supabase.auth.getSession()
+            if (!sessionRes.data.session) {
+                setError('El enlace de restablecimiento debe abrirse desde el correo (el token debe incluirse en la sesión de Supabase).')
+                setLoading(false)
+                return
+            }
+
+            const { error: updateErr } = await supabase.auth.updateUser({ password })
+            if (updateErr) throw updateErr
+
             // Clear any existing session so the app does not auto-redirect to the panel
-            try {
-                logout()
-            } catch {
+            try { await logout() } catch {
                 // ignore logout errors
             }
 
             setSuccess(true);
             setTimeout(() => navigate("/"), 1800);
         } catch (err: any) {
-            // pocketbase may return structured error
-            import('@/lib/pocketbaseErrors').then(({ formatPocketbaseError }) => {
-                const msg = formatPocketbaseError(err)
-                setError(msg)
-            })
+            setError(err?.message || 'Error restableciendo contraseña')
         } finally {
             setLoading(false);
         }

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
-import pb from '@/lib/pocketbase'
+import { supabase } from '@/lib/supabase'
 import { error } from '@/lib/logger'
 
 interface User {
@@ -9,7 +9,7 @@ interface User {
   name: string
   last_name: string
   role: string
-  company: string
+  company: string | null
   photo?: string
 }
 
@@ -18,7 +18,7 @@ interface AuthContextType {
   companyName: string | null
   companyId: string | null
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   isLoading: boolean
 }
 
@@ -33,6 +33,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Verificar si hay sesión activa
     checkAuth()
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
+      checkAuth()
+    })
+
+    return () => {
+      listener?.subscription?.unsubscribe?.()
+      listener?.unsubscribe?.()
+    }
   }, [])
 
   // Función para normalizar el nombre de la compañía para usar en URL
@@ -66,39 +75,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      if (pb.authStore.isValid && pb.authStore.model) {
-        const authData = pb.authStore.model as any
+      setIsLoading(true)
+      const sessionRes = await supabase.auth.getSession()
+      const session = sessionRes.data.session
 
-        // Allow professionals and clients to be authenticated
-        if (authData.role === 'professional' || authData.role === 'client') {
-          // Obtener el usuario actual con expand de company
-          const userData = await pb.collection('users').getOne(authData.id, {
-            expand: 'company'
-          })
+      if (session?.user) {
+        const userId = session.user.id
+        // Obtener perfil del usuario desde "profiles"
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle()
 
-          const companyData = userData.expand?.company
+        if (profileError) throw profileError
+
+        const role = profile?.role
+        if (role === 'professional' || role === 'client') {
+          // Obtener información de la compañía si existe
+          let companyData = null
+          if (profile?.company) {
+            const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
+            if (!compErr) companyData = comp
+          }
 
           setUser({
-            id: userData.id,
-            email: userData.email,
-            name: userData.name,
-            last_name: userData.last_name,
-            role: userData.role,
-            company: userData.company,
-            photo: userData.photo,
+            id: userId,
+            email: session.user.email || '',
+            name: profile?.name || '',
+            last_name: profile?.last_name || '',
+            role: role,
+            company: profile?.company || null,
+            photo: profile?.photo || undefined,
           })
-          // Guardar el ID de la compañía
-          setCompanyId(userData.company)
-          // Obtener la URL de la compañía (domain si existe, si no normalizar name)
-          const companyUrlName = getCompanyUrlName(companyData)
-          setCompanyName(companyUrlName)
+
+          setCompanyId(profile?.company || null)
+          setCompanyName(getCompanyUrlName(companyData))
         } else {
-          pb.authStore.clear()
+          // Not an allowed role
+          await supabase.auth.signOut()
+          setUser(null)
+          setCompanyId(null)
+          setCompanyName(null)
         }
+      } else {
+        setUser(null)
+        setCompanyId(null)
+        setCompanyName(null)
       }
     } catch (err) {
       error('Error checking auth:', err)
-      pb.authStore.clear()
+      await supabase.auth.signOut().catch(() => null)
+      setUser(null)
+      setCompanyId(null)
+      setCompanyName(null)
     } finally {
       setIsLoading(false)
     }
@@ -106,39 +136,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      // Autenticar con PocketBase con expand de company
-      const authData = await pb.collection('users').authWithPassword(email, password, {
-        expand: 'company'
-      })
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) throw signInError
 
-      // Allow both professionals and clients to login
+      const userId = data.user?.id
+      if (!userId) throw new Error('No user in session')
 
-      // Obtener información de la compañía desde el expand o directamente
-      let company = authData.record.expand?.company
+      // Obtener perfil
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
 
-      // Si el expand no funcionó, obtener la compañía directamente
-      if (!company && authData.record.company) {
-        try {
-          company = await pb.collection('companies').getOne(authData.record.company)
-        } catch (err) {
-          error('Error obteniendo compañía:', err)
-        }
+      if (profileError) throw profileError
+
+      // Obtener compañía si aplica
+      let companyData = null
+      if (profile?.company) {
+        const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
+        if (!compErr) companyData = comp
       }
 
       setUser({
-        id: authData.record.id,
-        email: authData.record.email,
-        name: authData.record.name,
-        last_name: authData.record.last_name,
-        role: authData.record.role,
-        company: authData.record.company,
-        photo: authData.record.photo,
+        id: userId,
+        email: data.user?.email || '',
+        name: profile?.name || '',
+        last_name: profile?.last_name || '',
+        role: profile?.role || '',
+        company: profile?.company || null,
+        photo: profile?.photo || undefined,
       })
 
-      // Guardar el ID de la compañía
-      setCompanyId(authData.record.company)
-      // Si existe domain, usarlo; sino fallback al name y normalizar
-      const companyUrlName = company?.domain ? sanitizeDomain(company.domain) : normalizeCompanyName(company?.name || authData.record.company || 'company')
+      setCompanyId(profile?.company || null)
+      const companyUrlName = companyData ? getCompanyUrlName(companyData) : normalizeCompanyName(profile?.name || profile?.company || 'company')
       setCompanyName(companyUrlName)
     } catch (err: any) {
       error('Login error:', err)
@@ -146,8 +177,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const logout = () => {
-    pb.authStore.clear()
+  const logout = async () => {
+    await supabase.auth.signOut()
     setUser(null)
     setCompanyName(null)
     setCompanyId(null)
