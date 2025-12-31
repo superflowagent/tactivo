@@ -19,8 +19,8 @@ import type { Company } from '@/types/company'
 import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
-import { normalizeForSearch } from '@/lib/utils'
-import { getUserCardsByRole, getUserCardsByIds } from '@/lib/userCards'
+import { normalizeForSearch, parseDbDatetimeAsLocal, formatDateAsDbLocalString } from '@/lib/utils'
+import { getUserCardsByRole } from '@/lib/userCards'
 import './calendario.css'
 
 export function CalendarioView() {
@@ -60,7 +60,7 @@ export function CalendarioView() {
   // Avoid frequent reloads (e.g., when returning from another tab)
   // by tracking last load time and ignoring reload attempts that happen
   // within a short interval.
-  const lastEventsLoadRef = (function() {
+  const lastEventsLoadRef = (function () {
     // keep a stable ref via closure - simple alternative to useRef in this module
     let last = 0
     return {
@@ -157,7 +157,6 @@ export function CalendarioView() {
       // Cargar eventos de la company actual
       const cid = companyId
       const { data: records, error } = await supabase.from('events').select('*').eq('company', cid).order('datetime')
-      console.debug('loadEvents: fetched events', Array.isArray(records) ? records.length : 0, 'for company', cid)
       if (error) throw error
 
       // Precompute profile ids to fetch
@@ -220,11 +219,13 @@ export function CalendarioView() {
           borderColor = 'hsl(var(--vacation-color))'
         }
 
+        const startDate = parseDbDatetimeAsLocal(event.datetime) || new Date(event.datetime)
+        const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000)
         return {
           id: event.id,
           title,
-          start: event.datetime,
-          end: new Date(new Date(event.datetime).getTime() + event.duration * 60000).toISOString(),
+          start: startDate,
+          end: endDate,
           backgroundColor,
           borderColor,
           extendedProps: {
@@ -311,8 +312,8 @@ export function CalendarioView() {
       const eventId = info.event.id
       const newStart = info.event.start
 
-      // Actualizar en Supabase
-      const { error } = await supabase.from('events').update({ datetime: newStart.toISOString() }).eq('id', eventId)
+      // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
+      const { error } = await supabase.from('events').update({ datetime: formatDateAsDbLocalString(newStart) }).eq('id', eventId)
       if (error) throw error
 
       // Recargar eventos
@@ -333,8 +334,8 @@ export function CalendarioView() {
       const durationMs = newEnd.getTime() - newStart.getTime()
       const durationMin = Math.round(durationMs / (1000 * 60))
 
-      // Actualizar en Supabase
-      const { error } = await supabase.from('events').update({ datetime: newStart.toISOString(), duration: durationMin }).eq('id', eventId)
+      // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
+      const { error } = await supabase.from('events').update({ datetime: formatDateAsDbLocalString(newStart), duration: durationMin }).eq('id', eventId)
       if (error) throw error
 
       // Recargar eventos
@@ -420,7 +421,7 @@ export function CalendarioView() {
       <Card className="flex-1">
         <CardContent className="pt-6 flex-1 min-h-0">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
-              {/* Render calendar even if no company row exists: use defaults when company is null */}
+            {/* Render calendar even if no company row exists: use defaults when company is null */}
             {(() => {
               const openTime = company?.open_time || '08:00'
               const closeTime = company?.close_time || '20:00'

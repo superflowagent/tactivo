@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
 import { supabase, getFilePublicUrl } from "@/lib/supabase"
-import { debug, error as logError } from '@/lib/logger'
+import { error as logError } from '@/lib/logger'
 import { normalizeForSearch } from '@/lib/utils'
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
@@ -61,19 +61,18 @@ export function ClientesView() {
           try {
             const token = sessionRes.data?.session?.access_token
             if (token) {
-              const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?select=id,user,name,last_name,dni,phone,photo_path,sport,class_credits,company&company=eq.${companyId}&role=eq.client&order=name.asc`
-              const resp = await fetch(url, { headers: { apikey: process.env.VITE_SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
+              const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,user,name,last_name,dni,phone,photo_path,sport,class_credits,company&company=eq.${companyId}&role=eq.client&order=name.asc`
+              const resp = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
               if (resp.ok) {
                 const json = await resp.json()
                 records = json
               }
             }
-          } catch (e) {
+          } catch {
             // fallback REST request failed — ignore and continue (we will surface error later if needed)
           }
         }
 
-        debug('Clientes cargados:', records)
         const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
         setClientes(mapped)
         setFilteredClientes(mapped)
@@ -248,7 +247,7 @@ export function ClientesView() {
                 <TableCell>
                   {cliente.photo ? (
                     <img
-                      src={getFilePublicUrl('users', cliente.id, cliente.photo)}
+                      src={getFilePublicUrl('users', cliente.id, cliente.photo) || undefined}
                       alt={cliente.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />
