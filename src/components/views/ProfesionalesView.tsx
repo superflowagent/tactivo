@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { getFilePublicUrl } from "@/lib/supabase"
+import { supabase, getFilePublicUrl } from "@/lib/supabase"
 import { debug, error as logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
@@ -60,12 +60,15 @@ export function ProfesionalesView() {
         setLoading(true)
         setError(null)
 
-        // Filtrar solo profesionales de la misma company
-        const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, role, company').eq('company', companyId).eq('role', 'professional').order('name')
+        const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+
+        // Filtrar solo profesionales de la misma company. Select core fields
+        const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', cid).eq('role', 'professional').order('name')
         if (error) throw error
         debug('Profesionales cargados:', records)
-        setProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
-        setFilteredProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+        const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+        setProfesionales(mapped)
+        setFilteredProfesionales(mapped)
       } catch (err: any) {
         logError('Error al cargar profesionales:', err)
         const errorMsg = err?.message || 'Error desconocido'
@@ -117,9 +120,9 @@ export function ProfesionalesView() {
     if (!profesional.id) return
 
     try {
-      const { data: freshProfesional, error } = await supabase.from('profiles').select('*').eq('user_id', profesional.id).maybeSingle()
-      if (error) throw error
-      setSelectedProfesional(freshProfesional)
+      const fetcher = await import('@/lib/supabase')
+      const freshProfesional = await fetcher.fetchProfileByUserId(profesional.id)
+      setSelectedProfesional(freshProfesional || profesional)
     } catch (err) {
       logError('Error al cargar profesional:', err)
       setSelectedProfesional(profesional) // Usar datos en cache si falla
@@ -133,8 +136,9 @@ export function ProfesionalesView() {
     if (!profesionalToDelete) return
 
     try {
-      const { error } = await supabase.from('profiles').delete().eq('user_id', profesionalToDelete)
-      if (error) throw error
+      const fetcher = await import('@/lib/supabase')
+      const res = await fetcher.deleteProfileByUserId(profesionalToDelete)
+      if (res?.error) throw res.error
       try {
         const { deleteUserCardForUser } = await import('@/lib/userCards')
         await deleteUserCardForUser(profesionalToDelete)
@@ -157,10 +161,11 @@ export function ProfesionalesView() {
     try {
       if (!companyId) return
 
-      const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, role, company').eq('company', companyId).eq('role', 'professional').order('name')
+      const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', companyId).eq('role', 'professional').order('name')
       if (error) throw error
-      setProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
-      setFilteredProfesionales((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+      const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+      setProfesionales(mapped)
+      setFilteredProfesionales(mapped)
     } catch (err) {
       logError('Error al recargar profesionales:', err)
     }
@@ -228,9 +233,9 @@ export function ProfesionalesView() {
             {filteredProfesionales.map((profesional) => (
               <TableRow key={profesional.id}>
                 <TableCell>
-                  {profesional.photo ? (
+                  {profesional.photo_path ? (
                     <img
-                      src={getFilePublicUrl('users', profesional.id, profesional.photo)}
+                      src={getFilePublicUrl('users', profesional.id, profesional.photo_path)}
                       alt={profesional.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />

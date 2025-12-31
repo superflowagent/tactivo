@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { ClienteDialog } from "@/components/clientes/ClienteDialog"
-import { getFilePublicUrl } from "@/lib/supabase"
+import { supabase, getFilePublicUrl } from "@/lib/supabase"
 import { debug, error as logError } from '@/lib/logger'
 import { normalizeForSearch } from '@/lib/utils'
 import type { Cliente } from "@/types/cliente"
@@ -50,12 +50,33 @@ export function ClientesView() {
         setLoading(true)
         setError(null)
 
-        // Filtrar solo clientes de la misma company
-        const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
+        // Filtrar solo clientes de la misma company. Select core fields
+        const sessionRes = await supabase.auth.getSession()
+
+        let { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
         if (error) throw error
+
+        // Fallback: if we got no rows, try a direct REST request with current access token to rule out header/session race
+        if ((!records || (Array.isArray(records) && records.length === 0))) {
+          try {
+            const token = sessionRes.data?.session?.access_token
+            if (token) {
+              const url = `${process.env.SUPABASE_URL}/rest/v1/profiles?select=id,user,name,last_name,dni,phone,photo_path,sport,class_credits,company&company=eq.${companyId}&role=eq.client&order=name.asc`
+              const resp = await fetch(url, { headers: { apikey: process.env.VITE_SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
+              if (resp.ok) {
+                const json = await resp.json()
+                records = json
+              }
+            }
+          } catch (e) {
+            // fallback REST request failed — ignore and continue (we will surface error later if needed)
+          }
+        }
+
         debug('Clientes cargados:', records)
-        setClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
-        setFilteredClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+        const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+        setClientes(mapped)
+        setFilteredClientes(mapped)
       } catch (err: any) {
         logError('Error al cargar clientes:', err)
         const errorMsg = err?.message || 'Error desconocido'
@@ -107,9 +128,9 @@ export function ClientesView() {
     if (!cliente.id) return
 
     try {
-      const { data: freshCliente, error } = await supabase.from('profiles').select('*').eq('user_id', cliente.id).maybeSingle()
-      if (error) throw error
-      setSelectedCliente(freshCliente)
+      const fetcher = await import('@/lib/supabase')
+      const freshCliente = await fetcher.fetchProfileByUserId(cliente.id)
+      setSelectedCliente(freshCliente || cliente)
     } catch (err) {
       logError('Error al cargar cliente:', err)
       setSelectedCliente(cliente) // Usar datos en cache si falla
@@ -126,8 +147,9 @@ export function ClientesView() {
     if (!clienteToDelete) return
 
     try {
-      const { error } = await supabase.from('profiles').delete().eq('user_id', clienteToDelete)
-      if (error) throw error
+      const fetcher = await import('@/lib/supabase')
+      const res = await fetcher.deleteProfileByUserId(clienteToDelete)
+      if (res?.error) throw res.error
       try {
         const { deleteUserCardForUser } = await import('@/lib/userCards')
         await deleteUserCardForUser(clienteToDelete)
@@ -150,10 +172,11 @@ export function ClientesView() {
     try {
       if (!companyId) return
 
-      const { data: records, error } = await supabase.from('profiles').select('user_id, name, last_name, dni, phone, email, photo, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
+      const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+      const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', cid).eq('role', 'client').order('name')
       if (error) throw error
-      setClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
-      setFilteredClientes((records || []).map((r: any) => ({ id: r.user_id, ...r })))
+      setClientes((records || []).map((r: any) => ({ id: r.user || r.id, ...r })))
+      setFilteredClientes((records || []).map((r: any) => ({ id: r.user || r.id, ...r })))
     } catch (err) {
       logError('Error al recargar clientes:', err)
     }

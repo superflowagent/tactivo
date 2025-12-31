@@ -148,8 +148,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             let profileMap: Record<string, any> = {}
             if (profIds.size > 0) {
                 const ids = Array.from(profIds)
-                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
-                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+                // Try by user column then fallback
+                let profiles: any[] = []
+                try { const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids); profiles = r?.data || [] } catch (e) { profiles = [] }
+                if ((!profiles || profiles.length === 0) && ids.length > 0) { const r2 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids); profiles = r2?.data || [] }
+                if ((!profiles || profiles.length === 0) && ids.length > 0) { const r3 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids); profiles = r3?.data || [] }
+                ; (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
             }
             const enriched = (records || []).map((r: any) => ({
                 ...r,
@@ -172,8 +176,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
             let profileMap: Record<string, any> = {}
             if (ids.length > 0) {
-                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
-                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+                const { data: profiles } = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)
+                    ; (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
             }
             const enriched = {
                 ...eventData,
@@ -262,9 +266,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 payload.photo = filename
 
                 if (cliente?.id) {
-                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', cliente.id).select().maybeSingle()
-                    if (error) throw error
-                    savedUser = data
+                    const api = await import('@/lib/supabase')
+                    const res = await api.updateProfileByUserId(cliente.id, payload)
+                    if (res?.error) throw res.error
+                    savedUser = res.data
                 } else {
                     const { data, error } = await supabase.from('profiles').insert(payload).select().single()
                     if (error) throw error
@@ -275,9 +280,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 if (removePhoto && cliente?.id) payload.photo = null
 
                 if (cliente?.id) {
-                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', cliente.id).select().maybeSingle()
-                    if (error) throw error
-                    savedUser = data
+                    const api = await import('@/lib/supabase')
+                    const res = await api.updateProfileByUserId(cliente.id, payload)
+                    if (res?.error) throw res.error
+                    savedUser = res.data
                 } else {
                     const { data, error } = await supabase.from('profiles').insert(payload).select().single()
                     if (error) throw error
@@ -310,7 +316,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         try {
             setLoading(true)
-            await supabase.from('profiles').delete().eq('user_id', cliente.id)
+            const api = await import('@/lib/supabase')
+            const del = await api.deleteProfileByUserId(cliente.id!)
+            if (del?.error) throw del.error
 
             // user_cards is deprecated — no-op
             const userIdToDelete = cliente.id!

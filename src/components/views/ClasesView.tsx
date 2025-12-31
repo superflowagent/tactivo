@@ -52,7 +52,8 @@ export function ClasesView() {
 
         try {
             setLoading(true)
-            const { data: records, error } = await supabase.from('classes_template').select('*').eq('company', companyId).order('datetime')
+            const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+            const { data: records, error } = await supabase.from('classes_template').select('*').eq('company', cid).order('datetime')
             if (error) throw error
 
             // Enrich with profiles for client and professional ids
@@ -67,8 +68,8 @@ export function ClasesView() {
             let profileMap: Record<string, any> = {}
             if (allIds.size > 0) {
                 const ids = Array.from(allIds)
-                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
-                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+                const { data: profiles } = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
+                    (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
             }
 
             const enriched = (records || []).map((r: any) => ({

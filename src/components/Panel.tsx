@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from "@/contexts/AuthContext"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
@@ -28,8 +29,41 @@ function MobileHamburgerButton() {
 }
 
 export function Panel() {
-  const { user } = useAuth()
-  const [currentView, setCurrentView] = useState<ViewType>("calendario")
+  const { user, companyName } = useAuth()
+  // Persist current view so remounts / focus changes don't reset it unintentionally
+  const initialView = (() => {
+    try {
+      const sv = localStorage.getItem('tactivo.currentView')
+      if (sv === 'clientes' || sv === 'clases' || sv === 'ejercicios' || sv === 'profesionales' || sv === 'ajustes') return sv as ViewType
+    } catch (e) {}
+    return 'calendario'
+  })()
+  const [currentView, setCurrentView] = useState<ViewType>(initialView)
+
+  // Persist changes
+  useEffect(() => {
+    try { localStorage.setItem('tactivo.currentView', currentView) } catch (e) {}
+  }, [currentView])
+
+  // Ensure the URL contains the correct companyName path segment
+  // If the route's param (provided by react-router) doesn't match the logged-in user's companyName,
+  // redirect to the canonical `/:companyName/panel` URL.
+  const { companyName: routeCompany } = useParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    // Always redirect to canonical company route when we have a companyName
+    if (companyName && companyName !== routeCompany) {
+      navigate(`/${companyName}/panel`, { replace: true })
+    }
+  }, [companyName, routeCompany, navigate])
+
+  // Prefetch heavy calendar chunk when the company is known so the calendar renders fast
+  useEffect(() => {
+    if (companyName) {
+      import('./views/FullCalendarWrapper').catch(() => null)
+    }
+  }, [companyName])
 
   // If the user is a client, force the view to 'calendario' and prevent switching
   useEffect(() => {

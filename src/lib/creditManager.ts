@@ -13,14 +13,13 @@ interface CreditChange {
 async function adjustCredits(changes: CreditChange[]): Promise<void> {
     const promises = changes.map(async ({ clientId, change }) => {
         try {
-            const { data: profile, error: fetchErr } = await supabase.from('profiles').select('class_credits').eq('user_id', clientId).maybeSingle()
-            if (fetchErr) throw fetchErr
-
+            // Fetch and update profile using robust helpers that handle different schema variants
+            const profile = await (await import('./supabase')).fetchProfileByUserId(clientId)
             const currentCredits = profile?.class_credits ?? 0
             const newCredits = currentCredits + change
 
-            const { error: updateErr } = await supabase.from('profiles').update({ class_credits: newCredits }).eq('user_id', clientId)
-            if (updateErr) throw updateErr
+            const upd = await (await import('./supabase')).updateProfileByUserId(clientId, { class_credits: newCredits })
+            if (upd?.error) throw upd.error
 
             info(`Updated class_credits for client ${clientId}: ${currentCredits} -> ${newCredits}`)
         } catch (err) {

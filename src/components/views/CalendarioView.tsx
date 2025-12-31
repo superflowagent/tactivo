@@ -40,21 +40,43 @@ export function CalendarioView() {
   const [clientCredits, setClientCredits] = useState<number | null>(null)
   const isMobile = useIsMobile()
 
+  // Load company, events and professionals when the companyId changes only
   useEffect(() => {
+    if (!companyId) return
+    // Ensure the calendar prefetch and initial load happen once when company is known
     loadCompany()
-    loadEvents()
     loadProfessionals()
-    // If the logged-in user is a client, load their credits
-    loadClientCredits()
-  }, [companyId, user?.id, isClient])
+    loadEvents(true) // force the initial load
+    // keep last load timestamp to avoid noisy reloads on tab visibility changes
+  }, [companyId])
+
+  // Load client credits only when client state or user id changes
+  useEffect(() => {
+    if (isClient && user?.id) {
+      loadClientCredits()
+    }
+  }, [isClient, user?.id])
+
+  // Avoid frequent reloads (e.g., when returning from another tab)
+  // by tracking last load time and ignoring reload attempts that happen
+  // within a short interval.
+  const lastEventsLoadRef = (function() {
+    // keep a stable ref via closure - simple alternative to useRef in this module
+    let last = 0
+    return {
+      get: () => last,
+      set: (v: number) => { last = v }
+    }
+  })()
+
 
   // Load the client's `class_credits` from the `users` collection (uses view rules)
   const loadClientCredits = async () => {
     if (!isClient || !user?.id) return
 
     try {
-      const { data: profile, error } = await supabase.from('profiles').select('class_credits').eq('user_id', user.id).maybeSingle()
-      if (error) throw error
+      const fetcher = await import('@/lib/supabase')
+      const profile = await fetcher.fetchProfileByUserId(user.id)
       setClientCredits(profile?.class_credits ?? 0)
     } catch (err) {
       logError('Error cargando créditos del usuario:', err)
@@ -122,12 +144,19 @@ export function CalendarioView() {
     setFilteredEvents(filtered)
   }
 
-  const loadEvents = async () => {
+  const loadEvents = async (force = false) => {
     if (!companyId) return
 
     try {
+      // Avoid reload storm when returning to tab: if last load was less than 10s ago, skip unless forced
+      const last = lastEventsLoadRef.get()
+      const now = Date.now()
+      if (!force && last && (now - last) < 10000) return
+      lastEventsLoadRef.set(now)
+
       // Cargar eventos de la company actual
-      const { data: records, error } = await supabase.from('events').select('*').eq('company', companyId).order('datetime')
+      const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+      const { data: records, error } = await supabase.from('events').select('*').eq('company', cid).order('datetime')
       if (error) throw error
 
       // Precompute profile ids to fetch
@@ -142,8 +171,23 @@ export function CalendarioView() {
       let profileMap: Record<string, any> = {}
       if (allIds.size > 0) {
         const ids = Array.from(allIds)
-        const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
-          (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+        // Try by 'user' column first, fallback to 'id'
+        let profiles: any[] = []
+        try {
+          const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
+          profiles = r?.data || []
+        } catch (e) {
+          profiles = []
+        }
+        if ((!profiles || profiles.length === 0) && ids.length > 0) {
+          const r2 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)
+          profiles = r2?.data || []
+        }
+        if ((!profiles || profiles.length === 0) && ids.length > 0) {
+          const r3 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)
+          profiles = r3?.data || []
+        }
+        ; (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
       }
 
       // Transformar eventos para FullCalendar
@@ -225,8 +269,9 @@ export function CalendarioView() {
       const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
       let profileMap: Record<string, any> = {}
       if (ids.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
-          (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+        const { data: profiles } = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
+        const fallback = (!profiles || profiles.length === 0) ? (await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)).data || [] : profiles
+          ; ((profiles || fallback) || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
       }
 
       const enriched = {
@@ -374,18 +419,10 @@ export function CalendarioView() {
       <Card className="flex-1">
         <CardContent className="pt-6 flex-1 min-h-0">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
-            {company && (() => {
-              // Calculate slot height to fit all schedule without scroll
-              const openTime = company.open_time || '08:00'
-              const closeTime = company.close_time || '20:00'
-
-              // Parse hours and minutes
-              const [openHour, openMin] = openTime.split(':').map(Number)
-              const [closeHour, closeMin] = closeTime.split(':').map(Number)
-
-              // Calculate total minutes in schedule
-              const totalMinutes = (closeHour * 60 + closeMin) - (openHour * 60 + openMin)
-              const numSlots = totalMinutes / 30 // 30-minute slots
+              {/* Render calendar even if no company row exists: use defaults when company is null */}
+            {(() => {
+              const openTime = company?.open_time || '08:00'
+              const closeTime = company?.close_time || '20:00'
 
               return (
                 <FullCalendarLazy

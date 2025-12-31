@@ -35,7 +35,7 @@ export function LoginView() {
   // Usar useEffect para la navegación en lugar de hacerlo durante el render
   useEffect(() => {
     if (companyName) {
-      navigate(`/${companyName}/panel`)
+      navigate(`/${companyName}/panel`, { replace: true })
     }
   }, [companyName, navigate])
 
@@ -45,8 +45,10 @@ export function LoginView() {
     setIsLoading(true)
 
     try {
-      await login(email, password)
-      // La navegación se hará en el useEffect cuando companyName esté disponible
+      // login now returns immediately and sets companyName in context; also returns companyUrlName for quick navigation
+      const companyUrl = await login(email, password) as unknown as string | undefined
+      if (companyUrl) navigate(`/${companyUrl}/panel`, { replace: true })
+      // Note: the useEffect watching companyName will also redirect if needed
     } catch (err: any) {
       logError('Login error:', err)
       logError('Error status:', err.status)
@@ -63,6 +65,9 @@ export function LoginView() {
       setIsLoading(false)
     }
   }
+
+  // duplicate handleSubmit removed — navigation is handled immediately by the first handler and by the companyName useEffect
+
 
   const handleSendReset = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -88,9 +93,9 @@ export function LoginView() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6">
       <Card className="w-full max-w-md mx-4">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-left">Bienvenido a Tactivo</CardTitle>
-          <CardDescription className="text-center">
+          <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">Bienvenido a Tactivo</CardTitle>
+          <CardDescription>
             Iniciar sesión
           </CardDescription>
         </CardHeader>
