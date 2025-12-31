@@ -47,6 +47,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { supabase } from '@/lib/supabase'
+import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface EventDialogProps {
     open: boolean
@@ -260,7 +261,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const data = {
                 ...formData,
-                datetime: datetime.toISOString(),
+                datetime: formatDateAsDbLocalString(datetime),
                 duration,
                 client: formData.type === 'vacation' ? [] : selectedClients,
                 professional: selectedProfessionals,

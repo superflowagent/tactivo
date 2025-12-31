@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { onBatchEventsCreate } from "@/lib/creditManager"
+import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface PropagateDialogProps {
     open: boolean
@@ -92,7 +93,7 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
 
                         const eventData = {
                             type: 'class',
-                            datetime: currentDate.toISOString(),
+                            datetime: formatDateAsDbLocalString(currentDate),
                             duration: slot.duration,
                             client: slot.client || [],
                             professional: slot.professional || [],

@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import type { Event } from '@/types/event'
 import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog'
 import { PropagateDialog } from '@/components/clases/PropagateDialog'
+import { formatDateAsDbLocalString } from '@/lib/utils'
 
 const WEEKDAYS = [
     { name: 'Lunes', value: 1 },
@@ -57,19 +58,20 @@ export function ClasesView() {
             if (error) throw error
 
             // Enrich with profiles for client and professional ids
-            const allIds = new Set<string>()
-                (records || []).forEach((r: any) => {
-                    const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
-                    const clients = Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])
-                    pros.forEach((id: string) => allIds.add(id))
-                    clients.forEach((id: string) => allIds.add(id))
-                })
+            const allIds = new Set<string>();
+            (records || []).forEach((r: any) => {
+                const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
+                const clients = Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])
+                pros.forEach((id: string) => allIds.add(id))
+                clients.forEach((id: string) => allIds.add(id))
+            })
 
             let profileMap: Record<string, any> = {}
             if (allIds.size > 0) {
                 const ids = Array.from(allIds)
-                const { data: profiles } = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
-                    (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
+                const res = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
+                const profiles: any[] = (res as any)?.data || []
+                profiles.forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
             }
 
             const enriched = (records || []).map((r: any) => ({
@@ -210,7 +212,7 @@ export function ClasesView() {
             newDate.setDate(currentDate.getDate() + diff)
 
             // Actualizar el slot en la base de datos
-            const { error } = await supabase.from('classes_template').update({ datetime: newDate.toISOString() }).eq('id', draggedSlot.id)
+            const { error } = await supabase.from('classes_template').update({ datetime: formatDateAsDbLocalString(newDate) }).eq('id', draggedSlot.id)
             if (error) throw error
 
             // Recargar los slots

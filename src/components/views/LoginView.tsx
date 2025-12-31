@@ -93,7 +93,7 @@ export function LoginView() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6">
       <Card className="w-full max-w-md mx-4">
-          <CardHeader className="space-y-1 text-center">
+        <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Bienvenido a Tactivo</CardTitle>
           <CardDescription>
             Iniciar sesión
