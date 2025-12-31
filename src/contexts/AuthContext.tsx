@@ -92,14 +92,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!profile) throw new Error('Profile not found')
 
         const role = profile?.role
-        if (role === 'professional' || role === 'client') {
-          // Obtener información de la compañía si existe
-          let companyData = null
-          if (profile?.company) {
-            const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
-            if (!compErr) companyData = comp
-          }
 
+        // Obtener información de la compañía lo antes posible (para canonical URL)
+        let companyData = null
+        if (profile?.company) {
+          const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
+          if (!compErr) companyData = comp
+        }
+        // Siempre establecer companyId y companyName (si hay dominio) inmediatamente
+        setCompanyId(profile?.company ?? null)
+        const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : null
+        if (companyUrlName) setCompanyName(companyUrlName)
+
+        if (role === 'professional' || role === 'client') {
           setUser({
             id: userId,
             email: session.user.email || '',
@@ -109,11 +114,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             company: profile?.company || null,
             photo: profile?.photo_path || undefined,
           })
-
-          setCompanyId(profile?.company ?? null)
-          // Prefer the company domain if available
-          const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
-          setCompanyName(companyUrlName)
         } else {
           // Not an allowed role
           await supabase.auth.signOut()
