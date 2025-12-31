@@ -37,6 +37,7 @@ import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
+import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface ClassSlotDialogProps {
     open: boolean
@@ -228,7 +229,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
 
             const data = {
                 type: 'class',
-                datetime: targetDate.toISOString(),
+                datetime: formatDateAsDbLocalString(targetDate),
                 duration: formData.duration,
                 client: selectedClients,
                 professional: selectedProfessionals,

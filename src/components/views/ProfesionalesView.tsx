@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { supabase, getFilePublicUrl } from "@/lib/supabase"
-import { debug, error as logError } from "@/lib/logger";
+import { error as logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
@@ -35,6 +35,7 @@ interface Profesional {
   phone: string
   email: string
   photo?: string
+  photo_path?: string | null
   company: string
 }
 
@@ -65,7 +66,6 @@ export function ProfesionalesView() {
         // Filtrar solo profesionales de la misma company. Select core fields
         const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', cid).eq('role', 'professional').order('name')
         if (error) throw error
-        debug('Profesionales cargados:', records)
         const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
         setProfesionales(mapped)
         setFilteredProfesionales(mapped)
@@ -235,7 +235,7 @@ export function ProfesionalesView() {
                 <TableCell>
                   {profesional.photo_path ? (
                     <img
-                      src={getFilePublicUrl('users', profesional.id, profesional.photo_path)}
+                      src={getFilePublicUrl('users', profesional.id, profesional.photo_path) || undefined}
                       alt={profesional.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />

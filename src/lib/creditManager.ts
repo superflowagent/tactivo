@@ -1,4 +1,3 @@
-import { supabase } from './supabase'
 import { info, error } from './logger'
 
 interface CreditChange {

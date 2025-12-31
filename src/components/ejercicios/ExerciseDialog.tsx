@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, getFilePublicUrl } from "@/lib/supabase";
-import { compressVideoFile } from '@/lib/video';
 import { uploadVideoWithCompression } from '@/lib/supabase';
 import { Button } from "@/components/ui/button";
 import {

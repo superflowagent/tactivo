@@ -35,14 +35,14 @@ export function Panel() {
     try {
       const sv = localStorage.getItem('tactivo.currentView')
       if (sv === 'clientes' || sv === 'clases' || sv === 'ejercicios' || sv === 'profesionales' || sv === 'ajustes') return sv as ViewType
-    } catch (e) {}
+    } catch { }
     return 'calendario'
   })()
   const [currentView, setCurrentView] = useState<ViewType>(initialView)
 
   // Persist changes
   useEffect(() => {
-    try { localStorage.setItem('tactivo.currentView', currentView) } catch (e) {}
+    try { localStorage.setItem('tactivo.currentView', currentView) } catch (_) { }
   }, [currentView])
 
   // Ensure the URL contains the correct companyName path segment

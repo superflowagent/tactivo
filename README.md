@@ -1,5 +1,11 @@
 # CRM Fisioterapia
 
+Changelog (recent cleanup)
+- chore: removed temporary scripts used for migrations and debugging
+- chore: removed debug logs and tightened auth/company URL handling
+- chore: unified datetime handling to preserve wall-clock times when updating events
+- chore: removed unused imports and fixed linting warnings
+
 Sistema de gesti�n para cl�nicas de fisioterapia en desarrollo.
 
 ## Stack

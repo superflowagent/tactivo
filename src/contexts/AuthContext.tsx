@@ -17,7 +17,7 @@ interface AuthContextType {
   user: User | null
   companyName: string | null
   companyId: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<string | void>
   logout: () => Promise<void>
   isLoading: boolean
 }
@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       listener?.subscription?.unsubscribe?.()
-      listener?.unsubscribe?.()
     }
   }, [])
 
@@ -69,12 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const getCompanyUrlName = (companyData: any) => {
-    if (!companyData) return 'company'
-    if (companyData.domain) return sanitizeDomain(companyData.domain)
-    if (companyData.name) return normalizeCompanyName(companyData.name)
-    return 'company'
-  }
 
   const checkAuth = async (silent = false) => {
     try {
@@ -99,6 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
           if (!compErr) companyData = comp
         }
+        // Si la compañía existe pero no tiene domain, cerrar sesión: una company debe tener domain
+        if (profile?.company && (!companyData || !companyData.domain)) {
+          error('Company missing domain for company id: ' + profile.company)
+          await supabase.auth.signOut()
+          setUser(null)
+          setCompanyId(null)
+          setCompanyName(null)
+          initialAuthChecked.set(true)
+          if (!silent) setIsLoading(false)
+          return
+        }
+
         // Siempre establecer companyId y companyName (si hay dominio) inmediatamente
         setCompanyId(profile?.company ?? null)
         const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : null
@@ -158,6 +163,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!compErr) companyData = comp
       }
 
+      // Enforce presence of domain on the company
+      if (profile?.company && (!companyData || !companyData.domain)) {
+        // Sign out to avoid inconsistent state and raise an actionable error
+        await supabase.auth.signOut().catch(() => null)
+        throw new Error('La compañía asociada no tiene domain configurado. Contacta a soporte.')
+      }
+
       setUser({
         id: userId,
         email: data.user?.email || '',
@@ -169,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       setCompanyId(profile?.company ?? null)
-      // Prefer domain if available, otherwise fall back to a neutral placeholder
+      // Prefer domain if available
       const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
       setCompanyName(companyUrlName)
 
