@@ -60,7 +60,7 @@ export function ProfesionalesView() {
         setLoading(true)
         setError(null)
 
-        const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+        const cid = companyId
 
         // Filtrar solo profesionales de la misma company. Select core fields
         const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', cid).eq('role', 'professional').order('name')
