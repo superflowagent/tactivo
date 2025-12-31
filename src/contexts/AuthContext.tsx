@@ -30,12 +30,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const initialAuthChecked = (function () { let v = false; return { get: () => v, set: (val: boolean) => { v = val } } })()
+
   useEffect(() => {
-    // Verificar si hay sesión activa
+    // Verificar si hay sesión activa (no silencioso la primera vez)
     checkAuth()
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
-      checkAuth()
+      // On auth events, run a silent check to update session/profile without triggering global loading UI
+      checkAuth(true)
     })
 
     return () => {
@@ -73,22 +76,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return 'company'
   }
 
-  const checkAuth = async () => {
+  const checkAuth = async (silent = false) => {
     try {
-      setIsLoading(true)
+      // Only show the global loading indicator on the first check or when explicitly not silent
+      if (!silent && !initialAuthChecked.get()) setIsLoading(true)
+
       const sessionRes = await supabase.auth.getSession()
       const session = sessionRes.data.session
 
       if (session?.user) {
         const userId = session.user.id
         // Obtener perfil del usuario desde "profiles"
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', userId)
-          .maybeSingle()
-
-        if (profileError) throw profileError
+        // Fetch profile using helper that supports different schemas
+        const profile = await (await import('@/lib/supabase')).fetchProfileByUserId(userId)
+        if (!profile) throw new Error('Profile not found')
 
         const role = profile?.role
         if (role === 'professional' || role === 'client') {
@@ -106,11 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             last_name: profile?.last_name || '',
             role: role,
             company: profile?.company || null,
-            photo: profile?.photo || undefined,
+            photo: profile?.photo_path || undefined,
           })
 
-          setCompanyId(profile?.company || null)
-          setCompanyName(getCompanyUrlName(companyData))
+          const cid = profile?.company ? (profile.company.includes('.') ? profile.company.split('.').pop() : profile.company) : null
+          setCompanyId(cid)
+          // Prefer the company domain if available
+          const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
+          setCompanyName(companyUrlName)
         } else {
           // Not an allowed role
           await supabase.auth.signOut()
@@ -130,7 +134,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCompanyId(null)
       setCompanyName(null)
     } finally {
-      setIsLoading(false)
+      // Mark we ran initial check
+      initialAuthChecked.set(true)
+      if (!silent) setIsLoading(false)
     }
   }
 
@@ -142,14 +148,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userId = data.user?.id
       if (!userId) throw new Error('No user in session')
 
-      // Obtener perfil
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle()
-
-      if (profileError) throw profileError
+      // Obtener perfil (robusto para distintos esquemas de columna)
+      const profile = await (await import('@/lib/supabase')).fetchProfileByUserId(userId)
+      if (!profile) throw new Error('Profile not found')
 
       // Obtener compañía si aplica
       let companyData = null
@@ -165,12 +166,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         last_name: profile?.last_name || '',
         role: profile?.role || '',
         company: profile?.company || null,
-        photo: profile?.photo || undefined,
+        photo: profile?.photo_path || undefined,
       })
 
-      setCompanyId(profile?.company || null)
-      const companyUrlName = companyData ? getCompanyUrlName(companyData) : normalizeCompanyName(profile?.name || profile?.company || 'company')
+      const cid = profile?.company ? (profile.company.includes('.') ? profile.company.split('.').pop() : profile.company) : null
+      setCompanyId(cid)
+      // Prefer domain if available, otherwise fall back to a neutral placeholder
+      const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
       setCompanyName(companyUrlName)
+
+      // Return company url name so callers can navigate immediately
+      return companyUrlName
     } catch (err: any) {
       error('Login error:', err)
       throw err

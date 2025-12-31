@@ -131,8 +131,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             let mounted = true
                 ; (async () => {
                     try {
-                        const { data: profile, error } = await supabase.from('profiles').select('class_credits').eq('user_id', user.id).maybeSingle()
-                        if (error) throw error
+                        const fetcher = await import('@/lib/supabase')
+                        const profile = await fetcher.fetchProfileByUserId(user.id)
                         if (!mounted) return
                         setClientCredits(profile?.class_credits ?? 0)
                     } catch (err) {
