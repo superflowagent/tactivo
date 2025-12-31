@@ -172,7 +172,7 @@ export function ClientesView() {
     try {
       if (!companyId) return
 
-      const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+      const cid = companyId
       const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', cid).eq('role', 'client').order('name')
       if (error) throw error
       setClientes((records || []).map((r: any) => ({ id: r.user || r.id, ...r })))

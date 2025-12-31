@@ -110,8 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             photo: profile?.photo_path || undefined,
           })
 
-          const cid = profile?.company ? (profile.company.includes('.') ? profile.company.split('.').pop() : profile.company) : null
-          setCompanyId(cid)
+          setCompanyId(profile?.company ?? null)
           // Prefer the company domain if available
           const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
           setCompanyName(companyUrlName)
@@ -169,8 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         photo: profile?.photo_path || undefined,
       })
 
-      const cid = profile?.company ? (profile.company.includes('.') ? profile.company.split('.').pop() : profile.company) : null
-      setCompanyId(cid)
+      setCompanyId(profile?.company ?? null)
       // Prefer domain if available, otherwise fall back to a neutral placeholder
       const companyUrlName = companyData?.domain ? sanitizeDomain(companyData.domain) : 'company'
       setCompanyName(companyUrlName)

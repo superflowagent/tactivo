@@ -155,8 +155,9 @@ export function CalendarioView() {
       lastEventsLoadRef.set(now)
 
       // Cargar eventos de la company actual
-      const cid = companyId && companyId.includes('.') ? companyId.split('.').pop() : companyId
+      const cid = companyId
       const { data: records, error } = await supabase.from('events').select('*').eq('company', cid).order('datetime')
+      console.debug('loadEvents: fetched events', Array.isArray(records) ? records.length : 0, 'for company', cid)
       if (error) throw error
 
       // Precompute profile ids to fetch
