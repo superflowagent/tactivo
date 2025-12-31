@@ -189,34 +189,19 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
             let savedUser: any = null
 
-            if (photoFile) {
-                // We don't upload photos here — the photo upload is handled separately.
-                const filename = photoFile.name
-                payload.photo = filename
-
-                if (profesional?.id) {
-                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', profesional.id).select().maybeSingle()
-                    if (error) throw error
-                    savedUser = data
-                } else {
-                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
-                    if (error) throw error
-                    savedUser = data
-                }
+            // Use helper to update or insert profile, regardless of schema
+            const api = await import('@/lib/supabase')
+            if (profesional?.id) {
+                const res = await api.updateProfileByUserId(profesional.id, payload)
+                if (res?.error) throw res.error
+                savedUser = res.data
             } else {
-                if (removePhoto && profesional?.id) payload.photo = null
-
-                if (profesional?.id) {
-                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', profesional.id).select().maybeSingle()
-                    if (error) throw error
-                    savedUser = data
-                } else {
-                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
-                    if (error) throw error
-                    savedUser = data
-                }
+                const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                if (error) throw error
+                savedUser = data
             }
 
+            // Sync user_cards (best-effort)
             import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
                 try { syncUserCardOnUpsert(savedUser) } catch (e) { /* ignore */ }
             })
@@ -224,6 +209,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             onSave()
             onOpenChange(false)
             setRemovePhoto(false)
+
         } catch (err) {
             error('Error al guardar profesional:', err)
             alert('Error al guardar el profesional')
