@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import pb from "@/lib/pocketbase";
+import { supabase, getFilePublicUrl } from "@/lib/supabase";
+import { compressVideoFile } from '@/lib/video';
+import { uploadVideoWithCompression } from '@/lib/supabase';
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -143,7 +145,7 @@ export default function ExerciseDialog({
             setSelectedAnatomy(exercise.anatomy || []);
             setSelectedEquipment(exercise.equipment || []);
             if (exercise.file) {
-                setImagePreview(pb.files.getURL(exercise, exercise.file));
+                setImagePreview(getFilePublicUrl('exercise_videos', exercise.id, exercise.file) || '')
                 setRemoveExistingFile(false);
             }
         } else {
@@ -174,10 +176,8 @@ export default function ExerciseDialog({
         setCreatingAnatomy(true);
 
         try {
-            const newAnatomy = await pb.collection("anatomy").create({
-                name: capitalize(anatomySearch.trim()),
-                company: user.company,
-            });
+            const { data: newAnatomy, error } = await supabase.from('anatomy').insert({ name: capitalize(anatomySearch.trim()), company: user.company }).select().single()
+            if (error) throw error
             setLocalAnatomy((prev) => [...prev, newAnatomy as any]);
             setSelectedAnatomy([...selectedAnatomy, newAnatomy.id]);
             setAnatomySearch("");
@@ -195,10 +195,8 @@ export default function ExerciseDialog({
         setCreatingEquipment(true);
 
         try {
-            const newEquipment = await pb.collection("equipment").create({
-                name: capitalize(equipmentSearch.trim()),
-                company: user.company,
-            });
+            const { data: newEquipment, error } = await supabase.from('equipment').insert({ name: capitalize(equipmentSearch.trim()), company: user.company }).select().single()
+            if (error) throw error
             setLocalEquipment((prev) => [...prev, newEquipment as any]);
             setSelectedEquipment([...selectedEquipment, newEquipment.id]);
             setEquipmentSearch("");
@@ -241,42 +239,47 @@ export default function ExerciseDialog({
         try {
             if (exercise) {
                 if (imageFile) {
-                    const formData = new FormData();
-                    formData.append("name", name.trim());
-                    formData.append("description", description.trim());
-                    formData.append("company", user.company);
-                    formData.append("anatomy", JSON.stringify(selectedAnatomy));
-                    formData.append("equipment", JSON.stringify(selectedEquipment));
-                    formData.append("file", imageFile);
-                    await pb.collection("exercises").update(exercise.id, formData);
+                    // Compress video on the client before upload to save storage
+                    const { data: uploadData, error: upErr } = await uploadVideoWithCompression('exercise_videos', `${exercise.id}/${imageFile.name}`, imageFile, { upsert: true })
+                    if (upErr) throw upErr
+                    const filename = imageFile.name
+                    const { error: updateErr } = await supabase.from('exercises').update({
+                        name: name.trim(),
+                        description: description.trim(),
+                        company: user.company,
+                        anatomy: selectedAnatomy,
+                        equipment: selectedEquipment,
+                        file: filename,
+                    }).eq('id', exercise.id)
+                    if (updateErr) throw updateErr
                 } else {
-                    await pb.collection("exercises").update(exercise.id, {
+                    const { error: updateErr } = await supabase.from('exercises').update({
                         name: name.trim(),
                         description: description.trim(),
                         company: user.company,
                         anatomy: selectedAnatomy,
                         equipment: selectedEquipment,
                         ...(removeExistingFile ? { file: null as any } : {}),
-                    });
+                    }).eq('id', exercise.id)
+                    if (updateErr) throw updateErr
                 }
             } else {
+                // Create row first
+                const { data: newEx, error: createErr } = await supabase.from('exercises').insert({
+                    name: name.trim(),
+                    description: description.trim(),
+                    company: user.company,
+                    anatomy: selectedAnatomy,
+                    equipment: selectedEquipment,
+                }).select().single()
+                if (createErr) throw createErr
+
                 if (imageFile) {
-                    const formData = new FormData();
-                    formData.append("name", name.trim());
-                    formData.append("description", description.trim());
-                    formData.append("company", user.company);
-                    formData.append("anatomy", JSON.stringify(selectedAnatomy));
-                    formData.append("equipment", JSON.stringify(selectedEquipment));
-                    formData.append("file", imageFile);
-                    await pb.collection("exercises").create(formData);
-                } else {
-                    await pb.collection("exercises").create({
-                        name: name.trim(),
-                        description: description.trim(),
-                        company: user.company,
-                        anatomy: selectedAnatomy,
-                        equipment: selectedEquipment,
-                    });
+                    const { data: uploadData, error: upErr } = await uploadVideoWithCompression('exercise_videos', `${newEx.id}/${imageFile.name}`, imageFile)
+                    if (upErr) throw upErr
+                    const filename = imageFile.name
+                    const { error: updateErr } = await supabase.from('exercises').update({ file: filename }).eq('id', newEx.id)
+                    if (updateErr) throw updateErr
                 }
             }
 
@@ -295,7 +298,11 @@ export default function ExerciseDialog({
         if (!exercise?.id) return;
         setLoading(true);
         try {
-            await pb.collection('exercises').delete(exercise.id);
+            const { error } = await supabase.from('exercises').delete().eq('id', exercise.id)
+            if (error) throw error
+            try {
+                if (exercise.file) await supabase.storage.from('exercise_videos').remove([`${exercise.id}/${exercise.file}`])
+            } catch (err) { /* ignore storage removal errors */ }
             setShowDeleteDialog(false);
             setOpen(false);
             resetForm();

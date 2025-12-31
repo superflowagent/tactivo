@@ -14,7 +14,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from "lucide-react"
-import pb from '@/lib/pocketbase'
+import { supabase } from '@/lib/supabase'
 import { error as logError } from '@/lib/logger'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Event } from '@/types/event'
@@ -52,12 +52,34 @@ export function ClasesView() {
 
         try {
             setLoading(true)
-            const records = await pb.collection('classes_template').getFullList<Event>({
-                filter: `company = "${companyId}"`,
-                sort: 'datetime',
-                expand: 'client,professional',
-            })
-            setTemplateSlots(records)
+            const { data: records, error } = await supabase.from('classes_template').select('*').eq('company', companyId).order('datetime')
+            if (error) throw error
+
+            // Enrich with profiles for client and professional ids
+            const allIds = new Set<string>()
+                (records || []).forEach((r: any) => {
+                    const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
+                    const clients = Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])
+                    pros.forEach((id: string) => allIds.add(id))
+                    clients.forEach((id: string) => allIds.add(id))
+                })
+
+            let profileMap: Record<string, any> = {}
+            if (allIds.size > 0) {
+                const ids = Array.from(allIds)
+                const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
+                    (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+            }
+
+            const enriched = (records || []).map((r: any) => ({
+                ...r,
+                expand: {
+                    client: (Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+                    professional: (Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+                }
+            }))
+
+            setTemplateSlots(enriched)
         } catch (err) {
             logError('Error cargando slots:', err)
         } finally {
@@ -78,7 +100,7 @@ export function ClasesView() {
 
     const handleDuplicate = async (slot: Event) => {
         try {
-            await pb.collection('classes_template').create({
+            const { error } = await supabase.from('classes_template').insert({
                 datetime: slot.datetime,
                 duration: slot.duration,
                 client: slot.client || [],
@@ -86,6 +108,7 @@ export function ClasesView() {
                 company: slot.company,
                 notes: slot.notes || '',
             })
+            if (error) throw error
             await loadTemplateSlots()
         } catch (err) {
             logError('Error duplicando clase:', err)
@@ -103,7 +126,8 @@ export function ClasesView() {
         if (!slotToDelete?.id) return
 
         try {
-            await pb.collection('classes_template').delete(slotToDelete.id)
+            const { error } = await supabase.from('classes_template').delete().eq('id', slotToDelete.id)
+            if (error) throw error
             await loadTemplateSlots()
             // Close class dialog if it's open and clear selection
             setDialogOpen(false)
@@ -185,9 +209,8 @@ export function ClasesView() {
             newDate.setDate(currentDate.getDate() + diff)
 
             // Actualizar el slot en la base de datos
-            await pb.collection('classes_template').update(draggedSlot.id, {
-                datetime: newDate.toISOString()
-            })
+            const { error } = await supabase.from('classes_template').update({ datetime: newDate.toISOString() }).eq('id', draggedSlot.id)
+            if (error) throw error
 
             // Recargar los slots
             await loadTemplateSlots()

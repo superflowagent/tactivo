@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CalendarPlus, AlertTriangle } from "lucide-react"
-import pb from '@/lib/pocketbase'
+import { supabase } from '@/lib/supabase'
 import { error as logError } from '@/lib/logger'
 import type { Event } from '@/types/event'
 import type { Company } from '@/types/company'
@@ -53,8 +53,9 @@ export function CalendarioView() {
     if (!isClient || !user?.id) return
 
     try {
-      const userRecord = await pb.collection('users').getOne<any>(user.id)
-      setClientCredits(userRecord?.class_credits ?? 0)
+      const { data: profile, error } = await supabase.from('profiles').select('class_credits').eq('user_id', user.id).maybeSingle()
+      if (error) throw error
+      setClientCredits(profile?.class_credits ?? 0)
     } catch (err) {
       logError('Error cargando créditos del usuario:', err)
       setClientCredits(0)
@@ -80,7 +81,8 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      const record = await pb.collection('companies').getOne<Company>(companyId)
+      const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
+      if (error) throw error
       setCompany(record)
     } catch (err) {
       logError('Error cargando configuración de company:', err)
@@ -124,38 +126,43 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      // Cargar eventos de la company actual con relaciones expandidas
-      const records = await pb.collection('events').getFullList<Event>({
-        expand: 'client,professional',
-        sort: 'datetime',
-        filter: `company = "${companyId}"`,
-      })
+      // Cargar eventos de la company actual
+      const { data: records, error } = await supabase.from('events').select('*').eq('company', companyId).order('datetime')
+      if (error) throw error
+
+      // Precompute profile ids to fetch
+      const allIds = new Set<string>()
+        ; (records || []).forEach((event: any) => {
+          const pros = Array.isArray(event.professional) ? event.professional : (event.professional ? [event.professional] : [])
+          const clients = Array.isArray(event.client) ? event.client : (event.client ? [event.client] : [])
+          pros.forEach((id: string) => allIds.add(id))
+          clients.forEach((id: string) => allIds.add(id))
+        })
+
+      let profileMap: Record<string, any> = {}
+      if (allIds.size > 0) {
+        const ids = Array.from(allIds)
+        const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
+          (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+      }
 
       // Transformar eventos para FullCalendar
-      const calendarEvents = records.map(event => {
+      const calendarEvents = (records || []).map((event: any) => {
         let title = ''
         let backgroundColor = ''
         let borderColor = ''
 
-        // Obtener arrays expandidos (pueden venir de user_cards)
-        const expandedClients = (event as any).expand?.client || []
-        const expandedProfessionals = (event as any).expand?.professional || []
+        const expandedClients = (Array.isArray(event.client) ? event.client : (event.client ? [event.client] : [])).map((id: string) => profileMap[id]).filter(Boolean)
+        const expandedProfessionals = (Array.isArray(event.professional) ? event.professional : (event.professional ? [event.professional] : [])).map((id: string) => profileMap[id]).filter(Boolean)
 
-        // Construir strings con nombres para búsqueda (por ahora a partir de expand si existe)
-        let clientNames = Array.isArray(expandedClients)
-          ? expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ')
-          : expandedClients ? `${expandedClients.name} ${expandedClients.last_name}` : ''
-        const professionalNames = Array.isArray(expandedProfessionals)
-          ? expandedProfessionals.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
-          : expandedProfessionals ? `${expandedProfessionals.name} ${expandedProfessionals.last_name}` : ''
+        // Construir strings con nombres para búsqueda
+        const clientNames = expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ')
+        const professionalNames = expandedProfessionals.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
 
         // Determinar título y color según tipo
         if (event.type === 'appointment') {
-          // Obtener nombre del cliente (primero del array expandido si existe)
-          const expandedClient = Array.isArray(expandedClients) ? expandedClients[0] : expandedClients
-          title = expandedClient
-            ? `${expandedClient.name} ${expandedClient.last_name}`
-            : 'Cita'
+          const expandedClient = expandedClients[0]
+          title = expandedClient ? `${expandedClient.name} ${expandedClient.last_name}` : 'Cita'
           backgroundColor = 'hsl(var(--appointment-color))'
           borderColor = 'hsl(var(--appointment-color))'
         } else if (event.type === 'class') {
@@ -163,12 +170,7 @@ export function CalendarioView() {
           backgroundColor = 'hsl(var(--class-color))'
           borderColor = 'hsl(var(--class-color))'
         } else if (event.type === 'vacation') {
-          // Obtener nombres de todos los profesionales
-          if (professionalNames) {
-            title = professionalNames
-          } else {
-            title = 'Vacaciones'
-          }
+          title = professionalNames || 'Vacaciones'
           backgroundColor = 'hsl(var(--vacation-color))'
           borderColor = 'hsl(var(--vacation-color))'
         }
@@ -190,43 +192,12 @@ export function CalendarioView() {
             clientNames,
             professionalNames,
           },
-          // Also include raw event record so we can augment clientNames afterwards if needed
           _rawEvent: event
         }
       })
 
-      // If any events lack clientNames (expand missing), fetch user_cards by ids to build names
-      const allClientIds = new Set<string>()
-      calendarEvents.forEach(ce => {
-        const ids = ce.extendedProps?.client || []
-        if (Array.isArray(ids)) ids.forEach((id: string) => allClientIds.add(id))
-      })
-
-      if (allClientIds.size > 0) {
-        try {
-          const idsArray = Array.from(allClientIds)
-          const cardsMap = await getUserCardsByIds(idsArray)
-          // fill missing clientNames where necessary
-          calendarEvents.forEach(ce => {
-            if ((!ce.extendedProps?.clientNames || ce.extendedProps.clientNames === '') && Array.isArray(ce.extendedProps.client) && ce.extendedProps.client.length) {
-              const names = ce.extendedProps.client.map((id: string) => {
-                const c = cardsMap[id]
-                return c ? `${c.name} ${c.last_name}` : null
-              }).filter(Boolean).join(', ')
-
-              if (names) {
-                ce.extendedProps.clientNames = names
-              }
-            }
-          })
-        } catch (err) {
-          logError('Error cargando user_cards para clientNames:', err)
-        }
-      }
-
       setEvents(calendarEvents)
       setFilteredEvents(calendarEvents)
-      // Refresh client credits after loading events (in case they changed)
       loadClientCredits()
     } catch (err) {
       logError('Error cargando eventos:', err)
@@ -247,12 +218,26 @@ export function CalendarioView() {
     const eventId = clickInfo.event.id
 
     try {
-      // Cargar el evento completo desde PocketBase
-      const eventData = await pb.collection('events').getOne<Event>(eventId, {
-        expand: 'client,professional',
-      })
+      const { data: eventData, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
+      if (error) throw error
 
-      setSelectedEvent(eventData)
+      // Enrich with profiles
+      const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
+      let profileMap: Record<string, any> = {}
+      if (ids.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('user_id, name, last_name').in('user_id', ids)
+          (profiles || []).forEach((p: any) => { profileMap[p.user_id] = p })
+      }
+
+      const enriched = {
+        ...eventData,
+        expand: {
+          client: (Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+          professional: (Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
+        }
+      }
+
+      setSelectedEvent(enriched as any)
       setDialogOpen(true)
     } catch (err) {
       logError('Error cargando evento:', err)
@@ -280,10 +265,9 @@ export function CalendarioView() {
       const eventId = info.event.id
       const newStart = info.event.start
 
-      // Actualizar en PocketBase
-      await pb.collection('events').update(eventId, {
-        datetime: newStart.toISOString(),
-      })
+      // Actualizar en Supabase
+      const { error } = await supabase.from('events').update({ datetime: newStart.toISOString() }).eq('id', eventId)
+      if (error) throw error
 
       // Recargar eventos
       loadEvents()
@@ -303,11 +287,9 @@ export function CalendarioView() {
       const durationMs = newEnd.getTime() - newStart.getTime()
       const durationMin = Math.round(durationMs / (1000 * 60))
 
-      // Actualizar en PocketBase
-      await pb.collection('events').update(eventId, {
-        datetime: newStart.toISOString(),
-        duration: durationMin,
-      })
+      // Actualizar en Supabase
+      const { error } = await supabase.from('events').update({ datetime: newStart.toISOString(), duration: durationMin }).eq('id', eventId)
+      if (error) throw error
 
       // Recargar eventos
       loadEvents()

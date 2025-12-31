@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { Building2, Save, CheckCircle2, HelpCircle } from "lucide-react"
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import { error as logError } from '@/lib/logger'
 import { useAuth } from "@/contexts/AuthContext"
 import type { Company } from "@/types/company"
@@ -39,13 +39,14 @@ export function AjustesView() {
     try {
       setLoading(true)
       setError(null)
-      const record = await pb.collection('companies').getOne<Company>(companyId)
+      const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
+      if (error) throw error
       setCompany(record)
       setFormData(record)
 
       // Cargar preview del logo existente (o limpiar si no hay logo)
       if (record.logo) {
-        setLogoPreview(pb.files.getURL(record, record.logo))
+        setLogoPreview(getFilePublicUrl('companies', record.id, record.logo))
       } else {
         setLogoPreview(null)
       }
@@ -96,11 +97,15 @@ export function AjustesView() {
       if (logoFile) {
         formDataToSend.append('logo', logoFile)
       } else if (logoPreview === null) {
-        // Si el usuario eliminó el logo (logoPreview === null), pedir a PocketBase que lo borre
+        // Si el usuario eliminó el logo (logoPreview === null), borrar la referencia en la tabla `companies` y/o en Storage (según la política)
         formDataToSend.append('logo', '')
       }
 
-      await pb.collection('companies').update(companyId, formDataToSend)
+      // NOTE: FormData uploads are not handled client-side here; companies logos/uploads are handled server-side or via direct storage uploads.
+      const obj: any = {}
+      formDataToSend.forEach((v, k) => { if (k !== 'logo') obj[k] = String(v) })
+      const { error } = await supabase.from('companies').update(obj).eq('id', companyId)
+      if (error) throw error
 
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)

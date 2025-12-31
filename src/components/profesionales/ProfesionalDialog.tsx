@@ -23,7 +23,7 @@ import { CalendarIcon, UserStar, X, Mail, CheckCircle } from "lucide-react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { error } from '@/lib/logger'
-import pb from "@/lib/pocketbase"
+import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 
 
@@ -80,7 +80,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
             // Cargar preview de foto existente
             if (profesional.photo) {
-                setPhotoPreview(pb.files.getURL(profesional, profesional.photo))
+                setPhotoPreview(getFilePublicUrl('users', profesional.id, profesional.photo))
             } else {
                 setPhotoPreview(null)
             }
@@ -121,11 +121,13 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
         }
         setSendingReset(true)
         try {
-            // PocketBase: POST /api/collections/users/request-password-reset with body { email }
-            await pb.collection('users').requestPasswordReset(formData.email)
-            // show success alert
+            const { error } = await supabase.auth.resetPasswordForEmail(formData.email, { redirectTo: window.location.origin + '/auth/password-reset' })
+            if (error) throw error
             setShowResetSent(true)
             setTimeout(() => setShowResetSent(false), 5000)
+        } catch (err: any) {
+            error('Error enviando reset:', err)
+            alert(err?.message || 'Error enviando reset de contraseña')
         } finally {
             setSendingReset(false)
         }
@@ -188,17 +190,31 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             let savedUser: any = null
 
             if (photoFile) {
-                const formDataToSend = new FormData()
-                Object.entries(payload).forEach(([k, v]) => formDataToSend.append(k, String(v)))
-                formDataToSend.append('photo', photoFile)
+                // We don't upload photos here — the photo upload is handled separately.
+                const filename = photoFile.name
+                payload.photo = filename
 
-                if (profesional?.id) savedUser = await pb.collection('users').update(profesional.id, formDataToSend)
-                else savedUser = await pb.collection('users').create(formDataToSend)
+                if (profesional?.id) {
+                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', profesional.id).select().maybeSingle()
+                    if (error) throw error
+                    savedUser = data
+                } else {
+                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    if (error) throw error
+                    savedUser = data
+                }
             } else {
                 if (removePhoto && profesional?.id) payload.photo = null
 
-                if (profesional?.id) savedUser = await pb.collection('users').update(profesional.id, payload)
-                else savedUser = await pb.collection('users').create(payload)
+                if (profesional?.id) {
+                    const { data, error } = await supabase.from('profiles').update(payload).eq('user_id', profesional.id).select().maybeSingle()
+                    if (error) throw error
+                    savedUser = data
+                } else {
+                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    if (error) throw error
+                    savedUser = data
+                }
             }
 
             import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {

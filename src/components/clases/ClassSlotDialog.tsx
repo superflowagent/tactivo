@@ -30,7 +30,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import pb from "@/lib/pocketbase"
+import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import type { Cliente } from "@/types/cliente"
@@ -101,7 +101,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
         if (!confirm('¿Eliminar plantilla? Esta acción no se puede deshacer.')) return
         try {
             setLoading(true)
-            await pb.collection('classes_template').delete(slot.id)
+            const { error } = await supabase.from('classes_template').delete().eq('id', slot.id)
+            if (error) throw error
             onSave()
             onOpenChange(false)
         } catch (err: any) {
@@ -149,7 +150,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
     const loadCompany = async () => {
         if (!companyId) return
         try {
-            const record = await pb.collection('companies').getOne(companyId)
+            const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
+            if (error) throw error
             setCompany(record)
         } catch (err) {
             logError('Error cargando company:', err)
@@ -235,9 +237,11 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
             }
 
             if (slot?.id) {
-                await pb.collection('classes_template').update(slot.id, data)
+                const { error } = await supabase.from('classes_template').update(data).eq('id', slot.id)
+                if (error) throw error
             } else {
-                await pb.collection('classes_template').create(data)
+                const { error } = await supabase.from('classes_template').insert(data)
+                if (error) throw error
             }
 
             onSave()
@@ -532,7 +536,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                             if (!slot?.id) return;
                             try {
                                 setLoading(true);
-                                await pb.collection('classes_template').delete(slot.id);
+                                const { error } = await supabase.from('classes_template').delete().eq('id', slot.id)
+                                if (error) throw error
                                 onSave();
                                 onOpenChange(false);
                                 setShowDeleteDialog(false);
