@@ -25,7 +25,7 @@ This system manages `class_credits` deductions/refunds when clients are assigned
 - **Client-dependent** - if browser crashes before credit update completes, credits not adjusted
   - **Probability**: Very low (operations are fast)
 
-**Recommendation**: Frontend implementation is sufficient for small-to-medium applications with low concurrency. For high-traffic scenarios with many concurrent bookings, consider server-side implementation (PocketBase hooks or custom API).
+**Recommendation**: Frontend implementation is sufficient for small-to-medium applications with low concurrency. For high-traffic scenarios with many concurrent bookings, consider server-side implementation (custom API or Edge Functions).
 
 ---
 
@@ -92,7 +92,7 @@ The credit system is managed directly in the frontend via helper functions in [s
 **Creating a class event with 2 clients:**
 ```
 1. User creates class event → assigns Client A & B
-2. Event saved to PocketBase
+2. Event saved to the backend
 3. creditManager.onEventCreate() runs:
    - Fetches Client A → credits: 10 → updates to 9
    - Fetches Client B → credits: 5 → updates to 4
@@ -106,7 +106,7 @@ The credit system is managed directly in the frontend via helper functions in [s
    - Removed: [Client A] → refund +1
    - Added: [Client C] → deduct -1
 3. Updates applied before saving event
-4. Event saved to PocketBase
+4. Event saved to the backend
 ```
 
 **Propagating template with 3 clients over 4 weeks:**

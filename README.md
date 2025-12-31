@@ -7,7 +7,7 @@ Sistema de gesti�n para cl�nicas de fisioterapia en desarrollo.
 - React + TypeScript
 - Vite
 - Tailwind CSS + shadcn/ui
-- Supabase (migrating from PocketBase)
+- Supabase
 
 ## Supabase setup
 
