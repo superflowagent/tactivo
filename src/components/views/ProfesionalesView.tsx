@@ -50,7 +50,30 @@ export function ProfesionalesView() {
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [profesionalToDelete, setProfesionalToDelete] = useState<string | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  
+  const handleDeleteClick = (id: string) => {
+    setProfesionalToDelete(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!profesionalToDelete) return
+    try {
+      const api = await import('@/lib/supabase')
+      const del = await api.deleteProfileByUserId(profesionalToDelete)
+      if (del?.error) throw del.error
+
+      // remove from UI
+      const updated = profesionales.filter(p => p.id !== profesionalToDelete)
+      setProfesionales(updated)
+      setFilteredProfesionales(updated)
+      setDeleteDialogOpen(false)
+      setProfesionalToDelete(null)
+    } catch (err) {
+      logError('Error al eliminar profesional:', err)
+      alert('Error al eliminar el profesional')
+    }
+  }  const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProfesional, setSelectedProfesional] = useState<Profesional | null>(null)
 
   // Cargar profesionales desde `profiles` (Supabase)
@@ -136,29 +159,9 @@ export function ProfesionalesView() {
 
 
 
-  const handleDeleteConfirm = async () => {
-    if (!profesionalToDelete) return
-
-    try {
-      const fetcher = await import('@/lib/supabase')
-      const res = await fetcher.deleteProfileByUserId(profesionalToDelete)
-      if (res?.error) throw res.error
-      try {
-        const { deleteUserCardForUser } = await import('@/lib/userCards')
-        await deleteUserCardForUser(profesionalToDelete)
-      } catch (e) {
-        logError('Error deleting associated user_card:', e)
-      }
-      const updatedProfesionales = profesionales.filter(p => p.id !== profesionalToDelete)
-      setProfesionales(updatedProfesionales)
-      setFilteredProfesionales(updatedProfesionales)
-      setDeleteDialogOpen(false)
-      setProfesionalToDelete(null)
-    } catch (err) {
-      logError('Error al eliminar profesional:', err)
-      alert('Error al eliminar el profesional')
-    }
-  }
+  // keep backward-compatible delete handler (used in confirmation dialog)
+  // It delegates to the new handleDeleteConfirm implementation above
+  
 
   const handleSave = async () => {
     // Recargar la lista de profesionales
@@ -257,12 +260,12 @@ export function ProfesionalesView() {
                 <TableCell>{profesional.email}</TableCell>
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
-                    {/* Solo puede editar su propio perfil */}
-                    {profesional.id === user?.id && (
-                      <ActionButton tooltip="Editar" onClick={() => handleEdit(profesional)} aria-label="Editar profesional">
-                        <Pencil className="h-4 w-4" />
-                      </ActionButton>
-                    )}
+                    <ActionButton tooltip="Editar" onClick={() => handleEdit(profesional)} aria-label="Editar profesional">
+                      <Pencil className="h-4 w-4" />
+                    </ActionButton>
+                    <ActionButton tooltip="Eliminar" onClick={() => { setProfesionalToDelete(profesional.id); setDeleteDialogOpen(true) }} aria-label="Eliminar profesional">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 6V4h6v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    </ActionButton>
                   </div>
                 </TableCell>
               </TableRow>
