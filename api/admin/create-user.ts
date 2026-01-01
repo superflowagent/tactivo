@@ -26,8 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     try {
-        // Check existing user
-        const { data: existingUser } = await supabase.auth.admin.listUsersByEmail ? await supabase.auth.admin.listUsersByEmail(email) : { data: null }
+        // Check existing user (legacy check removed) 
 
         // supabase-js may not expose listUsersByEmail; fallback to trying to create and handle dup error
         let user: any = null

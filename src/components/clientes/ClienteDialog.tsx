@@ -150,7 +150,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 const ids = Array.from(profIds)
                 // Try by user column then fallback
                 let profiles: any[] = []
-                try { const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids); profiles = r?.data || [] } catch (e) { profiles = [] }
+                try { const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids); profiles = r?.data || [] } catch { profiles = [] }
                 if ((!profiles || profiles.length === 0) && ids.length > 0) { const r2 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids); profiles = r2?.data || [] }
                 if ((!profiles || profiles.length === 0) && ids.length > 0) { const r3 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids); profiles = r3?.data || [] }
                 ; (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
@@ -293,7 +293,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             // Sync user_cards
             import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
-                try { syncUserCardOnUpsert(savedUser) } catch (e) { /* ignore */ }
+                try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
             })
 
             onSave()
@@ -323,7 +323,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             // user_cards is deprecated — no-op
             const userIdToDelete = cliente.id!
             import('@/lib/userCards').then(({ deleteUserCardForUser }) => {
-                try { deleteUserCardForUser(userIdToDelete) } catch (e) { /* ignore */ }
+                try { deleteUserCardForUser(userIdToDelete) } catch { /* ignore */ }
             })
 
             onSave()

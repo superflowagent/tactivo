@@ -9,7 +9,7 @@ export async function compressVideoFile(file: File, maxWidth = 1920, mimeType = 
 
         try {
             await video.play().catch(() => { });
-        } catch (e) {
+        } catch {
             // ignore, we'll wait for loadedmetadata
         }
 
@@ -50,7 +50,7 @@ export async function compressVideoFile(file: File, maxWidth = 1920, mimeType = 
             const drawFrame = () => {
                 try {
                     ctx.drawImage(video, 0, 0, ow, oh);
-                } catch (e) {
+                } catch {
                     // sometimes drawImage fails briefly
                 }
                 rafHandle = requestAnimationFrame(drawFrame);
@@ -61,7 +61,7 @@ export async function compressVideoFile(file: File, maxWidth = 1920, mimeType = 
             video.play().then(() => {
                 recorder.start(1000);
                 drawFrame();
-            }).catch((err) => {
+            }).catch(() => {
                 // If play fails (autoplay), try to play muted
                 video.muted = true;
                 video.play().then(() => {
@@ -75,18 +75,18 @@ export async function compressVideoFile(file: File, maxWidth = 1920, mimeType = 
             // Stop when video ends
             video.addEventListener('ended', () => {
                 if (rafHandle) cancelAnimationFrame(rafHandle);
-                try { recorder.stop(); } catch (e) { /* ignore */ }
+                try { recorder.stop(); } catch { /* ignore */ }
             });
 
             // Safety timeout (in case ended doesn't fire)
             setTimeout(() => {
                 if (recorder.state === 'recording') {
-                    try { recorder.stop(); } catch (e) { }
+                    try { recorder.stop(); } catch { }
                 }
             }, Math.max(1000, (video.duration || 0) * 1000 + 5000));
         });
 
-        video.addEventListener('error', (e) => {
+        video.addEventListener('error', () => {
             URL.revokeObjectURL(url);
             reject(new Error('Error loading video'));
         });

@@ -80,7 +80,7 @@ export function EjerciciosView() {
         if (exerciseToDelete.file) {
           await supabase.storage.from('exercise_videos').remove([`${exerciseToDelete.id}/${exerciseToDelete.file}`])
         }
-      } catch (err) { /* ignore storage cleanup errors */ }
+      } catch { /* ignore storage cleanup errors */ }
       await loadData();
       setExerciseDeleteOpen(false);
       setExerciseToDelete(null);
