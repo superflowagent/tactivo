@@ -197,9 +197,11 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 if (res?.error) throw res.error
                 savedUser = res.data
             } else {
-                const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                // Request only id to avoid PostgREST schema cache issues when selecting full row
+                const { data, error } = await supabase.from('profiles').insert(payload).select('id').maybeSingle()
                 if (error) throw error
-                savedUser = data
+                // When insert returns only id, data may be { id: '...' } or the full row depending on schema
+                savedUser = data?.id ? { id: data.id } : data
             }
 
             // If a new photo file was selected, upload it to storage and update profile.photo_path
