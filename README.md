@@ -50,5 +50,7 @@ scripts\apply-supabase-migrations.ps1 -ProjectRef <your-project-ref>`
 
 Rollbacks are available in `supabase/migrations/001_profiles_trigger_and_rls_rollback.sql`.
 
-IMPORTANT: test the migration in a dev project before applying to production. The trigger inserts directly into `auth.users` and requires elevated privileges (service role or an authenticated CLI session).
+Additional migration: `supabase/migrations/002_events_policies.sql` adds RLS policies allowing authenticated company members (professionals/admins) to select/insert/update/delete events belonging to their company. A rollback is provided at `supabase/migrations/002_events_policies_rollback.sql`.
+
+IMPORTANT: test the migrations in a dev project before applying to production. Some operations require elevated privileges (service role or an authenticated CLI session).
 
