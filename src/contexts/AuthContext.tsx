@@ -47,12 +47,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   // Función para normalizar el nombre de la compañía para usar en URL
-  const normalizeCompanyName = (name: string): string => {
-    return name
-      .toLowerCase()
-      .replace(/\s+/g, '-') // Reemplazar espacios por guiones
-      .replace(/[^a-z0-9-]/g, '') // Eliminar caracteres especiales excepto guiones
-  }
 
   // Sanitizar un dominio (ej: https://example.com/path -> example.com)
   const sanitizeDomain = (domain: string): string => {

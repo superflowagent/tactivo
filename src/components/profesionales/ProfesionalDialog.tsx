@@ -67,6 +67,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     // Autofocus removed per UX decision
     const [photoFile, setPhotoFile] = useState<File | null>(null)
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+    // removePhoto state to allow clearing preview / file during edit
     const [removePhoto, setRemovePhoto] = useState(false)
     const [phoneError, setPhoneError] = useState<string>("")
 
@@ -89,7 +90,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             // Ensure the user_cards entry is up to date when opening the dialog for an existing profesional
             if (profesional?.id) {
                 import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
-                    try { syncUserCardOnUpsert(profesional) } catch (e) { /* ignore */ }
+                    try { syncUserCardOnUpsert(profesional) } catch { /* ignore */ }
                 })
             }
         } else {
@@ -203,7 +204,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
             // Sync user_cards (best-effort)
             import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
-                try { syncUserCardOnUpsert(savedUser) } catch (e) { /* ignore */ }
+                try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
             })
 
             onSave()

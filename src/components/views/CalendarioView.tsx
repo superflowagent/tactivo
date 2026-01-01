@@ -176,7 +176,7 @@ export function CalendarioView() {
         try {
           const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
           profiles = r?.data || []
-        } catch (e) {
+        } catch {
           profiles = []
         }
         if ((!profiles || profiles.length === 0) && ids.length > 0) {

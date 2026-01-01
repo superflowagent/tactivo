@@ -42,7 +42,7 @@ export function Panel() {
 
   // Persist changes
   useEffect(() => {
-    try { localStorage.setItem('tactivo.currentView', currentView) } catch (_) { }
+    try { localStorage.setItem('tactivo.currentView', currentView) } catch { }
   }, [currentView])
 
   // Ensure the URL contains the correct companyName path segment

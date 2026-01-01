@@ -33,7 +33,6 @@ import {
 import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
-import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"

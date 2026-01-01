@@ -41,7 +41,6 @@ import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { error as logError } from '@/lib/logger'
 import type { Event } from "@/types/event"
-import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
 
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"

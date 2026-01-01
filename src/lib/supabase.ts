@@ -61,7 +61,7 @@ export async function fetchProfileByUserId(userId: string) {
     try {
         const { data, error } = await supabase.rpc('get_profile_by_user', { p_user: userId })
         if (!error && data) return data
-    } catch (e) {
+    } catch {
         // ignore and fallthrough to direct selects
     }
 
@@ -69,7 +69,7 @@ export async function fetchProfileByUserId(userId: string) {
     try {
         const { data, error } = await supabase.from('profiles').select('*').eq('user', userId).maybeSingle()
         if (!error && data) return data
-    } catch (e) {
+    } catch {
         // ignore and fallthrough
     }
 
@@ -77,7 +77,7 @@ export async function fetchProfileByUserId(userId: string) {
     try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
         if (!error && data) return data
-    } catch (e) {
+    } catch {
         // ignore and fallthrough
     }
 
@@ -96,14 +96,14 @@ export async function updateProfileByUserId(userId: string, payload: any) {
     try {
         const { data, error } = await supabase.from('profiles').update(payload).eq('user', userId)
         if (!error) return { data, error: null }
-    } catch (e) {
+    } catch {
         // ignore
     }
     // try 'id'
     try {
         const { data, error } = await supabase.from('profiles').update(payload).eq('id', userId)
         if (!error) return { data, error: null }
-    } catch (e) {
+    } catch {
         // ignore
     }
     // legacy 'user_id' removed — update by 'user' or 'id' only.
@@ -117,13 +117,13 @@ export async function deleteProfileByUserId(userId: string) {
     try {
         const { error } = await supabase.from('profiles').delete().eq('user', userId)
         if (!error) return { deleted: true }
-    } catch (e) {
+    } catch {
         // ignore
     }
     try {
         const { error } = await supabase.from('profiles').delete().eq('id', userId)
         if (!error) return { deleted: true }
-    } catch (e) {
+    } catch {
         // ignore
     }
     // legacy 'user_id' removed — delete by 'user' or 'id' only.
