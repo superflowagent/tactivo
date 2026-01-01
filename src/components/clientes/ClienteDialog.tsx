@@ -92,8 +92,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 calcularEdad(date)
             }
             // Cargar preview de foto existente (handled by storage)
-            if (cliente.photo) {
-                setPhotoPreview(getFilePublicUrl('users', cliente.id, cliente.photo) || null)
+            if (cliente.photo_path) {
+                setPhotoPreview(getFilePublicUrl('users', cliente.id, cliente.photo_path) || null)
             } else {
                 setPhotoPreview(null)
             }
@@ -260,24 +260,46 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             let savedUser: any = null
 
             if (photoFile) {
-                // User photos are handled separately; do not attempt upload here. Save metadata if needed.
-                // We'll store the filename in profile.photo but the actual upload must be performed externally.
                 const filename = photoFile.name
-                payload.photo = filename
 
                 if (cliente?.id) {
+                    // Update profile first with metadata (we will upload file next)
                     const api = await import('@/lib/supabase')
-                    const res = await api.updateProfileByUserId(cliente.id, payload)
+                    const res = await api.updateProfileByUserId(cliente.id, { ...payload })
                     if (res?.error) throw res.error
                     savedUser = res.data
+
+                    try {
+                        const storagePath = `${cliente.id}/${filename}`
+                        const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
+                        if (uploadErr) throw uploadErr
+
+                        const upd = await api.updateProfileByUserId(cliente.id, { photo_path: filename })
+                        if (upd?.error) throw upd.error
+                    } catch (e) {
+                        logError('Error subiendo foto de cliente:', e)
+                    }
                 } else {
+                    // Create profile first, then upload file and set photo_path
                     const { data, error } = await supabase.from('profiles').insert(payload).select().single()
                     if (error) throw error
                     savedUser = data
+
+                    try {
+                        const storagePath = `${savedUser.id}/${filename}`
+                        const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
+                        if (uploadErr) throw uploadErr
+
+                        const api2 = await import('@/lib/supabase')
+                        const upd = await api2.updateProfileByUserId(savedUser.id, { photo_path: filename })
+                        if (upd?.error) throw upd.error
+                    } catch (e) {
+                        logError('Error subiendo foto de cliente:', e)
+                    }
                 }
             } else {
                 // No new file
-                if (removePhoto && cliente?.id) payload.photo = null
+                if (removePhoto && cliente?.id) payload.photo_path = null
 
                 if (cliente?.id) {
                     const api = await import('@/lib/supabase')
