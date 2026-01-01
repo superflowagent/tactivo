@@ -21,11 +21,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { supabase, getFilePublicUrl } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
+import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 
 interface Profesional {
   id: string
@@ -190,6 +191,18 @@ export function ProfesionalesView() {
     )
   }
 
+  function ProfileAvatar({ id, photoPath, name, lastName }: { id: string, photoPath?: string | null, name: string, lastName: string }) {
+    const url = useResolvedFileUrl('users', id, photoPath || null)
+    if (url) {
+      return <img src={url} alt={name} className="w-10 h-10 rounded-md object-cover" />
+    }
+    return (
+      <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
+        {name.charAt(0)}{lastName.charAt(0)}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-4">
@@ -236,17 +249,7 @@ export function ProfesionalesView() {
             {filteredProfesionales.map((profesional) => (
               <TableRow key={profesional.id}>
                 <TableCell>
-                  {profesional.photo_path ? (
-                    <img
-                      src={getFilePublicUrl('users', profesional.id, profesional.photo_path) || undefined}
-                      alt={profesional.name}
-                      className="w-10 h-10 rounded-md object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
-                      {profesional.name.charAt(0)}{profesional.last_name.charAt(0)}
-                    </div>
-                  )}
+                  <ProfileAvatar id={profesional.id} photoPath={profesional.photo_path} name={profesional.name} lastName={profesional.last_name} />
                 </TableCell>
                 <TableCell className="font-medium">{profesional.name} {profesional.last_name}</TableCell>
                 <TableCell>{profesional.dni}</TableCell>
