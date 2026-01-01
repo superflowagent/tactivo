@@ -239,7 +239,7 @@ export default function ExerciseDialog({
             if (exercise) {
                 if (imageFile) {
                     // Compress video on the client before upload to save storage
-                    const { data: uploadData, error: upErr } = await uploadVideoWithCompression('exercise_videos', `${exercise.id}/${imageFile.name}`, imageFile, { upsert: true })
+                    const { error: upErr } = await uploadVideoWithCompression('exercise_videos', `${exercise.id}/${imageFile.name}`, imageFile, { upsert: true })
                     if (upErr) throw upErr
                     const filename = imageFile.name
                     const { error: updateErr } = await supabase.from('exercises').update({
@@ -274,7 +274,7 @@ export default function ExerciseDialog({
                 if (createErr) throw createErr
 
                 if (imageFile) {
-                    const { data: uploadData, error: upErr } = await uploadVideoWithCompression('exercise_videos', `${newEx.id}/${imageFile.name}`, imageFile)
+                    const { error: upErr } = await uploadVideoWithCompression('exercise_videos', `${newEx.id}/${imageFile.name}`, imageFile)
                     if (upErr) throw upErr
                     const filename = imageFile.name
                     const { error: updateErr } = await supabase.from('exercises').update({ file: filename }).eq('id', newEx.id)
@@ -301,7 +301,7 @@ export default function ExerciseDialog({
             if (error) throw error
             try {
                 if (exercise.file) await supabase.storage.from('exercise_videos').remove([`${exercise.id}/${exercise.file}`])
-            } catch (err) { /* ignore storage removal errors */ }
+            } catch { /* ignore storage removal errors */ }
             setShowDeleteDialog(false);
             setOpen(false);
             resetForm();
