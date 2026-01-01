@@ -9,6 +9,7 @@ export interface Cliente {
     session_credits?: number
     class_credits?: number
     photo?: string
+    photo_path?: string | null
     birth_date?: string
     address?: string
     occupation?: string

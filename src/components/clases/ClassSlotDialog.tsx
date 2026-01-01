@@ -30,7 +30,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { supabase } from "@/lib/supabase"
+import { supabase, getFilePublicUrl } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
@@ -381,7 +381,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                             })
                                             .filter(cliente => !selectedClients.includes(cliente.user))
                                             .map((cliente) => {
-                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('users', cliente.id, cliente.photo_path) : null)
+                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('profile_photos', cliente.id, cliente.photo_path) : null)
                                                 return (
                                                     <button
                                                         key={cliente.user}
