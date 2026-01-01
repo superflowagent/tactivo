@@ -24,6 +24,7 @@ import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { error } from '@/lib/logger'
 import { getFilePublicUrl, supabase } from "@/lib/supabase"
+import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 import { useAuth } from "@/contexts/AuthContext"
 
 
@@ -36,6 +37,7 @@ interface Profesional {
     phone: string
     company: string
     photo?: string
+    photo_path?: string | null
     birth_date?: string
     address?: string
     notes?: string
@@ -71,6 +73,9 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     const [removePhoto, setRemovePhoto] = useState(false)
     const [phoneError, setPhoneError] = useState<string>("")
 
+    // Resolve existing profile photo (public or signed URL)
+    const resolvedProfesionalPhoto = useResolvedFileUrl('profile_photos', profesional?.id || null, (profesional as any)?.photo_path || null)
+
     useEffect(() => {
         if (profesional) {
             setFormData(profesional)
@@ -79,9 +84,9 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 setFechaNacimiento(date)
                 calcularEdad(date)
             }
-            // Cargar preview de foto existente
+            // Cargar preview de foto existente (usa resolved URL salvo que haya un fichero nuevo seleccionado)
             if (profesional.photo_path) {
-                setPhotoPreview(getFilePublicUrl('users', profesional.id, profesional.photo_path))
+                if (!photoFile) setPhotoPreview(resolvedProfesionalPhoto || null)
             } else {
                 setPhotoPreview(null)
             }
@@ -110,7 +115,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             setPhotoPreview(null)
         }
         setPhoneError("")
-    }, [profesional, open])
+    }, [profesional, open, resolvedProfesionalPhoto, photoFile])
 
     const [sendingReset, setSendingReset] = useState(false)
     const [showResetSent, setShowResetSent] = useState(false)
@@ -204,28 +209,65 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 savedUser = data?.id ? { id: data.id } : data
             }
 
+            // Normalize the identifier we'll use for storage paths and direct updates
+            const savedUserId = (savedUser && (savedUser.id || savedUser.user)) ? (savedUser.id || savedUser.user) : (typeof savedUser === 'string' ? savedUser : null)
+            if (!savedUserId) {
+                throw new Error('No se pudo determinar el identificador del perfil guardado')
+            }
+
             // If a new photo file was selected, upload it to storage and update profile.photo_path
-            if (photoFile && savedUser?.id) {
+            if (photoFile && savedUserId) {
                 try {
                     const filename = photoFile.name
-                    const storagePath = `${savedUser.id}/${filename}`
-                    const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
-                    if (uploadErr) throw uploadErr
+                    const storagePath = `${savedUserId}/${filename}`
+                    const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile, { upsert: true })
+                    // Log response for debugging
+                    if (uploadErr) {
+                        console.error('Upload error', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
+                        throw uploadErr
+                    }
+                    console.info('Upload success', { bucket: 'profile_photos', path: storagePath, data: uploadData })
 
-                    // Update profile with photo_path using robust helper
-                    const upd = await api.updateProfileByUserId(savedUser.id, { photo_path: filename })
-                    if (upd?.error) throw upd.error
+                    // Attempt to update profile.photo_path via helper, with fallbacks to direct updates
+                    const upd = await api.updateProfileByUserId(savedUserId, { photo_path: filename })
+                    if (upd?.error) {
+                        // attempt direct update by id
+                        const byId = await supabase.from('profiles').update({ photo_path: filename }).eq('id', savedUserId).select().maybeSingle()
+                        if (byId.error) throw byId.error
+                        if (!byId.data) {
+                            // attempt direct update by user
+                            const byUser = await supabase.from('profiles').update({ photo_path: filename }).eq('user', savedUserId).select().maybeSingle()
+                            if (byUser.error) throw byUser.error
+                            if (!byUser.data) throw new Error('No se pudo actualizar photo_path por id ni por user')
+                        }
+                    }
 
-                    // Update preview to public url
-                    setPhotoPreview(getFilePublicUrl('users', savedUser.id, filename))
+                    // Verify persisted
+                    const { data: verified, error: verifyErr } = await supabase.from('profiles').select('id,user,photo_path').or(`user.eq.${savedUserId},id.eq.${savedUserId}`).maybeSingle()
+                    if (verifyErr) throw verifyErr
+                    if (!verified || verified.photo_path !== filename) {
+                        throw new Error('photo_path no persistió después del upload')
+                    }
+
+                    // Update preview to either public URL or signed URL
+                    let previewUrl = getFilePublicUrl('profile_photos', savedUserId, filename)
+                    if (!previewUrl) {
+                        try {
+                            const signed = await supabase.storage.from('profile_photos').createSignedUrl(`${savedUserId}/${filename}`, 60 * 60)
+                            previewUrl = signed?.data?.signedUrl || previewUrl
+                        } catch {
+                            // ignore
+                        }
+                    }
+                    setPhotoPreview(previewUrl || null)
                 } catch (e) {
                     // Non-fatal: log and continue
                     error('Error subiendo foto:', e)
                 }
-            } else if (removePhoto && savedUser?.id) {
+            } else if (removePhoto && savedUserId) {
                 try {
                     // Remove photo_path from profile
-                    const rem = await api.updateProfileByUserId(savedUser.id, { photo_path: null })
+                    const rem = await api.updateProfileByUserId(savedUserId, { photo_path: null })
                     if (rem?.error) throw rem.error
                     setPhotoPreview(null)
                 } catch (e) {

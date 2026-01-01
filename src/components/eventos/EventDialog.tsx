@@ -45,7 +45,7 @@ import { useAuth } from "@/contexts/AuthContext"
 
 import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
-import { supabase } from '@/lib/supabase'
+import { supabase, getFilePublicUrl } from '@/lib/supabase'
 import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface EventDialogProps {
@@ -267,7 +267,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             }
 
             // Only include allowed columns to avoid sending client-only properties like `expand`
-            const allowed = ['title','type','duration','cost','paid','notes','datetime','client','professional','company']
+            const allowed = ['title', 'type', 'duration', 'cost', 'paid', 'notes', 'datetime', 'client', 'professional', 'company']
             const sanitize = (obj: any) => {
                 const out: any = {}
                 allowed.forEach(k => {
@@ -677,7 +677,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             // Try to find cliente from preloaded `clientes` to avoid flicker
                                             const cliente = clientes.find(c => c.user === clientId)
                                             if (cliente) {
-                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('users', cliente.id, cliente.photo_path) : null)
+                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('profile_photos', cliente.id, cliente.photo_path) : null)
                                                 return (
                                                     <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
                                                         {photoUrl ? (
