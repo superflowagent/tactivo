@@ -50,7 +50,7 @@ export function ProfesionalesView() {
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [profesionalToDelete, setProfesionalToDelete] = useState<string | null>(null)
-  
+
   const handleDeleteClick = (id: string) => {
     setProfesionalToDelete(id)
     setDeleteDialogOpen(true)
@@ -73,7 +73,9 @@ export function ProfesionalesView() {
       logError('Error al eliminar profesional:', err)
       alert('Error al eliminar el profesional')
     }
-  }  const [dialogOpen, setDialogOpen] = useState(false)
+  }
+
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedProfesional, setSelectedProfesional] = useState<Profesional | null>(null)
 
   // Cargar profesionales desde `profiles` (Supabase)
@@ -161,7 +163,7 @@ export function ProfesionalesView() {
 
   // keep backward-compatible delete handler (used in confirmation dialog)
   // It delegates to the new handleDeleteConfirm implementation above
-  
+
 
   const handleSave = async () => {
     // Recargar la lista de profesionales
@@ -264,7 +266,7 @@ export function ProfesionalesView() {
                       <Pencil className="h-4 w-4" />
                     </ActionButton>
                     <ActionButton tooltip="Eliminar" onClick={() => { setProfesionalToDelete(profesional.id); setDeleteDialogOpen(true) }} aria-label="Eliminar profesional">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M9 6V4h6v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M10 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M9 6V4h6v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                     </ActionButton>
                   </div>
                 </TableCell>
