@@ -69,7 +69,7 @@ export function ProfesionalesView() {
         if (error) throw error
         const mapped = (records || []).map((r: any) => {
           const uid = r.user || r.id
-          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('users', uid, r.photo_path) : null })
+          return ({ id: uid, ...r })
         })
         setProfesionales(mapped)
         setFilteredProfesionales(mapped)
