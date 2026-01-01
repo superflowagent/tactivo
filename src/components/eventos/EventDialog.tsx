@@ -266,43 +266,30 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 professional: selectedProfessionals,
             }
 
+            // Only include allowed columns to avoid sending client-only properties like `expand`
+            const allowed = ['title','type','duration','cost','paid','notes','datetime','client','professional','company']
+            const sanitize = (obj: any) => {
+                const out: any = {}
+                allowed.forEach(k => {
+                    if (typeof obj[k] !== 'undefined') out[k] = obj[k]
+                })
+                // Ensure arrays are arrays
+                if (out.client && !Array.isArray(out.client)) out.client = Array.isArray(out.client) ? out.client : [out.client]
+                if (out.professional && !Array.isArray(out.professional)) out.professional = Array.isArray(out.professional) ? out.professional : [out.professional]
+                return out
+            }
+
             if (event?.id) {
-                // Update via server endpoint which will validate and adjust credits atomically
-                const token = await (await import('@/lib/supabase')).getAuthToken()
-                const res = await fetch(`/api/events/${event.id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ event: data }),
-                })
-
-                if (!res.ok) {
-                    const err = await res.text()
-                    throw new Error(err || 'Error updating event')
-                }
+                // Update directly using Supabase client (only allowed fields)
+                const payload = sanitize(data)
+                const { error: updateErr } = await supabase.from('events').update(payload).eq('id', event.id)
+                if (updateErr) throw updateErr
             } else {
-                // Create via server endpoint which will create the event and deduct credits
-                const dataWithCompany = {
-                    ...data,
-                    company: companyId,
-                }
+                // Create directly using Supabase client (only allowed fields + company)
+                const dataWithCompany = sanitize({ ...data, company: companyId })
 
-                const token = await (await import('@/lib/supabase')).getAuthToken()
-                const res = await fetch('/api/events', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ event: dataWithCompany }),
-                })
-
-                if (!res.ok) {
-                    const err = await res.text()
-                    throw new Error(err || 'Error creating event')
-                }
+                const { data: created, error: insertErr } = await supabase.from('events').insert(dataWithCompany).select('id').maybeSingle()
+                if (insertErr) throw insertErr
             }
 
             onSave()
@@ -321,18 +308,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         try {
             setLoading(true)
             // Delete via server endpoint which will refund credits if needed
-            const token = await (await import('@/lib/supabase')).getAuthToken()
-            const res = await fetch(`/api/events/${event.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
-            })
-
-            if (!res.ok) {
-                const err = await res.text()
-                throw new Error(err || 'Error deleting event')
-            }
+            // Delete directly using Supabase client
+            const { error: delErr } = await supabase.from('events').delete().eq('id', event.id)
+            if (delErr) throw delErr
 
             onSave()
             onOpenChange(false)
@@ -403,20 +381,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
 
             // Persist via server endpoint (server will validate credits and timings)
-            const token = await (await import('@/lib/supabase')).getAuthToken()
-            const res = await fetch(`/api/events/${event.id}/sign`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ clientId: user.id }),
-            })
+            // Persist signup using Supabase client
+            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
+            if (fetchErr) throw fetchErr
 
-            if (!res.ok) {
-                const err = await res.text()
-                throw new Error(err || 'Error signing up')
-            }
+            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
+            if (updErr) throw updErr
 
             // Update local state and notify parent
             setSelectedClients(newClients)
@@ -445,20 +415,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             const newClients = selectedClients.filter(id => id !== user.id)
 
             // Persist via server endpoint (server will validate timing rules)
-            const token = await (await import('@/lib/supabase')).getAuthToken()
-            const res = await fetch(`/api/events/${event.id}/unsign`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({ clientId: user.id }),
-            })
+            // Persist unsign using Supabase client
+            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
+            if (fetchErr) throw fetchErr
 
-            if (!res.ok) {
-                const err = await res.text()
-                throw new Error(err || 'Error unsigning')
-            }
+            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
+            if (updErr) throw updErr
 
             // Update local state and notify parent
             setSelectedClients(newClients)
@@ -715,7 +677,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                             // Try to find cliente from preloaded `clientes` to avoid flicker
                                             const cliente = clientes.find(c => c.user === clientId)
                                             if (cliente) {
-                                                const photoUrl = cliente.photo ? cliente.photo : null
+                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('users', cliente.id, cliente.photo_path) : null)
                                                 return (
                                                     <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
                                                         {photoUrl ? (

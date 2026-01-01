@@ -56,24 +56,12 @@ export function ClientesView() {
         let { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
         if (error) throw error
 
-        // Fallback: if we got no rows, try a direct REST request with current access token to rule out header/session race
-        if ((!records || (Array.isArray(records) && records.length === 0))) {
-          try {
-            const token = sessionRes.data?.session?.access_token
-            if (token) {
-              const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/profiles?select=id,user,name,last_name,dni,phone,photo_path,sport,class_credits,company&company=eq.${companyId}&role=eq.client&order=name.asc`
-              const resp = await fetch(url, { headers: { apikey: import.meta.env.VITE_SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token } })
-              if (resp.ok) {
-                const json = await resp.json()
-                records = json
-              }
-            }
-          } catch {
-            // fallback REST request failed — ignore and continue (we will surface error later if needed)
-          }
-        }
+        // Using Supabase client only (removed REST fallback).
 
-        const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+        const mapped = (records || []).map((r: any) => {
+          const uid = r.user || r.id
+          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('users', uid, r.photo_path) : null })
+        })
         setClientes(mapped)
         setFilteredClientes(mapped)
       } catch (err: any) {

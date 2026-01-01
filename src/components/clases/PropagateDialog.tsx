@@ -21,7 +21,6 @@ import { CalendarRange, AlertCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
-import { onBatchEventsCreate } from "@/lib/creditManager"
 import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface PropagateDialogProps {
@@ -108,8 +107,7 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                 }
             }
 
-            // Batch adjust credits for all created events
-            await onBatchEventsCreate(createdEvents)
+            // Credit adjustments removed — will be handled by server-side implementation in the future.
 
             onSuccess()
             onOpenChange(false)

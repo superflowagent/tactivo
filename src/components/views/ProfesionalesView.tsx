@@ -66,7 +66,10 @@ export function ProfesionalesView() {
         // Filtrar solo profesionales de la misma company. Select core fields
         const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', cid).eq('role', 'professional').order('name')
         if (error) throw error
-        const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+        const mapped = (records || []).map((r: any) => {
+          const uid = r.user || r.id
+          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('users', uid, r.photo_path) : null })
+        })
         setProfesionales(mapped)
         setFilteredProfesionales(mapped)
       } catch (err: any) {

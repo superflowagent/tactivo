@@ -80,8 +80,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 calcularEdad(date)
             }
             // Cargar preview de foto existente
-            if (profesional.photo) {
-                setPhotoPreview(getFilePublicUrl('users', profesional.id, profesional.photo))
+            if (profesional.photo_path) {
+                setPhotoPreview(getFilePublicUrl('users', profesional.id, profesional.photo_path))
             } else {
                 setPhotoPreview(null)
             }
@@ -200,6 +200,35 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 const { data, error } = await supabase.from('profiles').insert(payload).select().single()
                 if (error) throw error
                 savedUser = data
+            }
+
+            // If a new photo file was selected, upload it to storage and update profile.photo_path
+            if (photoFile && savedUser?.id) {
+                try {
+                    const filename = photoFile.name
+                    const storagePath = `${savedUser.id}/${filename}`
+                    const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
+                    if (uploadErr) throw uploadErr
+
+                    // Update profile with photo_path using robust helper
+                    const upd = await api.updateProfileByUserId(savedUser.id, { photo_path: filename })
+                    if (upd?.error) throw upd.error
+
+                    // Update preview to public url
+                    setPhotoPreview(getFilePublicUrl('users', savedUser.id, filename))
+                } catch (e) {
+                    // Non-fatal: log and continue
+                    error('Error subiendo foto:', e)
+                }
+            } else if (removePhoto && savedUser?.id) {
+                try {
+                    // Remove photo_path from profile
+                    const rem = await api.updateProfileByUserId(savedUser.id, { photo_path: null })
+                    if (rem?.error) throw rem.error
+                    setPhotoPreview(null)
+                } catch (e) {
+                    error('Error removiendo foto:', e)
+                }
             }
 
             // Sync user_cards (best-effort)

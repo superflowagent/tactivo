@@ -381,7 +381,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                             })
                                             .filter(cliente => !selectedClients.includes(cliente.user))
                                             .map((cliente) => {
-                                                const photoUrl = cliente.photo ? cliente.photo : null
+                                                const photoUrl = cliente.photoUrl || (cliente.photo_path ? getFilePublicUrl('users', cliente.id, cliente.photo_path) : null)
                                                 return (
                                                     <button
                                                         key={cliente.user}
