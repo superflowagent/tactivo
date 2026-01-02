@@ -9,3 +9,12 @@ entrypoint = "./functions/hello-world/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/hello-world/*.html" ]
+
+# Disable platform-level JWT verification for send-invite because the function
+# performs its own authentication checks (supports admin secret or Bearer token
+# validation against /auth/v1/user). Leaving platform verify_jwt enabled caused
+# the gateway to return 401 before the function executed.
+[functions."send-invite"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-invite/index.ts"
