@@ -114,7 +114,7 @@ serve(async (req) => {
                     try { await rest('DELETE', `/storage/v1/object/profile_photos/${encodeURIComponent(key)}`) } catch { /* ignore */ }
                 }
             }
-        } catch (e) {
+        } catch {
             // ignore storage errors
         }
 

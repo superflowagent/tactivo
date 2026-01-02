@@ -4,7 +4,7 @@ import tsParser from '@typescript-eslint/parser'
 import { defineConfig } from 'eslint/config'
 
 export default defineConfig([
-  { ignores: ['dist', 'vite.config.ts'] },
+  { ignores: ['dist', 'vite.config.ts', 'supabase/functions/**'] },
 
   // TypeScript files (use project parser)
   {
