@@ -1,19 +1,19 @@
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts'
 
 serve(async (req) => {
-  const origin = req.headers.get('origin') || '*'
-  const corsHeaders: Record<string, string> = {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Admin-Secret, X-Admin-Token',
-    'Access-Control-Max-Age': '3600',
-    'Vary': 'Origin'
-  }
-  if (origin !== '*') corsHeaders['Access-Control-Allow-Credentials'] = 'true'
+    const origin = req.headers.get('origin') || '*'
+    const corsHeaders: Record<string, string> = {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Admin-Secret, X-Admin-Token',
+        'Access-Control-Max-Age': '3600',
+        'Vary': 'Origin'
+    }
+    if (origin !== '*') corsHeaders['Access-Control-Allow-Credentials'] = 'true'
 
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
-  }
+    if (req.method === 'OPTIONS') {
+        return new Response(null, { status: 204, headers: corsHeaders })
+    }
 
 
 
@@ -86,7 +86,7 @@ serve(async (req) => {
                         const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
                         jwtMeta = { exp: payload.exp, iat: payload.iat, sub: payload.sub }
                     }
-                } catch (e) {
+                } catch {
                     jwtMeta = { error: 'decode_failed' }
                 }
                 const authDebug = { status: userResp.status, body: authErr, authorization_present: !!authHeader, token_preview: tokenPreview, jwt_meta: jwtMeta }

@@ -318,7 +318,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 // Create directly using Supabase client (only allowed fields + company)
                 const dataWithCompany = sanitize({ ...data, company: companyId })
 
-                const { data: created, error: insertErr } = await supabase.from('events').insert(dataWithCompany).select('id').maybeSingle()
+                const { error: insertErr } = await supabase.from('events').insert(dataWithCompany).select('id').maybeSingle()
                 if (insertErr) throw insertErr
             }
 

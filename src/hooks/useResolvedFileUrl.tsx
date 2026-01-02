@@ -75,7 +75,7 @@ export default function useResolvedFileUrl(bucket: string, id?: string | null, f
                         continue
                     }
                 }
-            } catch (err) {
+            } catch {
                 // ignore errors and keep whatever url we have (possibly null)
             }
         }

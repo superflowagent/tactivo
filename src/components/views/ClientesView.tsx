@@ -51,7 +51,6 @@ export function ClientesView() {
         setError(null)
 
         // Filtrar solo clientes de la misma company. Select core fields
-        const sessionRes = await supabase.auth.getSession()
 
         let { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
         if (error) throw error

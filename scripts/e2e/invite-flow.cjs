@@ -2,7 +2,7 @@
 // Usage: set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_ANON_KEY env vars then run `node scripts/e2e/invite-flow.cjs`
 
 // Load env vars from .env.local if present
-try { require('dotenv').config({ path: '.env.local' }) } catch (e) { /* dotenv may not be installed in some envs */ }
+try { require('dotenv').config({ path: '.env.local' }) } catch { /* dotenv may not be installed in some envs */ }
 
 const fetch = require('node-fetch')
 const { randomBytes } = require('crypto')
@@ -35,7 +35,7 @@ async function main() {
     })
     const profileText = await profileRes.text().catch(() => '')
     let profileJson = null
-    try { profileJson = profileText ? JSON.parse(profileText) : null } catch (e) { profileJson = profileText }
+    try { profileJson = profileText ? JSON.parse(profileText) : null } catch { profileJson = profileText }
     if (!profileRes.ok) { console.error('Failed creating profile', { status: profileRes.status, body: profileJson }); process.exit(1) }
     const profile = Array.isArray(profileJson) ? profileJson[0] : profileJson
     console.log('Profile created:', profile.id)
@@ -58,7 +58,7 @@ async function main() {
         body: patchBody,
     })
     const patchedText = await patchRes.text().catch(() => '')
-    const patched = (() => { try { return patchedText ? JSON.parse(patchedText) : null } catch (e) { return patchedText } })()
+    const patched = (() => { try { return patchedText ? JSON.parse(patchedText) : null } catch { return patchedText } })()
     if (!patchRes.ok) { console.error('Failed patching profile', { status: patchRes.status, body: patched }); process.exit(1) }
     console.log('Patched profile with token')
 
@@ -86,10 +86,10 @@ async function main() {
             })
             const dbgText = await dbgSimRes.text().catch(() => '')
             let dbgJson = null
-            try { dbgJson = dbgText ? JSON.parse(dbgText) : null } catch (e) { dbgJson = dbgText }
+            try { dbgJson = dbgText ? JSON.parse(dbgText) : null } catch { dbgJson = dbgText }
             console.log('Dbg sim result:', dbgSimRes.status, dbgJson)
-        } catch (e) {
-            console.warn('Dbg sim failed:', e)
+        } catch (err) {
+            console.warn('Dbg sim failed:', err)
         }
     }
 
@@ -115,10 +115,10 @@ async function main() {
         })
         const debugText = await debugRes.text().catch(() => '')
         let debugJson = null
-        try { debugJson = debugText ? JSON.parse(debugText) : null } catch (e) { debugJson = debugText }
+        try { debugJson = debugText ? JSON.parse(debugText) : null } catch { debugJson = debugText }
         console.log('Debug triggers (information_schema):', debugRes.status, debugJson)
-    } catch (e) {
-        console.warn('Failed to fetch info_schema debug triggers:', e)
+    } catch (err) {
+        console.warn('Failed to fetch info_schema debug triggers:', err)
     }
 
     // Debug: fetch pg_trigger/function info (service role)
@@ -129,10 +129,10 @@ async function main() {
         })
         const pgtext = await pgres.text().catch(() => '')
         let pgjson = null
-        try { pgjson = pgtext ? JSON.parse(pgtext) : null } catch (e) { pgjson = pgtext }
+        try { pgjson = pgtext ? JSON.parse(pgtext) : null } catch { pgjson = pgtext }
         console.log('PG triggers:', pgres.status, pgjson)
-    } catch (e) {
-        console.warn('Failed to fetch pg_trigger debug:', e)
+    } catch (err) {
+        console.warn('Failed to fetch pg_trigger debug:', err)
     }
 
     // Call accept_invite_verbose RPC to get step-by-step diagnostics
@@ -147,7 +147,7 @@ async function main() {
     })
     const rpcText = await rpcRes.text().catch(() => '')
     let rpcJson = null
-    try { rpcJson = rpcText ? JSON.parse(rpcText) : null } catch (e) { rpcJson = rpcText }
+    try { rpcJson = rpcText ? JSON.parse(rpcText) : null } catch { rpcJson = rpcText }
     console.log('RPC status', rpcRes.status, rpcJson)
     if (!rpcRes.ok) { console.error('accept_invite failed', rpcJson); process.exit(1) }
 
@@ -159,9 +159,9 @@ async function main() {
         })
         const afterText = await afterRes.text().catch(() => '')
         let afterJson = null
-        try { afterJson = afterText ? JSON.parse(afterText) : null } catch (e) { afterJson = afterText }
+        try { afterJson = afterText ? JSON.parse(afterText) : null } catch { afterJson = afterText }
         console.log('Profile after RPC:', afterRes.status, afterJson)
-    } catch (e) { console.warn('Failed to fetch profile after RPC', e) }
+    } catch (err) { console.warn('Failed to fetch profile after RPC', err) }
 
     console.log('accept_invite success, profile linked')
 }

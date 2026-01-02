@@ -23,7 +23,7 @@ import { CalendarIcon, UserStar, X, Mail, CheckCircle, Copy } from "lucide-react
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { error } from '@/lib/logger'
-import { getFilePublicUrl, supabase, getAuthToken } from "@/lib/supabase"
+import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -309,7 +309,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                         alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
                     } else {
                         let token = await lib.getAuthToken()
-                        console.debug('send-invite token present?', !!token, token ? `${token.slice(0,8)}... (${token.length})` : null)
+                        console.debug('send-invite token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
                         if (!token) {
                             console.warn('No token available after ensureValidSession()')
                             alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
@@ -335,7 +335,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                     ok = await lib.ensureValidSession()
                                     if (ok) {
                                         const token2 = await lib.getAuthToken()
-                                        console.debug('send-invite retry token present?', !!token2, token2 ? `${token2.slice(0,8)}... (${token2.length})` : null)
+                                        console.debug('send-invite retry token present?', !!token2, token2 ? `${token2.slice(0, 8)}... (${token2.length})` : null)
                                         if (token2 && token2 !== token) {
                                             const r2 = await doSend(token2)
                                             res = r2.res; json = r2.json
@@ -359,7 +359,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 } else {
                                     console.warn('send-invite failed', json)
                                     if ((res as Response).status === 401) {
-                                            const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
+                                        const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
                                         const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
                                         alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
                                     } else {

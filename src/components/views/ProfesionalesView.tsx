@@ -41,7 +41,7 @@ interface Profesional {
 }
 
 export function ProfesionalesView() {
-  const { companyId, user } = useAuth()
+  const { companyId } = useAuth()
   const [profesionales, setProfesionales] = useState<Profesional[]>([])
   const [filteredProfesionales, setFilteredProfesionales] = useState<Profesional[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -50,11 +50,6 @@ export function ProfesionalesView() {
   const [error, setError] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [profesionalToDelete, setProfesionalToDelete] = useState<string | null>(null)
-
-  const handleDeleteClick = (id: string) => {
-    setProfesionalToDelete(id)
-    setDeleteDialogOpen(true)
-  }
 
   const handleDeleteConfirm = async () => {
     if (!profesionalToDelete) return

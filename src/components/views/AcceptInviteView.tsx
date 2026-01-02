@@ -29,7 +29,7 @@ export default function AcceptInviteView() {
             }
 
             // Call RPC to link profile to current user
-            const { data, error } = await supabase.rpc('accept_invite', { p_token: token })
+            const { error } = await supabase.rpc('accept_invite', { p_token: token })
             if (error) {
                 setMessage('Error al aceptar la invitación: ' + (error.message || String(error)))
                 setLoading(false)
