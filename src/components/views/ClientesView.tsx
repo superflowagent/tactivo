@@ -60,7 +60,7 @@ export function ClientesView() {
 
         const mapped = (records || []).map((r: any) => {
           const uid = r.user || r.id
-          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('users', uid, r.photo_path) : null })
+          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null })
         })
         setClientes(mapped)
         setFilteredClientes(mapped)
@@ -137,12 +137,7 @@ export function ClientesView() {
       const fetcher = await import('@/lib/supabase')
       const res = await fetcher.deleteProfileByUserId(clienteToDelete)
       if (res?.error) throw res.error
-      try {
-        const { deleteUserCardForUser } = await import('@/lib/userCards')
-        await deleteUserCardForUser(clienteToDelete)
-      } catch (e) {
-        logError('Error deleting associated user_card:', e)
-      }
+
       const updatedClientes = clientes.filter(c => c.id !== clienteToDelete)
       setClientes(updatedClientes)
       setFilteredClientes(updatedClientes)
@@ -235,7 +230,7 @@ export function ClientesView() {
                 <TableCell>
                   {cliente.photo ? (
                     <img
-                      src={getFilePublicUrl('users', cliente.id, cliente.photo) || undefined}
+                      src={getFilePublicUrl('profile_photos', cliente.id, cliente.photo) || undefined}
                       alt={cliente.name}
                       className="w-10 h-10 rounded-md object-cover"
                     />
