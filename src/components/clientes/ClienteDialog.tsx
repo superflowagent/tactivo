@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from 'react-dom'
 import { format } from "date-fns"
 import {
     Dialog,
@@ -41,9 +42,10 @@ import {
 } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
+import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil, Copy } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getFilePublicUrl, supabase } from "@/lib/supabase"
+import { getFilePublicUrl, supabase, getAuthToken } from "@/lib/supabase"
+import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 import type { Cliente } from "@/types/cliente"
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
@@ -82,6 +84,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
     const [activeTab, setActiveTab] = useState("datos")
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [inviteLink, setInviteLink] = useState<string | null>(null)
+    const [showInviteToast, setShowInviteToast] = useState(false)
+
+    // Resolve existing customer photo URL (public or signed)
+    const resolvedClientePhoto = useResolvedFileUrl('profile_photos', cliente?.id || null, cliente?.photo_path || null)
 
     useEffect(() => {
         if (cliente) {
@@ -91,13 +98,19 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 setFechaNacimiento(date)
                 calcularEdad(date)
             }
-            // Cargar preview de foto existente (handled by storage)
-            if (cliente.photo_path) {
-                setPhotoPreview(getFilePublicUrl('users', cliente.id, cliente.photo_path) || null)
-            } else {
-                setPhotoPreview(null)
-            }
-            // Cargar eventos del cliente
+
+            // Cargar events y asegurar email actualizado
+            // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
+            ; (async () => {
+                try {
+                    if (!cliente.email) {
+                        const api = await import('@/lib/supabase')
+                        const profile = await api.fetchProfileByUserId(cliente.id!)
+                        if (profile?.email) setFormData(prev => ({ ...prev, email: profile.email }))
+                    }
+                } catch { /* ignore */ }
+            })()
+
             loadEventos(cliente.id!)
         } else {
             setFormData({
@@ -121,6 +134,15 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         // Autofocus removed per UX decision
     }, [cliente, open])
+
+    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
+    useEffect(() => {
+        if (cliente?.photo_path) {
+            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null)
+        } else {
+            setPhotoPreview(null)
+        }
+    }, [resolvedClientePhoto, photoFile, cliente?.photo_path])
 
     const calcularEdad = (fecha: Date) => {
         const hoy = new Date()
@@ -238,7 +260,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             if (!cliente?.id) {
                 if (formData.email) {
                     payload.email = formData.email
-                    payload.emailVisibility = 'true'
                 }
             } else if (formData.email && formData.email !== cliente.email) {
                 payload.email = formData.email
@@ -258,9 +279,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             }
 
             let savedUser: any = null
+            let savedUserId: string | null = null
 
             if (photoFile) {
-                const filename = photoFile.name
+                const originalFilename = photoFile.name
+                const ext = originalFilename.includes('.') ? originalFilename.slice(originalFilename.lastIndexOf('.')) : ''
+                const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`
 
                 if (cliente?.id) {
                     // Update profile first with metadata (we will upload file next)
@@ -269,13 +293,25 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     if (res?.error) throw res.error
                     savedUser = res.data
 
-                    try {
-                        const storagePath = `${cliente.id}/${filename}`
-                        const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
-                        if (uploadErr) throw uploadErr
+                    savedUserId = (savedUser && (savedUser.id || savedUser.user)) ? (savedUser.id || savedUser.user) : cliente.id
 
-                        const upd = await api.updateProfileByUserId(cliente.id, { photo_path: filename })
+                    try {
+                        const storagePath = `${filename}`
+                        const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
+                        if (uploadErr) {
+                            console.error('Upload error for cliente', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
+                            throw uploadErr
+                        }
+                        console.info('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
+
+                        // Attempt to set photo_path and verify
+                        const upd = await api.updateProfileByUserId(savedUserId!, { photo_path: filename })
                         if (upd?.error) throw upd.error
+                        const verified = await api.fetchProfileByUserId(savedUserId!)
+                        if (!verified || verified.photo_path !== filename) throw new Error('photo_path no persistió para el cliente')
+
+                        // Update preview to resolved public/signed URL (prefer root filename)
+                        setPhotoPreview(getFilePublicUrl('profile_photos', null, filename) || getFilePublicUrl('profile_photos', savedUserId, filename) || null)
                     } catch (e) {
                         logError('Error subiendo foto de cliente:', e)
                     }
@@ -285,14 +321,20 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     if (error) throw error
                     savedUser = data
 
+                    savedUserId = (savedUser && (savedUser.id || savedUser.user)) ? (savedUser.id || savedUser.user) : (savedUser?.id || null)
+
                     try {
-                        const storagePath = `${savedUser.id}/${filename}`
-                        const { error: uploadErr } = await supabase.storage.from('users').upload(storagePath, photoFile, { upsert: true })
+                        const storagePath = `${filename}`
+                        const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
+                        if (uploadErr) throw uploadErr
+                        console.info('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
                         if (uploadErr) throw uploadErr
 
                         const api2 = await import('@/lib/supabase')
-                        const upd = await api2.updateProfileByUserId(savedUser.id, { photo_path: filename })
+                        const upd = await api2.updateProfileByUserId(savedUserId!, { photo_path: filename })
                         if (upd?.error) throw upd.error
+                        // Update preview to resolved public/signed URL (prefer root filename)
+                        setPhotoPreview(getFilePublicUrl('profile_photos', null, filename) || getFilePublicUrl('profile_photos', savedUserId, filename) || null)
                     } catch (e) {
                         logError('Error subiendo foto de cliente:', e)
                     }
@@ -318,6 +360,43 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
             })
 
+            // If we just created a new cliente, request the send-invite function
+            if (!cliente?.id) {
+                try {
+                    const token = await getAuthToken()
+                    if (token) {
+                        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ profile_id: savedUserId })
+                        })
+                        const json = await res.json().catch(() => ({}))
+                        if (res.ok) {
+                            if (json?.invite_link) {
+                                setInviteLink(json.invite_link)
+                                setShowInviteToast(true)
+                            }
+                            if (json?.sendResult?.ok) {
+                                setShowInviteToast(true)
+                                setInviteLink(json.invite_link || null)
+                            }
+                            if (!json?.sendResult) {
+                                setShowInviteToast(true)
+                                setInviteLink(json.invite_link || null)
+                            }
+                        } else {
+                            console.warn('send-invite failed', json)
+                            alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + (json?.error || res.status))
+                        }
+                    }
+                } catch (e: any) {
+                    console.warn('Error calling send-invite function', e)
+                }
+            }
+
             onSave()
             onOpenChange(false)
             setRemovePhoto(false)
@@ -327,7 +406,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             if (err?.response) {
                 logError('Response data:', err.response)
             }
-            alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`)
+            const msg = String(err?.message || err || '')
+            if (msg.includes('PGRST204') || msg.includes("Could not find the 'email' column")) {
+                alert('Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.')
+            } else {
+                alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`)
+            }
         } finally {
             setLoading(false)
         }
@@ -338,9 +422,41 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         try {
             setLoading(true)
-            const api = await import('@/lib/supabase')
-            const del = await api.deleteProfileByUserId(cliente.id!)
-            if (del?.error) throw del.error
+            // Ensure session is valid and attempt refresh if needed
+            const lib = await import('@/lib/supabase')
+            const ok = await lib.ensureValidSession()
+            if (!ok) {
+                alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.')
+                return
+            }
+            const token = await lib.getAuthToken()
+            console.debug('Delete-user token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
+            const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+            if (token) headers['Authorization'] = `Bearer ${token}`
+            const res = await fetch(funcUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ profile_id: cliente.id })
+            }).catch(() => ({ status: 404 }))
+
+            // If endpoint missing, fall back to RLS delete
+            if (!res || (res as any).status === 404) {
+                const api = await import('@/lib/supabase')
+                const del = await api.deleteProfileByUserId(cliente.id!)
+                if (del?.error) throw del.error
+            } else {
+                const json = await (res as Response).json().catch(() => ({}))
+                if (!(res as Response).ok) {
+                    if ((res as Response).status === 401) {
+                        const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description || JSON.stringify(json.auth_error))) || json?.error || 'Unauthorized'
+                        const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+                        alert('No autorizado al intentar eliminar: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo.')
+                        return
+                    }
+                    throw new Error(json?.error || (res as any).status)
+                }
+            }
 
             // user_cards is deprecated — no-op
             const userIdToDelete = cliente.id!
@@ -455,8 +571,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 value={formData.email || ''}
                                                 onChange={(e) => handleChange('email', e.target.value)}
                                                 disabled={!!cliente?.id}
+                                                readOnly={!!cliente?.id}
                                                 required
                                             />
+                                            {cliente?.id && (
+                                                <p className="text-sm text-muted-foreground mt-1">Email del usuario asociado (no editable)</p>
+                                            )}
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
@@ -781,6 +901,28 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {
+                showInviteToast && inviteLink && createPortal(
+                    <div className="fixed bottom-4 left-4 z-[99999] pointer-events-none w-fit">
+                        <div className="pointer-events-auto">
+                            <div className="p-3 shadow-lg bg-white rounded-md border flex items-center gap-3">
+                                <div className="flex-1">
+                                    <div className="font-semibold">Invitación creada</div>
+                                    <div className="text-sm text-muted-foreground break-words max-w-xs">{inviteLink}</div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => { try { navigator.clipboard.writeText(inviteLink || '') } catch { } }}>
+                                        <Copy className="mr-2 h-4 w-4" />Copiar
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => { setShowInviteToast(false); setInviteLink(null) }}>Cerrar</Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
 
             <EventDialog
                 open={eventDialogOpen}

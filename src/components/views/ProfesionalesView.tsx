@@ -59,9 +59,45 @@ export function ProfesionalesView() {
   const handleDeleteConfirm = async () => {
     if (!profesionalToDelete) return
     try {
-      const api = await import('@/lib/supabase')
-      const del = await api.deleteProfileByUserId(profesionalToDelete)
-      if (del?.error) throw del.error
+      // Ensure session is valid and attempt refresh if needed
+      const lib = await import('@/lib/supabase')
+      const ok = await lib.ensureValidSession()
+      if (!ok) {
+        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.')
+        return
+      }
+      // Now retrieve the (likely refreshed) token
+      const token = await lib.getAuthToken()
+      console.debug('Delete-user token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
+
+      // Prefer calling Supabase Edge Function delete-user; fallback to local RLS delete if function missing
+      const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      const res = await fetch(funcUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ profile_id: profesionalToDelete })
+      }).catch(() => ({ status: 404 }))
+
+      // If the endpoint doesn't exist (404) or isn't reachable in local dev, fall back to RLS delete
+      if (!res || (res as any).status === 404) {
+        const api = await import('@/lib/supabase')
+        const del = await api.deleteProfileByUserId(profesionalToDelete)
+        if (del?.error) throw del.error
+      } else {
+        const json = await (res as Response).json().catch(() => ({}))
+        if (!(res as Response).ok) {
+          // Surface helpful auth error details when available
+          if ((res as Response).status === 401) {
+            const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
+            const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+            alert('No autorizado al intentar eliminar: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo.')
+            return
+          }
+          throw new Error(json?.error || (res as any).status)
+        }
+      }
 
       // remove from UI
       const updated = profesionales.filter(p => p.id !== profesionalToDelete)
@@ -69,9 +105,14 @@ export function ProfesionalesView() {
       setFilteredProfesionales(updated)
       setDeleteDialogOpen(false)
       setProfesionalToDelete(null)
-    } catch (err) {
+    } catch (err: any) {
       logError('Error al eliminar profesional:', err)
-      alert('Error al eliminar el profesional')
+      const msg = String(err?.message || err || '')
+      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('unauthorized')) {
+        alert('No tienes permiso para eliminar este profesional. Asegúrate de tener rol de administrador y de pertenecer a la misma clínica.')
+      } else {
+        alert('Error al eliminar el profesional: ' + (msg || 'Error desconocido'))
+      }
     }
   }
 
@@ -94,7 +135,16 @@ export function ProfesionalesView() {
         if (error) throw error
         const mapped = (records || []).map((r: any) => {
           const uid = r.user || r.id
-          return ({ id: uid, ...r })
+          return ({
+            id: uid,
+            ...r,
+            name: r.name || '',
+            last_name: r.last_name || '',
+            dni: r.dni || '',
+            phone: r.phone || '',
+            email: r.email || '',
+            photo_path: r.photo_path ?? null,
+          })
         })
         setProfesionales(mapped)
         setFilteredProfesionales(mapped)
@@ -172,7 +222,16 @@ export function ProfesionalesView() {
 
       const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', companyId).eq('role', 'professional').order('name')
       if (error) throw error
-      const mapped = (records || []).map((r: any) => ({ id: r.user || r.id, ...r }))
+      const mapped = (records || []).map((r: any) => ({
+        id: r.user || r.id,
+        ...r,
+        name: r.name || '',
+        last_name: r.last_name || '',
+        dni: r.dni || '',
+        phone: r.phone || '',
+        email: r.email || '',
+        photo_path: r.photo_path ?? null,
+      }))
       setProfesionales(mapped)
       setFilteredProfesionales(mapped)
     } catch (err) {
@@ -196,14 +255,16 @@ export function ProfesionalesView() {
     )
   }
 
-  function ProfileAvatar({ id, photoPath, name, lastName }: { id: string, photoPath?: string | null, name: string, lastName: string }) {
-    const url = useResolvedFileUrl('users', id, photoPath || null)
+  function ProfileAvatar({ id, photoPath, name, lastName }: { id: string, photoPath?: string | null, name?: string | null, lastName?: string | null }) {
+    const url = useResolvedFileUrl('profile_photos', id, photoPath || null)
     if (url) {
-      return <img src={url} alt={name} className="w-10 h-10 rounded-md object-cover" />
+      return <img src={url} alt={name ?? ''} className="w-10 h-10 rounded-md object-cover" />
     }
+    const firstInitial = (name ?? '').charAt(0)
+    const lastInitial = (lastName ?? '').charAt(0)
     return (
       <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
-        {name.charAt(0)}{lastName.charAt(0)}
+        {firstInitial}{lastInitial}
       </div>
     )
   }
@@ -293,7 +354,7 @@ export function ProfesionalesView() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>

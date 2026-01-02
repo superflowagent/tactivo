@@ -20,7 +20,8 @@ import { EventDialog } from '@/components/eventos/EventDialog'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeForSearch, parseDbDatetimeAsLocal, formatDateAsDbLocalString } from '@/lib/utils'
-import { getUserCardsByRole } from '@/lib/userCards'
+import { getFilePublicUrl } from '@/lib/supabase'
+// user_cards removed, load professionals from profiles directly
 import './calendario.css'
 
 export function CalendarioView() {
@@ -92,10 +93,26 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      const records = await getUserCardsByRole(companyId, 'professional')
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, user, name, last_name, photo_path, role, company')
+        .eq('company', companyId)
+        .eq('role', 'professional')
+        .order('name')
+      if (error) throw error
+      const records = (profiles || []).map((p: any) => ({
+        id: p.user || p.id,
+        user: p.user || p.id,
+        name: p.name || '',
+        last_name: p.last_name || '',
+        photo: p.photo_path || null,
+        photoUrl: p.photo_path ? getFilePublicUrl('profile_photos', p.user || p.id, p.photo_path) : null,
+        role: p.role || null,
+        company: p.company || null,
+      }))
       setProfessionals(records)
     } catch (err) {
-      logError('Error cargando profesionales desde user_cards:', err)
+      logError('Error cargando profesionales desde profiles:', err)
     }
   }
 

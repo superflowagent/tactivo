@@ -19,11 +19,11 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, UserStar, X, Mail, CheckCircle } from "lucide-react"
+import { CalendarIcon, UserStar, X, Mail, CheckCircle, Copy } from "lucide-react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { error } from '@/lib/logger'
-import { getFilePublicUrl, supabase } from "@/lib/supabase"
+import { getFilePublicUrl, supabase, getAuthToken } from "@/lib/supabase"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -84,12 +84,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 setFechaNacimiento(date)
                 calcularEdad(date)
             }
-            // Cargar preview de foto existente (usa resolved URL salvo que haya un fichero nuevo seleccionado)
-            if (profesional.photo_path) {
-                if (!photoFile) setPhotoPreview(resolvedProfesionalPhoto || null)
-            } else {
-                setPhotoPreview(null)
-            }
             setRemovePhoto(false)
 
             // Ensure the user_cards entry is up to date when opening the dialog for an existing profesional
@@ -97,6 +91,17 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
                     try { syncUserCardOnUpsert(profesional) } catch { /* ignore */ }
                 })
+
+                    // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
+                    ; (async () => {
+                        try {
+                            if (!profesional.email) {
+                                const api = await import('@/lib/supabase')
+                                const profile = await api.fetchProfileByUserId(profesional.id!)
+                                if (profile?.email) setFormData(prev => ({ ...prev, email: profile.email }))
+                            }
+                        } catch { /* ignore */ }
+                    })()
             }
         } else {
             setFormData({
@@ -115,10 +120,21 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             setPhotoPreview(null)
         }
         setPhoneError("")
-    }, [profesional, open, resolvedProfesionalPhoto, photoFile])
+    }, [profesional, open])
+
+    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
+    useEffect(() => {
+        if (profesional?.photo_path) {
+            if (!photoFile) setPhotoPreview(resolvedProfesionalPhoto || null)
+        } else {
+            setPhotoPreview(null)
+        }
+    }, [resolvedProfesionalPhoto, photoFile, profesional?.photo_path])
 
     const [sendingReset, setSendingReset] = useState(false)
     const [showResetSent, setShowResetSent] = useState(false)
+    const [inviteLink, setInviteLink] = useState<string | null>(null)
+    const [showInviteToast, setShowInviteToast] = useState(false)
 
     const handleSendResetConfirm = async () => {
         if (!formData.email) {
@@ -174,11 +190,9 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             if (!profesional?.id) {
                 if (formData.email) {
                     payload.email = formData.email
-                    payload.emailVisibility = 'true'
                 }
             } else if (formData.email && formData.email !== profesional.email) {
                 payload.email = formData.email
-                payload.emailVisibility = 'true'
             }
 
             // Fecha
@@ -188,9 +202,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             if (!profesional?.id) {
                 payload.role = 'professional'
                 if (companyId) payload.company = companyId
-                const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
-                payload.password = randomPassword
-                payload.passwordConfirm = randomPassword
             }
 
             let savedUser: any = null
@@ -218,9 +229,11 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             // If a new photo file was selected, upload it to storage and update profile.photo_path
             if (photoFile && savedUserId) {
                 try {
-                    const filename = photoFile.name
-                    const storagePath = `${savedUserId}/${filename}`
-                    const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile, { upsert: true })
+                    const originalFilename = photoFile.name
+                    const ext = originalFilename.includes('.') ? originalFilename.slice(originalFilename.lastIndexOf('.')) : ''
+                    const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`
+                    const storagePath = `${filename}`
+                    const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
                     // Log response for debugging
                     if (uploadErr) {
                         console.error('Upload error', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
@@ -242,21 +255,28 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                         }
                     }
 
-                    // Verify persisted
-                    const { data: verified, error: verifyErr } = await supabase.from('profiles').select('id,user,photo_path').or(`user.eq.${savedUserId},id.eq.${savedUserId}`).maybeSingle()
-                    if (verifyErr) throw verifyErr
+                    // Verify persisted using helper to avoid malformed OR queries
+                    const verified = await api.fetchProfileByUserId(savedUserId)
                     if (!verified || verified.photo_path !== filename) {
                         throw new Error('photo_path no persistió después del upload')
                     }
 
-                    // Update preview to either public URL or signed URL
-                    let previewUrl = getFilePublicUrl('profile_photos', savedUserId, filename)
+                    // Update preview to public/signed URL — prefer root filename then fallback to id-prefixed path
+                    let previewUrl = getFilePublicUrl('profile_photos', null, filename) || getFilePublicUrl('profile_photos', savedUserId, filename)
                     if (!previewUrl) {
                         try {
-                            const signed = await supabase.storage.from('profile_photos').createSignedUrl(`${savedUserId}/${filename}`, 60 * 60)
-                            previewUrl = signed?.data?.signedUrl || previewUrl
+                            const signedRoot = await supabase.storage.from('profile_photos').createSignedUrl(`${filename}`, 60 * 60)
+                            previewUrl = signedRoot?.data?.signedUrl || previewUrl
                         } catch {
                             // ignore
+                        }
+                        if (!previewUrl) {
+                            try {
+                                const signed = await supabase.storage.from('profile_photos').createSignedUrl(`${savedUserId}/${filename}`, 60 * 60)
+                                previewUrl = signed?.data?.signedUrl || previewUrl
+                            } catch {
+                                // ignore
+                            }
                         }
                     }
                     setPhotoPreview(previewUrl || null)
@@ -280,13 +300,96 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
             })
 
+            // If we just created a new profile, request the send-invite function to generate token and (optionally) send the invite email
+            if (!profesional?.id) {
+                try {
+                    const lib = await import('@/lib/supabase')
+                    let ok = await lib.ensureValidSession()
+                    if (!ok) {
+                        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
+                    } else {
+                        let token = await lib.getAuthToken()
+                        console.debug('send-invite token present?', !!token, token ? `${token.slice(0,8)}... (${token.length})` : null)
+                        if (!token) {
+                            console.warn('No token available after ensureValidSession()')
+                            alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
+                        } else {
+                            const doSend = async (tk: string) => {
+                                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${tk}`
+                                    },
+                                    body: JSON.stringify({ profile_id: savedUserId })
+                                }).catch((e) => { console.warn('send-invite fetch failed', e); throw e })
+                                const json = await res.json().catch(() => ({}))
+                                return { res, json }
+                            }
+
+                            try {
+                                let { res, json } = await doSend(token)
+                                if (!res.ok && res.status === 401) {
+                                    // Try a single automatic refresh+retry
+                                    console.info('send-invite: got 401, attempting session refresh+retry')
+                                    ok = await lib.ensureValidSession()
+                                    if (ok) {
+                                        const token2 = await lib.getAuthToken()
+                                        console.debug('send-invite retry token present?', !!token2, token2 ? `${token2.slice(0,8)}... (${token2.length})` : null)
+                                        if (token2 && token2 !== token) {
+                                            const r2 = await doSend(token2)
+                                            res = r2.res; json = r2.json
+                                        }
+                                    }
+                                }
+
+                                if (res.ok) {
+                                    if (json?.invite_link) {
+                                        setInviteLink(json.invite_link)
+                                        setShowInviteToast(true)
+                                    }
+                                    if (json?.sendResult?.ok) {
+                                        setShowInviteToast(true)
+                                        setInviteLink(json.invite_link || null)
+                                    }
+                                    if (!json?.sendResult) {
+                                        setShowInviteToast(true)
+                                        setInviteLink(json.invite_link || null)
+                                    }
+                                } else {
+                                    console.warn('send-invite failed', json)
+                                    if ((res as Response).status === 401) {
+                                            const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
+                                        const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+                                        alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
+                                    } else {
+                                        alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + (json?.error || (res as Response).status))
+                                    }
+                                }
+                            } catch (e: any) {
+                                console.warn('Error calling send-invite function', e)
+                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
+                            }
+                        }
+                    }
+                } catch (e: any) {
+                    console.warn('Error calling send-invite function', e)
+                }
+            }
+
             onSave()
             onOpenChange(false)
             setRemovePhoto(false)
 
-        } catch (err) {
+        } catch (err: any) {
             error('Error al guardar profesional:', err)
-            alert('Error al guardar el profesional')
+            // Detect PostgREST schema cache error (common after migrations)
+            const msg = String(err?.message || err || '')
+            if (msg.includes('PGRST204') || msg.includes("Could not find the 'email' column")) {
+                alert('Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.')
+            } else {
+                alert('Error al guardar el profesional: ' + (err?.message || 'Error desconocido'))
+            }
         } finally {
             setLoading(false)
         }
@@ -394,9 +497,13 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                         value={formData.email || ''}
                                         onChange={(e) => handleChange('email', e.target.value)}
                                         disabled={!!profesional?.id}
+                                        readOnly={!!profesional?.id}
                                         required
                                         className="w-full h-10"
                                     />
+                                    {profesional?.id && (
+                                        <p className="text-sm text-muted-foreground mt-1">Email del usuario asociado (no editable)</p>
+                                    )}
 
                                     <Button
                                         type="button"
@@ -548,7 +655,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                 </DialogContent>
 
 
-            </Dialog>
+            </Dialog >
 
             {
                 showResetSent && createPortal(
@@ -564,6 +671,30 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                     </div>
                                 </AlertDescription>
                             </Alert>
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+
+            {
+                showInviteToast && inviteLink && createPortal(
+                    <div className="fixed bottom-4 left-4 z-[99999] pointer-events-none w-fit">
+                        <div className="pointer-events-auto">
+                            <div className="p-3 shadow-lg bg-white rounded-md border flex items-center gap-3">
+                                <div className="flex-1">
+                                    <div className="font-semibold">Invitación creada</div>
+                                    <div className="text-sm text-muted-foreground break-words max-w-xs">{inviteLink}</div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => {
+                                        try { navigator.clipboard.writeText(inviteLink || '') } catch { }
+                                    }}>
+                                        <Copy className="mr-2 h-4 w-4" />Copiar
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => { setShowInviteToast(false); setInviteLink(null) }}>Cerrar</Button>
+                                </div>
+                            </div>
                         </div>
                     </div>,
                     document.body
