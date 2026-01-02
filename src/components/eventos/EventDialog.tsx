@@ -43,9 +43,10 @@ import { error as logError } from '@/lib/logger'
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
 
-import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
+// user_cards removed; fetch profile data directly from `profiles`
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { supabase, getFilePublicUrl } from '@/lib/supabase'
+import { getUserCardsByRole } from '@/lib/userCards'
 import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface EventDialogProps {
@@ -90,12 +91,41 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         ; (async () => {
             try {
                 setUserCardsLoading(true)
-                const map = await getUserCardsByIds(selectedClients)
+                if (!selectedClients || selectedClients.length === 0) {
+                    setUserCardsMap({})
+                    return
+                }
+                // Query profiles directly
+                const { data: profiles, error } = await supabase.from('profiles').select('id, user, name, last_name, photo_path, class_credits').in('user', selectedClients).maybeSingle()
+                // The above `.in('user', selectedClients)` may return [] — if so, fall back to querying by id
+                let results: any[] = []
+                if (!error && profiles) {
+                    results = Array.isArray(profiles) ? profiles : [profiles]
+                }
+                if ((!results || results.length === 0) && selectedClients.length > 0) {
+                    const r2 = await supabase.from('profiles').select('id, user, name, last_name, photo_path, class_credits').in('id', selectedClients)
+                    if (r2?.error) throw r2.error
+                    results = r2?.data || []
+                }
+
+                const map: Record<string, any> = {}
+                    ; (results || []).forEach((p: any) => {
+                        const uid = p.user || p.id
+                        map[uid] = {
+                            user: uid,
+                            name: p.name || '',
+                            last_name: p.last_name || '',
+                            photo: p.photo_path || null,
+                            photoUrl: p.photo_path ? getFilePublicUrl('profile_photos', uid, p.photo_path) : null,
+                            class_credits: typeof p.class_credits !== 'undefined' ? p.class_credits : 0,
+                        }
+                    })
+
                 if (!mounted) return
                 setUserCardsMap(map)
-                // No UI warning for missing cards; leave placeholders empty if card not found
+                // No UI warning for missing profiles; leave placeholders empty if not found
             } catch (err) {
-                logError('Error cargando user_cards para asistentes:', err)
+                logError('Error cargando perfiles para asistentes:', err)
             } finally {
                 if (mounted) setUserCardsLoading(false)
             }

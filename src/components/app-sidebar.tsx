@@ -44,7 +44,7 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
   }
 
   // Resolve user photo (public or signed) using storage helpers
-  const photoUrl = useResolvedFileUrl('users', user?.id, user?.photo)
+  const photoUrl = useResolvedFileUrl('profile_photos', user?.id, user?.photo)
 
   // Show full navigation for professionals, restricted navigation for clients
   const mainNavItems = user?.role === 'client' ? [

@@ -54,3 +54,16 @@ Additional migration: `supabase/migrations/002_events_policies.sql` adds RLS pol
 
 IMPORTANT: test the migrations in a dev project before applying to production. Some operations require elevated privileges (service role or an authenticated CLI session).
 
+New features added:
+- Edge Function `send-invite` (deployed) — generates `invite_token`, updates `profiles` and returns an `invite_link`; attempts to send a password-reset email via the Supabase REST `/auth/v1/recover` endpoint using the Service Role key (no npm dependency required).
+- Serverless admin endpoint `api/admin/delete-user` — deletes a `profiles` row and deletes the linked auth user (if any). Accepts either `x-admin-secret` or a Bearer token from an authenticated admin (same company). Use from UI delete flows for professionals/clients.
+- RPC `accept_invite(p_token text)` (SECURITY DEFINER) — links an authenticated user (auth.uid()) to a `profiles` row identified by `invite_token` and clears the token fields. Migration: `supabase/migrations/007_accept_invite_function.sql`.
+
+Fixes & notes:
+- Fixed a type mismatch (UUID vs text) in `accept_invite` that caused an `invalid input syntax for type json` / operator errors when called as an authenticated user. Migration: `supabase/migrations/017_fix_accept_invite_type_mismatch.sql`.
+- Added diagnostic helpers (e.g. `accept_invite_verbose`, `dbg_accept_invite_sim`) used during debugging. These are safe to keep but can be removed if you prefer a clean schema.
+
+- Frontend route `/accept-invite` (`src/components/views/AcceptInviteView.tsx`) — page to accept the invite (click the button once you are authenticated after following the password-reset flow).
+- E2E test script: `scripts/e2e/invite-flow.cjs` — runs a full invite cycle if you set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `VITE_SUPABASE_ANON_KEY` in your environment and run `node scripts/e2e/invite-flow.cjs`.
+
+
