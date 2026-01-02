@@ -27,12 +27,12 @@ if (import.meta.env.DEV) {
                         console.warn('Detected profiles OR request:', url)
                         console.warn(new Error('Trace: profiles OR request').stack)
                     }
-                } catch (err) {
+                } catch {
                     // ignore
                 }
                 return _origFetch.apply(this, args)
             }
-    } catch (err) {
+    } catch {
         // ignore in environments where fetch cannot be overridden
     }
 }

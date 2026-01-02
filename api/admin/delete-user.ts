@@ -59,12 +59,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (const k of keysToTry) {
                     try {
                         await supabase.storage.from('profile_photos').remove([k])
-                    } catch (e) { /* ignore */ }
+                    } catch { /* ignore */ }
                 }
             }
-        } catch (e) {
+        } catch (err) {
             // ignore storage errors
-            console.warn('Storage delete failed', e)
+            console.warn('Storage delete failed', err)
         }
 
         // Delete profile row (by id)
