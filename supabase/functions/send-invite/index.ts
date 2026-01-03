@@ -209,8 +209,11 @@ serve(async (req) => {
         // Attempt to send the password-reset/invite email via Supabase REST /auth/v1/recover using the Service Role key.
         // Redirect to the app's password reset page so the user lands on our UI (include invite_link as next to continue flow).
         let sendResult: any = null
+        let resetUrl: string | null = null
         try {
-            const resetUrl = `${APP_URL.replace(/\/$/, '')}/auth/password-reset?invite_token=${token}&next=${encodeURIComponent(invite_link)}`
+            // Use the app's password-reset path as the redirect target. We no longer use a client-side bridge.
+            // Servers or Edge Functions should perform TokenHash -> session exchange when needed.
+            resetUrl = `${APP_URL.replace(/\/$/, '')}/password-reset`
             try { console.warn('send-invite using reset redirect', { resetUrl }) } catch { /* ignore */ }
             const mailResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/recover`, {
                 method: 'POST',
@@ -236,9 +239,9 @@ serve(async (req) => {
         }
 
         // Log both results for diagnostics so dashboard logs show whether user creation and send were accepted
-        try { console.warn('send-invite sendResult', { email: profile.email, createUserResult, sendResult }) } catch { /* ignore */ }
+        try { console.warn('send-invite sendResult', { email: profile.email, createUserResult, sendResult, resetUrl }) } catch { /* ignore */ }
 
-        return jsonResponse({ ok: true, invite_link, createUserResult, sendResult }, 200)
+        return jsonResponse({ ok: true, invite_link, resetUrl, createUserResult, sendResult }, 200)
     } catch (err: any) {
         return jsonResponse({ error: String(err?.message || err) }, 500)
     }

@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label";
-import { error as logError } from "@/lib/logger";
+import { debug, error as logError } from "@/lib/logger";
 import { Calendar } from "@/components/ui/calendar"
 import {
     AlertDialog,
@@ -302,7 +302,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                             console.error('Upload error for cliente', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
                             throw uploadErr
                         }
-                        console.info('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
+                        debug('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
 
                         // Attempt to set photo_path and verify
                         const upd = await api.updateProfileByUserId(savedUserId!, { photo_path: filename })
@@ -327,7 +327,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                         const storagePath = `${filename}`
                         const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
                         if (uploadErr) throw uploadErr
-                        console.info('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
+                        debug('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
                         if (uploadErr) throw uploadErr
 
                         const api2 = await import('@/lib/supabase')
@@ -430,7 +430,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 return
             }
             const token = await lib.getAuthToken()
-            console.debug('Delete-user token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
+            debug('Delete-user token present?', !!token)
             const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
             const headers: Record<string, string> = { 'Content-Type': 'application/json' }
             if (token) headers['Authorization'] = `Bearer ${token}`
@@ -574,9 +574,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 readOnly={!!cliente?.id}
                                                 required
                                             />
-                                            {cliente?.id && (
-                                                <p className="text-sm text-muted-foreground mt-1">Email del usuario asociado (no editable)</p>
-                                            )}
+
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">

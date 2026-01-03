@@ -239,7 +239,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                         console.error('Upload error', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
                         throw uploadErr
                     }
-                    console.info('Upload success', { bucket: 'profile_photos', path: storagePath, data: uploadData })
+                    debug('Upload success', { bucket: 'profile_photos', path: storagePath, data: uploadData })
 
                     // Attempt to update profile.photo_path via helper, with fallbacks to direct updates
                     const upd = await api.updateProfileByUserId(savedUserId, { photo_path: filename })
@@ -309,7 +309,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                         alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
                     } else {
                         let token = await lib.getAuthToken()
-                        console.debug('send-invite token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
                         if (!token) {
                             console.warn('No token available after ensureValidSession()')
                             alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
@@ -335,7 +334,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                     ok = await lib.ensureValidSession()
                                     if (ok) {
                                         const token2 = await lib.getAuthToken()
-                                        console.debug('send-invite retry token present?', !!token2, token2 ? `${token2.slice(0, 8)}... (${token2.length})` : null)
                                         if (token2 && token2 !== token) {
                                             const r2 = await doSend(token2)
                                             res = r2.res; json = r2.json
@@ -344,17 +342,18 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 }
 
                                 if (res.ok) {
-                                    if (json?.invite_link) {
-                                        setInviteLink(json.invite_link)
+                                    // Prefer a direct reset URL (resetUrl) if the function returned it; fall back to invite_link
+                                    if (json?.invite_link || json?.resetUrl) {
+                                        setInviteLink(json.resetUrl || json.invite_link)
                                         setShowInviteToast(true)
                                     }
                                     if (json?.sendResult?.ok) {
                                         setShowInviteToast(true)
-                                        setInviteLink(json.invite_link || null)
+                                        setInviteLink(json.resetUrl || json.invite_link || null)
                                     }
                                     if (!json?.sendResult) {
                                         setShowInviteToast(true)
-                                        setInviteLink(json.invite_link || null)
+                                        setInviteLink(json.resetUrl || json.invite_link || null)
                                     }
                                 } else {
                                     console.warn('send-invite failed', json)
@@ -501,9 +500,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                         required
                                         className="w-full h-10"
                                     />
-                                    {profesional?.id && (
-                                        <p className="text-sm text-muted-foreground mt-1">Email del usuario asociado (no editable)</p>
-                                    )}
+
 
                                     <Button
                                         type="button"
