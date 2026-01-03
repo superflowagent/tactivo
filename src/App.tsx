@@ -28,6 +28,7 @@ function App() {
           />
           <Route path="/auth/password-reset" element={<PasswordResetView />} />
           <Route path="/auth/password-reset/:token" element={<PasswordResetView />} />
+          <Route path="/password-reset" element={<PasswordResetView />} />
           <Route path="/accept-invite" element={<AcceptInviteView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

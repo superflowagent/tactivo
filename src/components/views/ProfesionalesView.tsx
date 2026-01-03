@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { supabase } from "@/lib/supabase"
-import { error as logError } from "@/lib/logger";
+import { debug, error as logError } from "@/lib/logger";
 import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
@@ -63,7 +63,7 @@ export function ProfesionalesView() {
       }
       // Now retrieve the (likely refreshed) token
       const token = await lib.getAuthToken()
-      console.debug('Delete-user token present?', !!token, token ? `${token.slice(0, 8)}... (${token.length})` : null)
+      debug('Delete-user token present?', !!token)
 
       // Prefer calling Supabase Edge Function delete-user; fallback to local RLS delete if function missing
       const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`

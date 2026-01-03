@@ -19,17 +19,113 @@ export function PasswordResetView() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    // Store the email from the Supabase session so we can provide a username field for password managers and accessibility
+    const [email, setEmail] = useState<string | null>(null);
 
     const { logout } = useAuth();
 
     useEffect(() => {
-        if (!token) {
-            const hash = window.location.hash || "";
-            // handle links like /_/#/auth/password-reset/{TOKEN}
-            const m = hash.match(/\/auth\/password-reset\/([^\/?#]+)/);
-            if (m) setToken(m[1]);
-        }
+        (async () => {
+            if (!token) {
+                // Check query param invite_token first (e.g. /auth/password-reset?invite_token=...)
+                try {
+                    const sp = new URLSearchParams(window.location.search)
+                    const invite = sp.get('invite_token')
+                    const qtoken = sp.get('token')
+                    const access = sp.get('access_token')
+                    const refresh = sp.get('refresh_token')
+
+                    // If explicit access token present in query, set it as session so user is authenticated
+                    if (access) {
+                        try {
+                            if (typeof (supabase.auth as any).setSession === 'function') {
+                                await (supabase.auth as any).setSession({ access_token: access, refresh_token: refresh ?? undefined })
+                            } else if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
+                                const frag = `access_token=${access}` + (refresh ? `&refresh_token=${refresh}` : '')
+                                try { window.location.hash = frag } catch { /* ignore */ }
+                                try { await (supabase.auth as any).getSessionFromUrl() } catch { /* ignore */ }
+                            }
+                            const sessionRes = await supabase.auth.getSession()
+                            if (sessionRes?.data?.session?.user?.email) setEmail(sessionRes.data.session.user.email)
+                        } catch { /* ignore session set errors */ }
+                    }
+
+                    if (invite) {
+                        setToken(invite)
+                        return
+                    }
+                    if (qtoken) {
+                        // Some flows provide the reset token under `token` query param (support both)
+                        // If the token looks like a URL-encoded hash (contains access_token/refresh_token),
+                        // move it into location.hash and ask Supabase to parse it so a session is created.
+                        try {
+                            const decoded = decodeURIComponent(qtoken)
+                            const containsAuthFrag = decoded.includes('access_token=') || decoded.includes('refresh_token=')
+                            if (containsAuthFrag) {
+                                const frag = decoded.startsWith('#') ? decoded : (decoded.startsWith('?') ? decoded.slice(1) : decoded)
+                                // Set hash and attempt to let supabase parse the session from url
+                                try { window.location.hash = frag } catch { /* ignore */ }
+                                if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
+                                    try { await (supabase.auth as any).getSessionFromUrl() } catch { /* ignore */ }
+                                }
+                                // Try update email from any newly created session
+                                try {
+                                    const sessionRes = await supabase.auth.getSession()
+                                    if (sessionRes?.data?.session?.user?.email) setEmail(sessionRes.data.session.user.email)
+                                } catch { /* ignore */ }
+                            }
+                        } catch { /* ignore decode errors */ }
+
+                        setToken(qtoken)
+                        return
+                    }
+                } catch { /* ignore */ }
+
+                // Check hash for either path token or fragment query (handles #/auth/password-reset?... and #access_token=...)
+                const hash = window.location.hash || "";
+
+                // If Supabase left auth fragments like access_token=..., try to force session parsing
+                if ((hash.includes('access_token=') || hash.includes('refresh_token=')) && typeof (supabase.auth as any).getSessionFromUrl === 'function') {
+                    try { await (supabase.auth as any).getSessionFromUrl() } catch { /* ignore */ }
+                }
+
+                // handle links like /_/#/auth/password-reset/{TOKEN}
+                const m = hash.match(/\/auth\/password-reset\/([^\/?#]+)/);
+                if (m) {
+                    setToken(m[1]);
+                    return
+                }
+
+                // handle links like #/auth/password-reset?invite_token=...&next=...
+                const idx = hash.indexOf('/auth/password-reset')
+                if (idx !== -1) {
+                    const frag = hash.slice(idx) // /auth/password-reset?invite_token=...&next=...
+                    const qIdx = frag.indexOf('?')
+                    if (qIdx !== -1) {
+                        const search = frag.slice(qIdx)
+                        try {
+                            const sp2 = new URLSearchParams(search)
+                            const inv = sp2.get('invite_token')
+                            if (inv) {
+                                setToken(inv)
+                                return
+                            }
+                        } catch { /* ignore */ }
+                    }
+                }
+            }
+        })()
     }, [token]);
+
+    // Fetch session email (if any) so we can provide a username field for password managers/accessibility
+    useEffect(() => {
+        (async () => {
+            try {
+                const sessionRes = await supabase.auth.getSession();
+                setEmail(sessionRes.data.session?.user?.email ?? null);
+            } catch { /* ignore */ }
+        })();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,6 +182,21 @@ export function PasswordResetView() {
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4">
+                            {/* Hidden but screen-reader-accessible username field so browsers and password managers can link the account email with the new password. */}
+                            <div className="sr-only">
+                                <Label htmlFor="username">Email</Label>
+                                <input
+                                    id="username"
+                                    name="username"
+                                    type="email"
+                                    autoComplete="username"
+                                    value={email ?? ""}
+                                    readOnly
+                                    aria-hidden={email ? undefined : true}
+                                    className="sr-only"
+                                />
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="password">Nueva contraseña</Label>
                                 <Input
@@ -124,7 +235,7 @@ export function PasswordResetView() {
             {error && (
                 <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
                     <Alert variant="destructive" className="border-destructive/50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
-                        <AlertCircle className="h-4 w-4" />
+                        <AlertCircle className="h-5 w-5 text-destructive" />
                         <AlertDescription>{error}</AlertDescription>
                     </Alert>
                 </div>
