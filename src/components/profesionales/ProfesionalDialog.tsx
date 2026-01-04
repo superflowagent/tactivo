@@ -644,7 +644,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
             {
                 showInviteToast && (
-                    <InviteToast onClose={() => { setShowInviteToast(false) }} />
+                    <InviteToast />
                 )
             }
         </>

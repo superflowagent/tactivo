@@ -900,7 +900,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             {
                 showInviteToast && (
-                    <InviteToast onClose={() => { setShowInviteToast(false) }} />
+                    <InviteToast />
                 )
             }
 
