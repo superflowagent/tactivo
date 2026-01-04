@@ -85,6 +85,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [activeTab, setActiveTab] = useState("datos")
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [showInviteToast, setShowInviteToast] = useState(false)
+    const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null)
 
     // Resolve existing customer photo URL (public or signed)
     const resolvedClientePhoto = useResolvedFileUrl('profile_photos', cliente?.id || null, cliente?.photo_path || null)
@@ -378,6 +379,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 if (!inviteKey) throw new Error('missing_profile_id_or_email')
                                 const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
+                                    setInviteToastTitle('Invitación enviada al cliente')
                                     setShowInviteToast(true)
                                 } else {
                                     const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
@@ -900,7 +902,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
             {
                 showInviteToast && (
-                    <InviteToast />
+                    <InviteToast title={inviteToastTitle ?? 'Invitación enviada'} durationMs={4000} onClose={() => { setShowInviteToast(false); setInviteToastTitle(null) }} />
                 )
             }
 

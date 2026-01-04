@@ -135,6 +135,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
     const [sendingReset, setSendingReset] = useState(false)
     const [showResetSent, setShowResetSent] = useState(false)
     const [showInviteToast, setShowInviteToast] = useState(false)
+    const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null)
 
     const handleSendResetConfirm = async () => {
         if (!formData.email) {
@@ -316,23 +317,24 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
                             try {
                                 try {
-                                const sendInvite = await import('@/lib/invites')
-                                const inviteKey = (savedUserId as string) || formData.email || ''
-                                if (!inviteKey) throw new Error('missing_profile_id_or_email')
-                                const { res, json } = await sendInvite.default(inviteKey)
-                                if (res.ok) {
-                                    // Show toast (we don't expose the actual token in the modal for security)
-                                    setShowInviteToast(true)
-                                } else {
-                                    // Show helpful info to user
-                                    const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
-                                    const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
-                                    alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug)
+                                    const sendInvite = await import('@/lib/invites')
+                                    const inviteKey = (savedUserId as string) || formData.email || ''
+                                    if (!inviteKey) throw new Error('missing_profile_id_or_email')
+                                    const { res, json } = await sendInvite.default(inviteKey)
+                                    if (res.ok) {
+                                        // Show toast (we don't expose the actual token in the modal for security)
+                                        setInviteToastTitle('Invitación enviada al profesional')
+                                        setShowInviteToast(true)
+                                    } else {
+                                        // Show helpful info to user
+                                        const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
+                                        const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+                                        alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug)
+                                    }
+                                } catch (e: any) {
+                                    console.warn('Error calling send-invite helper', e)
+                                    alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
                                 }
-                            } catch (e: any) {
-                                console.warn('Error calling send-invite helper', e)
-                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
-                            }
                             } catch (e: any) {
                                 console.warn('Error calling send-invite function', e)
                                 alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
@@ -644,7 +646,7 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
             {
                 showInviteToast && (
-                    <InviteToast />
+                    <InviteToast title={inviteToastTitle ?? 'Invitación enviada'} durationMs={4000} onClose={() => { setShowInviteToast(false); setInviteToastTitle(null) }} />
                 )
             }
         </>
