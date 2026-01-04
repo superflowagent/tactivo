@@ -170,7 +170,7 @@ export function PasswordResetView() {
         e.preventDefault();
         setError(null);
         try {
-            const current = await supabase.auth.getSession()
+            await supabase.auth.getSession()
         } catch { /* ignore */ }
         if (!token) {
             // continue: later block will explicitly check for session and error if missing

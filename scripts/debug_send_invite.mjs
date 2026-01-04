@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { fileURLToPath } from 'url'
+
 
 const envPath = path.resolve(process.cwd(), '.env.local')
 const env = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : ''
