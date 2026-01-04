@@ -35,7 +35,7 @@ import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { getUserCardsByIds, getUserCardsByRole } from "@/lib/userCards"
+import { getProfilesByIds, getProfilesByRole } from "@/lib/profiles"
 import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface ClassSlotDialogProps {
@@ -65,31 +65,31 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
     const [clientSearch, setClientSearch] = useState('')
     const [loading, setLoading] = useState(false)
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false)
-    const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
-    const [missingUserCards, setMissingUserCards] = useState<string[]>([])
+    const [profilesMap, setProfilesMap] = useState<Record<string, any>>({})
+    const [missingProfiles, setMissingProfiles] = useState<string[]>([])
 
     useEffect(() => {
         let mounted = true
         if (!selectedClients || selectedClients.length === 0) {
-            setUserCardsMap({})
-            setMissingUserCards([])
+            setProfilesMap({})
+            setMissingProfiles([])
             return
         }
 
         ; (async () => {
             try {
-                const map = await getUserCardsByIds(selectedClients)
+                const map = await getProfilesByIds(selectedClients)
                 if (!mounted) return
-                setUserCardsMap(map)
+                setProfilesMap(map)
                 const missing = selectedClients.filter(id => !map[id])
                 if (missing.length) {
-                    setMissingUserCards(missing)
-                    logError('Missing user_cards for ids:', missing)
+                    setMissingProfiles(missing)
+                    logError('Missing profiles for ids:', missing)
                 } else {
-                    setMissingUserCards([])
+                    setMissingProfiles([])
                 }
             } catch (err) {
-                logError('Error cargando user_cards para asistentes:', err)
+                logError('Error cargando perfiles para asistentes:', err)
             }
         })()
 
@@ -189,10 +189,10 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
         if (!companyId) return
 
         try {
-            const records = await getUserCardsByRole(companyId, 'client')
+            const records = await getProfilesByRole(companyId, 'client')
             setClientes(records)
         } catch (err) {
-            logError('Error cargando clientes desde user_cards:', err)
+            logError('Error cargando clientes desde profiles:', err)
         }
     }
 
@@ -200,10 +200,10 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
         if (!companyId) return
 
         try {
-            const records = await getUserCardsByRole(companyId, 'professional')
+            const records = await getProfilesByRole(companyId, 'professional')
             setProfesionales(records)
         } catch (err) {
-            logError('Error cargando profesionales desde user_cards:', err)
+            logError('Error cargando profesionales desde profiles:', err)
         }
     }
 
@@ -331,7 +331,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                             </Label>
                             <div className="flex flex-wrap gap-2 mb-2">
                                 {selectedClients.map((clientId) => {
-                                    const card = userCardsMap[clientId]
+                                    const card = profilesMap[clientId]
 
                                     if (card) {
                                         return (
@@ -404,7 +404,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                                             />
                                                         ) : (
                                                             <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                                {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                                {String(cliente.name || '')?.charAt(0)}{String(cliente.last_name || '')?.charAt(0)}
                                                             </div>
                                                         )}
                                                         <div className="flex-1 flex items-center justify-between">
@@ -433,7 +433,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                                 <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                             ) : (
                                                 <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                    {prof.name.charAt(0)}{prof.last_name.charAt(0)}
+                                                    {String(prof.name || '')?.charAt(0)}{String(prof.last_name || '')?.charAt(0)}
                                                 </div>
                                             )}
                                             <span className="truncate">{prof.name} {prof.last_name}</span>
@@ -513,7 +513,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" form="class-form" disabled={loading || missingUserCards.length > 0}>
+                                <Button type="submit" form="class-form" disabled={loading || missingProfiles.length > 0}>
                                     {loading ? "Guardando..." : "Guardar"}
                                 </Button>
                             </div>

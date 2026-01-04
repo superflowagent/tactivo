@@ -83,8 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Obtener información de la compañía lo antes posible (para canonical URL)
         let companyData = null
         if (profile?.company) {
-          const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
-          if (!compErr) companyData = comp
+          // Use RPC to fetch company row via SECURITY DEFINER to avoid RLS timing issues
+          const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: profile.company })
+          // RPC may return a row or an array depending on client; normalize to single object
+          if (!compErr) companyData = Array.isArray(comp) ? comp[0] : comp
         }
         // Si la compañía existe pero no tiene domain, cerrar sesión: una company debe tener domain
         if (profile?.company && (!companyData || !companyData.domain)) {
@@ -153,8 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Obtener compañía si aplica
       let companyData = null
       if (profile?.company) {
-        const { data: comp, error: compErr } = await supabase.from('companies').select('*').eq('id', profile.company).maybeSingle()
-        if (!compErr) companyData = comp
+        // Use RPC to fetch company row via SECURITY DEFINER to avoid RLS timing issues
+        const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: profile.company })
+        if (!compErr) companyData = Array.isArray(comp) ? comp[0] : comp
       }
 
       // Enforce presence of domain on the company

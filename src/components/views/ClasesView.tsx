@@ -17,6 +17,7 @@ import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from "lucide-re
 import { supabase } from '@/lib/supabase'
 import { error as logError } from '@/lib/logger'
 import { useAuth } from '@/contexts/AuthContext'
+import { getProfilesByIds } from '@/lib/profiles'
 import type { Event } from '@/types/event'
 import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog'
 import { PropagateDialog } from '@/components/clases/PropagateDialog'
@@ -69,9 +70,8 @@ export function ClasesView() {
             let profileMap: Record<string, any> = {}
             if (allIds.size > 0) {
                 const ids = Array.from(allIds)
-                const res = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
-                const profiles: any[] = (res as any)?.data || []
-                profiles.forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
+                const profilesMap = await getProfilesByIds(ids)
+                profileMap = profilesMap || {}
             }
 
             const enriched = (records || []).map((r: any) => ({

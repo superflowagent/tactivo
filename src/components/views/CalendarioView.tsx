@@ -21,6 +21,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useAuth } from '@/contexts/AuthContext'
 import { normalizeForSearch, parseDbDatetimeAsLocal, formatDateAsDbLocalString } from '@/lib/utils'
 import { getFilePublicUrl } from '@/lib/supabase'
+import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles'
 // user_cards removed, load professionals from profiles directly
 import './calendario.css'
 
@@ -93,16 +94,10 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, user, name, last_name, photo_path, role, company')
-        .eq('company', companyId)
-        .eq('role', 'professional')
-        .order('name')
-      if (error) throw error
+      const profiles = await getProfilesByRole(companyId!, 'professional')
       const records = (profiles || []).map((p: any) => ({
-        id: p.user || p.id,
-        user: p.user || p.id,
+        id: p.user_id || p.user || p.id,
+        user: p.user_id || p.user || p.id,
         name: p.name || '',
         last_name: p.last_name || '',
         photo: p.photo_path || null,
@@ -188,24 +183,7 @@ export function CalendarioView() {
       let profileMap: Record<string, any> = {}
       if (allIds.size > 0) {
         const ids = Array.from(allIds)
-        // Try by 'user' column first, fallback to 'id'
-        let profiles: any[] = []
-        try {
-          const r = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
-          profiles = r?.data || []
-        } catch {
-          profiles = []
-        }
-        if ((!profiles || profiles.length === 0) && ids.length > 0) {
-          const r2 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)
-          profiles = r2?.data || []
-        }
-        if ((!profiles || profiles.length === 0) && ids.length > 0) {
-          const r3 = await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)
-          profiles = r3?.data || []
-        }
-        ; (profiles || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
-      }
+        const profilesMap = await getProfilesByIds(ids)
 
       // Transformar eventos para FullCalendar
       const calendarEvents = (records || []).map((event: any) => {
@@ -288,9 +266,8 @@ export function CalendarioView() {
       const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
       let profileMap: Record<string, any> = {}
       if (ids.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, user, name, last_name').in('user', ids)
-        const fallback = (!profiles || profiles.length === 0) ? (await supabase.from('profiles').select('id, user, name, last_name').in('id', ids)).data || [] : profiles
-          ; ((profiles || fallback) || []).forEach((p: any) => { const uid = p.user || p.id; profileMap[uid] = p })
+        const profilesMap = await getProfilesByIds(ids)
+        profileMap = profilesMap || {}
       }
 
       const enriched = {

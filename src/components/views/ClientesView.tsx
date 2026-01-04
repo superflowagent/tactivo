@@ -27,7 +27,7 @@ import { error as logError } from '@/lib/logger'
 import { normalizeForSearch } from '@/lib/utils'
 import type { Cliente } from "@/types/cliente"
 import { useAuth } from "@/contexts/AuthContext"
-
+import { getProfilesByRole } from '@/lib/profiles'
 export function ClientesView() {
   const { companyId } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
@@ -50,16 +50,12 @@ export function ClientesView() {
         setLoading(true)
         setError(null)
 
-        // Filtrar solo clientes de la misma company. Select core fields
-
-        let { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', companyId).eq('role', 'client').order('name')
-        if (error) throw error
-
-        // Using Supabase client only (removed REST fallback).
+        // Use RPC-backed helper that enforces column/row restrictions
+        const records = await getProfilesByRole(companyId, 'client')
 
         const mapped = (records || []).map((r: any) => {
-          const uid = r.user || r.id
-          return ({ id: uid, ...r, photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null })
+          const uid = r.user || r.user_id || r.id
+          return ({ id: uid, ...r, photoUrl: r.photoUrl || (r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null) })
         })
         setClientes(mapped)
         setFilteredClientes(mapped)
@@ -154,22 +150,14 @@ export function ClientesView() {
     try {
       if (!companyId) return
 
-      const cid = companyId
-      const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, sport, class_credits, company').eq('company', cid).eq('role', 'client').order('name')
-      if (error) throw error
-      setClientes((records || []).map((r: any) => ({ id: r.user || r.id, ...r })))
-      setFilteredClientes((records || []).map((r: any) => ({ id: r.user || r.id, ...r })))
-    } catch (err) {
+      const records = await getProfilesByRole(companyId, 'client')
+      const mapped = (records || []).map((r: any) => ({ id: r.user || r.user_id || r.id, ...r }))
+      setClientes(mapped)
+      setFilteredClientes(mapped)
+    } catch (err: any) {
       logError('Error al recargar clientes:', err)
+      alert('Error al recargar los clientes: ' + (err?.message || 'Error desconocido'))
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-muted-foreground">Cargando clientes...</p>
-      </div>
-    )
   }
 
   if (error) {
@@ -236,7 +224,7 @@ export function ClientesView() {
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
-                      {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                      {String(cliente.name || '')?.charAt(0)}{String(cliente.last_name || '')?.charAt(0)}
                     </div>
                   )}
                 </TableCell>

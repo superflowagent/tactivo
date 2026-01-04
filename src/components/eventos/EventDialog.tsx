@@ -46,7 +46,7 @@ import { useAuth } from "@/contexts/AuthContext"
 // user_cards removed; fetch profile data directly from `profiles`
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
 import { supabase, getFilePublicUrl } from '@/lib/supabase'
-import { getUserCardsByRole } from '@/lib/userCards'
+import { getProfilesByRole } from '@/lib/profiles'
 import { formatDateAsDbLocalString } from '@/lib/utils'
 
 interface EventDialogProps {
@@ -77,40 +77,47 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
     const [selectedClients, setSelectedClients] = useState<string[]>([])
     const [selectedProfessionals, setSelectedProfessionals] = useState<string[]>([])
     const [clientSearch, setClientSearch] = useState('')
-    const [userCardsMap, setUserCardsMap] = useState<Record<string, any>>({})
-    const [userCardsLoading, setUserCardsLoading] = useState(false)
+    const [profilesMap, setProfilesMap] = useState<Record<string, any>>({})
+    const [profilesLoading, setProfilesLoading] = useState(false)
     const [clientCredits, setClientCredits] = useState<number | null>(null)
 
     useEffect(() => {
         let mounted = true
         if (!selectedClients || selectedClients.length === 0) {
-            setUserCardsMap({})
+            setProfilesMap({})
             return
         }
 
         ; (async () => {
             try {
-                setUserCardsLoading(true)
+                setProfilesLoading(true)
                 if (!selectedClients || selectedClients.length === 0) {
-                    setUserCardsMap({})
+                    setProfilesMap({})
                     return
                 }
-                // Query profiles directly
-                const { data: profiles, error } = await supabase.from('profiles').select('id, user, name, last_name, photo_path, class_credits').in('user', selectedClients).maybeSingle()
-                // The above `.in('user', selectedClients)` may return [] — if so, fall back to querying by id
+                // Use secure RPCs instead of direct SELECTs (RLS & column restrictions applied)
                 let results: any[] = []
-                if (!error && profiles) {
-                    results = Array.isArray(profiles) ? profiles : [profiles]
-                }
-                if ((!results || results.length === 0) && selectedClients.length > 0) {
-                    const r2 = await supabase.from('profiles').select('id, user, name, last_name, photo_path, class_credits').in('id', selectedClients)
-                    if (r2?.error) throw r2.error
-                    results = r2?.data || []
+
+                if (isClientView && event?.id) {
+                    // Clients can only use RPC that returns id, name, last_name, photo_path for attendees
+                    const { data: rpcData, error: rpcErr } = await supabase.rpc('get_event_attendee_profiles', { p_event: event.id })
+                    if (rpcErr) throw rpcErr
+                    results = rpcData || []
+                } else {
+                    // Professionals (or admin): use RPC that returns full profiles for the selected ids
+                    const ids = [...selectedClients, ...selectedProfessionals]
+                    if (ids.length > 0) {
+                        const { data: profs, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_professionals', { p_ids: ids })
+                        if (profErr) throw profErr
+                        results = profs || []
+                    } else {
+                        results = []
+                    }
                 }
 
                 const map: Record<string, any> = {}
                     ; (results || []).forEach((p: any) => {
-                        const uid = p.user || p.id
+                        const uid = p.user_id || p.user || p.id
                         map[uid] = {
                             user: uid,
                             name: p.name || '',
@@ -122,12 +129,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     })
 
                 if (!mounted) return
-                setUserCardsMap(map)
+                setProfilesMap(map)
                 // No UI warning for missing profiles; leave placeholders empty if not found
             } catch (err) {
                 logError('Error cargando perfiles para asistentes:', err)
             } finally {
-                if (mounted) setUserCardsLoading(false)
+                if (mounted) setProfilesLoading(false)
             }
         })()
 
@@ -249,10 +256,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         if (!companyId) return
 
         try {
-            const records = await getUserCardsByRole(companyId, 'client')
+            const records = await getProfilesByRole(companyId, 'client')
             setClientes(records)
         } catch (err) {
-            logError('Error cargando clientes desde user_cards:', err)
+            logError('Error cargando clientes desde profiles:', err)
         }
     }
 
@@ -260,10 +267,10 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         if (!companyId) return
 
         try {
-            const records = await getUserCardsByRole(companyId, 'professional')
+            const records = await getProfilesByRole(companyId, 'professional')
             setProfesionales(records)
         } catch (err) {
-            logError('Error cargando profesionales desde user_cards:', err)
+            logError('Error cargando profesionales desde profiles:', err)
         }
     }
 
@@ -668,7 +675,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                     </Label>
                                     <div className="flex flex-wrap gap-2">
                                         {selectedClients.map((clientId) => {
-                                            const card = userCardsMap[clientId]
+                                            const card = profilesMap[clientId]
 
                                             if (card) {
                                                 return (
@@ -695,7 +702,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 )
                                             }
 
-                                            if (userCardsLoading) {
+                                            if (profilesLoading) {
                                                 return (
                                                     <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm animate-pulse">
                                                         <div className="h-6 w-6 rounded bg-muted-foreground/20" />
@@ -718,7 +725,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                             />
                                                         ) : (
                                                             <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                                {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                                {String(cliente.name || '')?.charAt(0)}{String(cliente.last_name || '')?.charAt(0)}
                                                             </div>
                                                         )}
                                                         <span className="truncate">{cliente.name} {cliente.last_name}</span>
@@ -784,7 +791,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                                         />
                                                                     ) : (
                                                                         <div className="h-8 w-8 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                                            {cliente.name.charAt(0)}{cliente.last_name.charAt(0)}
+                                                                            {String(cliente.name || '')?.charAt(0)}{String(cliente.last_name || '')?.charAt(0)}
                                                                         </div>
                                                                     )}
                                                                     <div className="flex-1 flex items-center justify-between">
@@ -816,7 +823,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                 ) : (
                                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                                        {prof.name.charAt(0)}{prof.last_name.charAt(0)}
+                                                        {String(prof.name || '')?.charAt(0)}{String(prof.last_name || '')?.charAt(0)}
                                                     </div>
                                                 )}
                                                 <span className="truncate">{prof.name} {prof.last_name}</span>
