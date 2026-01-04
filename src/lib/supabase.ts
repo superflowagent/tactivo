@@ -225,6 +225,33 @@ export async function deleteProfileByUserId(userId: string) {
     return { error: 'not_deleted' }
 }
 
+/**
+ * Request server-side delete of both profile and auth user using a Functions endpoint
+ * This calls the Supabase Edge Function `delete-user` which runs with the Service Role
+ * and removes the auth user (if present) and the profile row. Caller must be authenticated
+ * and authorized (the function enforces company-role checks).
+ */
+export async function deleteUserByProfileId(profileId: string) {
+    if (!profileId) return { error: 'missing profileId' }
+    try {
+        const token = await getAuthToken()
+        const url = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/delete-user`
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (token) headers.Authorization = `Bearer ${token}`
+        // Do not send the anon apikey header in browser requests to avoid triggering CORS preflight issues;
+        // the function accepts Bearer tokens or admin secret headers for admin calls.
+        const res = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ profile_id: profileId })
+        })
+        const json = await res.json().catch(() => null)
+        return { ok: res.ok, status: res.status, data: json }
+    } catch (e) {
+        return { error: String(e?.message || e) }
+    }
+}
+
 // Helper to compress videos on the client before uploading. Use this for any frontend
 // uploads to ensure files are reasonable in size. It falls back to the original file on errors.
 import { compressVideoFile } from './video'

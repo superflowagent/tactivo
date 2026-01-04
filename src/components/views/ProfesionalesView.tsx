@@ -41,7 +41,7 @@ interface Profesional {
 }
 
 export function ProfesionalesView() {
-  const { companyId } = useAuth()
+  const { companyId, user, isLoading } = useAuth()
   const [profesionales, setProfesionales] = useState<Profesional[]>([])
   const [filteredProfesionales, setFilteredProfesionales] = useState<Profesional[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -54,6 +54,14 @@ export function ProfesionalesView() {
   const handleDeleteConfirm = async () => {
     if (!profesionalToDelete) return
     try {
+      if (!profesionalToDelete) return
+
+      // Prevent self-delete as extra safety (shouldn't appear in UI either)
+      if (user && user.id === profesionalToDelete) {
+        alert('No puedes eliminar el usuario con el que estás logueado.')
+        return
+      }
+
       // Ensure session is valid and attempt refresh if needed
       const lib = await import('@/lib/supabase')
       const ok = await lib.ensureValidSession()
@@ -61,44 +69,11 @@ export function ProfesionalesView() {
         alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.')
         return
       }
-      // Now retrieve the (likely refreshed) token
-      const token = await lib.getAuthToken()
-      debug('Delete-user token present?', !!token)
 
-      // Prefer calling Supabase Edge Function delete-user; fallback to local RLS delete if function missing
-      const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = `Bearer ${token}`
-      // Debug: log function call and token preview
-      try {
-        const tokenPreview = token ? (String(token).slice(0,8) + '...' + String(token).length) : null
-        console.debug('delete-user: calling function', { funcUrl, payload: { user_id: profesionalToDelete }, tokenPreview })
-      } catch { /* ignore */ }
-
-      const res = await fetch(funcUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ user_id: profesionalToDelete })
-      }).catch((e) => { console.warn('delete-user fetch failed', e); return ({ status: 404 }) })
-
-      // If the endpoint doesn't exist (404) or isn't reachable in local dev, fall back to RLS delete
-      if (!res || (res as any).status === 404) {
-        const api = await import('@/lib/supabase')
-        const del = await api.deleteProfileByUserId(profesionalToDelete)
-        if (del?.error) throw del.error
-      } else {
-        const json = await (res as Response).json().catch(() => ({}))
-        if (!(res as Response).ok) {
-          // Surface helpful auth error details when available
-          if ((res as Response).status === 401) {
-            const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
-            const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
-            alert('No autorizado al intentar eliminar: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo.')
-            return
-          }
-          throw new Error(json?.error || (res as any).status)
-        }
-      }
+      // Call server-side deletion which removes both profile and auth user
+      const api = await import('@/lib/supabase')
+      const res = await api.deleteUserByProfileId(profesionalToDelete)
+      if (!res || !res.ok) throw (res?.data || res?.error || new Error('failed_to_delete_user'))
 
       // remove from UI
       const updated = profesionales.filter(p => p.id !== profesionalToDelete)
@@ -110,7 +85,7 @@ export function ProfesionalesView() {
       logError('Error al eliminar profesional:', err)
       const msg = String(err?.message || err || '')
       if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('unauthorized')) {
-        alert('No tienes permiso para eliminar este profesional. Asegúrate de tener rol de administrador y de pertenecer a la misma clínica.')
+        alert('No tienes permiso para eliminar este profesional. Asegúrate de tener rol de profesional y de pertenecer a la misma clínica.')
       } else {
         alert('Error al eliminar el profesional: ' + (msg || 'Error desconocido'))
       }
@@ -137,8 +112,8 @@ export function ProfesionalesView() {
         const mapped = (records || []).map((r: any) => {
           const uid = r.user || r.id
           return ({
-            id: uid,
             ...r,
+            id: uid,
             name: r.name || '',
             last_name: r.last_name || '',
             dni: r.dni || '',
@@ -327,9 +302,11 @@ export function ProfesionalesView() {
                     <ActionButton tooltip="Editar" onClick={() => handleEdit(profesional)} aria-label="Editar profesional">
                       <Pencil className="h-4 w-4" />
                     </ActionButton>
-                    <ActionButton tooltip="Eliminar" onClick={() => { setProfesionalToDelete(profesional.id); setDeleteDialogOpen(true) }} aria-label="Eliminar profesional">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M10 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M9 6V4h6v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </ActionButton>
+                    {!isLoading && user?.id !== profesional.id && (
+                      <ActionButton tooltip="Eliminar" onClick={() => { setProfesionalToDelete(profesional.id); setDeleteDialogOpen(true) }} aria-label="Eliminar profesional">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M10 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /><path d="M9 6V4h6v2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                      </ActionButton>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
