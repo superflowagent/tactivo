@@ -61,7 +61,7 @@ New features added:
 
 Fixes & notes:
 - Fixed a type mismatch (UUID vs text) in `accept_invite` that caused an `invalid input syntax for type json` / operator errors when called as an authenticated user. Migration: `supabase/migrations/017_fix_accept_invite_type_mismatch.sql`.
-- Added diagnostic helpers (e.g. `accept_invite_verbose`, `dbg_accept_invite_sim`) used during debugging. These are safe to keep but can be removed if you prefer a clean schema.
+- Removed diagnostic helper migrations and debug scripts used during development.
 
 - Frontend route `/accept-invite` (`src/components/views/AcceptInviteView.tsx`) — page to accept the invite (click the button once you are authenticated after following the password-reset flow).
 - E2E test script: `scripts/e2e/invite-flow.cjs` — runs a full invite cycle if you set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` and `VITE_SUPABASE_ANON_KEY` in your environment and run `node scripts/e2e/invite-flow.cjs`.
