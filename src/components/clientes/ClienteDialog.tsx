@@ -160,12 +160,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
         setLoadingEventos(true)
         try {
-            // Use RPC to fetch events for client (filtering by type client-side)
-            const { data: records, error } = await supabase.rpc('get_events_by_company', { p_company: companyId })
+            const { data: records, error } = await supabase.from('events').select('*').filter('client', 'cs', `{"${clienteId}"}`).eq('type', 'appointment').order('datetime', { ascending: false })
             if (error) throw error
-            const filtered = (records || []).filter((r: any) => (Array.isArray(r.client) ? r.client.includes(clienteId) : (r.client ? [r.client].includes(clienteId) : false)) && r.type === 'appointment')
-            const sorted = filtered.sort((a: any,b: any) => new Date(b.datetime).getTime() - new Date(a.datetime).getTime())
-            const eventData = sorted
             // Enrich professional field
             const profIds = new Set<string>()
                 ; (records || []).forEach((r: any) => {
