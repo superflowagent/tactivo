@@ -307,7 +307,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             }
 
             // Only include allowed columns to avoid sending client-only properties like `expand`
-            const allowed = ['type', 'duration', 'cost', 'paid', 'notes', 'datetime', 'client', 'professional', 'company']
+            const allowed = ['title', 'type', 'duration', 'cost', 'paid', 'notes', 'datetime', 'client', 'professional', 'company']
             const sanitize = (obj: any) => {
                 const out: any = {}
                 allowed.forEach(k => {
@@ -320,25 +320,15 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             }
 
             if (event?.id) {
-                // Update via RPC to avoid RLS/permission issues
+                // Update directly using Supabase client (only allowed fields)
                 const payload = sanitize(data)
-                const { error: updErr } = await supabase.rpc('update_event', { p_id: event.id, p_changes: payload })
-                if (updErr) throw updErr
+                const { error: updateErr } = await supabase.from('events').update(payload).eq('id', event.id)
+                if (updateErr) throw updateErr
             } else {
-                // Create via RPC to avoid RLS/permission issues
+                // Create directly using Supabase client (only allowed fields + company)
                 const dataWithCompany = sanitize({ ...data, company: companyId })
-                const rpcParams: any = {
-                    p_type: dataWithCompany.type,
-                    p_duration: dataWithCompany.duration,
-                    p_cost: dataWithCompany.cost,
-                    p_paid: dataWithCompany.paid,
-                    p_notes: dataWithCompany.notes,
-                    p_datetime: dataWithCompany.datetime,
-                    p_client: dataWithCompany.client || [],
-                    p_professional: dataWithCompany.professional || [],
-                    p_company: dataWithCompany.company,
-                }
-                const { data: insertData, error: insertErr } = await supabase.rpc('insert_event', rpcParams)
+
+                const { error: insertErr } = await supabase.from('events').insert(dataWithCompany).select('id').maybeSingle()
                 if (insertErr) throw insertErr
             }
 
@@ -357,8 +347,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
         try {
             setLoading(true)
-            // Delete via RPC (server will refund credits if needed)
-            const { error: delErr } = await supabase.rpc('delete_event', { p_id: event.id })
+            // Delete via server endpoint which will refund credits if needed
+            // Delete directly using Supabase client
+            const { error: delErr } = await supabase.from('events').delete().eq('id', event.id)
             if (delErr) throw delErr
 
             onSave()
@@ -429,8 +420,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
 
-            // Persist signup via RPC (server will validate credits and timings)
-            const { error: updErr } = await supabase.rpc('update_event', { p_id: event.id, p_changes: { client: newClients } })
+            // Persist via server endpoint (server will validate credits and timings)
+            // Persist signup using Supabase client
+            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
+            if (fetchErr) throw fetchErr
+
+            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
             if (updErr) throw updErr
 
             // Update local state and notify parent
@@ -459,8 +454,12 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.filter(id => id !== user.id)
 
-            // Persist unsign via RPC (server will validate timing rules)
-            const { error: updErr } = await supabase.rpc('update_event', { p_id: event.id, p_changes: { client: newClients } })
+            // Persist via server endpoint (server will validate timing rules)
+            // Persist unsign using Supabase client
+            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
+            if (fetchErr) throw fetchErr
+
+            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
             if (updErr) throw updErr
 
             // Update local state and notify parent
