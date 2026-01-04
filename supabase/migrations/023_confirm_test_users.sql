@@ -1,4 +1,5 @@
--- Migration: Mark test users as email-confirmed so verification scripts can sign in
+-- Migration (TEST ONLY): Mark test users as email-confirmed so verification scripts can sign in
+-- NOTE: This migration was added for local/integration testing and should be removed before production deploy if undesired
 
 BEGIN;
 

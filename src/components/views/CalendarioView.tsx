@@ -115,8 +115,9 @@ export function CalendarioView() {
     if (!companyId) return
 
     try {
-      const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
-      if (error) throw error
+      const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: companyId })
+      if (compErr) throw compErr
+      const record = Array.isArray(comp) ? comp[0] : comp
       setCompany(record)
     } catch (err) {
       logError('Error cargando configuración de company:', err)

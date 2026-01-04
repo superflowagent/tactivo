@@ -150,8 +150,10 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
     const loadCompany = async () => {
         if (!companyId) return
         try {
-            const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
-            if (error) throw error
+            // Use RPC to fetch company row and avoid RLS/permission issues
+            const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: companyId })
+            if (compErr) throw compErr
+            const record = Array.isArray(comp) ? comp[0] : comp
             setCompany(record)
         } catch (err) {
             logError('Error cargando company:', err)

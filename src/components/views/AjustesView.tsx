@@ -39,13 +39,15 @@ export function AjustesView() {
     try {
       setLoading(true)
       setError(null)
-      const { data: record, error } = await supabase.from('companies').select('*').eq('id', companyId).maybeSingle()
-      if (error) throw error
+      // Use RPC to fetch company row (enforces membership and avoids RLS issues)
+      const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: companyId })
+      if (compErr) throw compErr
+      const record = Array.isArray(comp) ? comp[0] : comp
       setCompany(record)
       setFormData(record)
 
       // Cargar preview del logo existente (o limpiar si no hay logo)
-      if (record.logo) {
+      if (record?.logo) {
         setLogoPreview(getFilePublicUrl('companies', record.id, record.logo))
       } else {
         setLogoPreview(null)
