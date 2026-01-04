@@ -101,19 +101,7 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                             notes: slot.notes || '',
                         }
 
-                        const rpcParams = {
-                            p_type: eventData.type,
-                            p_duration: eventData.duration,
-                            p_cost: 0,
-                            p_paid: false,
-                            p_notes: eventData.notes ?? '',
-                            p_datetime: eventData.datetime,
-                            p_client: eventData.client || [],
-                            p_professional: eventData.professional || [],
-                            p_company: eventData.company,
-                        }
-
-                        const { error } = await supabase.rpc('insert_event', rpcParams)
+                        const { error } = await supabase.from('events').insert(eventData)
                         if (error) throw error
                         createdEvents.push(eventData)
                     }
