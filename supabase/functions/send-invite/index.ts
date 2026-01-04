@@ -211,10 +211,9 @@ serve(async (req) => {
         let sendResult: any = null
         let resetUrl: string | null = null
         try {
-            // Use the app's password-reset path as the redirect target. We no longer use a client-side bridge.
-            // Servers or Edge Functions should perform TokenHash -> session exchange when needed.
-            resetUrl = `${APP_URL.replace(/\/$/, '')}/password-reset`
-            try { console.warn('send-invite using reset redirect', { resetUrl }) } catch { /* ignore */ }
+            // Use the password-reset Function as the redirect target and include the user's email so
+            // the function can optionally include the email when calling verifyOtp if required.
+            resetUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/password-reset?email=${encodeURIComponent(profile.email)}`
             const mailResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/recover`, {
                 method: 'POST',
                 headers: {
@@ -239,8 +238,6 @@ serve(async (req) => {
         }
 
         // Log both results for diagnostics so dashboard logs show whether user creation and send were accepted
-        try { console.warn('send-invite sendResult', { email: profile.email, createUserResult, sendResult, resetUrl }) } catch { /* ignore */ }
-
         return jsonResponse({ ok: true, invite_link, resetUrl, createUserResult, sendResult }, 200)
     } catch (err: any) {
         return jsonResponse({ error: String(err?.message || err) }, 500)

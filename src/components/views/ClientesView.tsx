@@ -133,18 +133,55 @@ export function ClientesView() {
     if (!clienteToDelete) return
 
     try {
-      const fetcher = await import('@/lib/supabase')
-      const res = await fetcher.deleteProfileByUserId(clienteToDelete)
-      if (res?.error) throw res.error
+      // Prefer calling delete-user Edge Function so linked auth user is removed (profile cleanup via DB trigger)
+      const lib = await import('@/lib/supabase')
+      const ok = await lib.ensureValidSession()
+      if (!ok) {
+        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.')
+        return
+      }
+      const token = await lib.getAuthToken()
+
+      const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      // Debug: log function call and token preview
+      try {
+        const tokenPreview = token ? (String(token).slice(0,8) + '...' + String(token).length) : null
+        console.debug('delete-user: calling function', { funcUrl, payload: { user_id: clienteToDelete }, tokenPreview })
+      } catch { /* ignore */ }
+
+      const res = await fetch(funcUrl, { method: 'POST', headers, body: JSON.stringify({ user_id: clienteToDelete }) }).catch((e) => { console.warn('delete-user fetch failed', e); return ({ status: 404 }) })
+
+      if (!res || (res as any).status === 404) {
+        // Could not reach the function. Fallback: delete profile locally but warn that the auth user was not removed.
+        const doFallback = confirm('No se pudo contactar la función de borrado. Esto eliminará solo el perfil, pero no el usuario en Auth. ¿Deseas continuar con la eliminación del perfil?')
+        if (!doFallback) return
+        const fetcher = await import('@/lib/supabase')
+        const del = await fetcher.deleteProfileByUserId(clienteToDelete)
+        if (del?.error) throw del.error
+      } else {
+        const json = await (res as Response).json().catch(() => ({}))
+        if (!(res as Response).ok) {
+          if ((res as Response).status === 401) {
+            const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description || JSON.stringify(json.auth_error))) || json?.error || 'Unauthorized'
+            const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+            alert('No autorizado al intentar eliminar: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo.')
+            return
+          }
+          throw new Error(json?.error || (res as any).status)
+        }
+      }
 
       const updatedClientes = clientes.filter(c => c.id !== clienteToDelete)
       setClientes(updatedClientes)
       setFilteredClientes(updatedClientes)
       setDeleteDialogOpen(false)
       setClienteToDelete(null)
-    } catch (err) {
+    } catch (err: any) {
       logError('Error al eliminar cliente:', err)
-      alert('Error al eliminar el cliente')
+      alert('Error al eliminar el cliente: ' + (err?.message || 'Error desconocido'))
     }
   }
 
