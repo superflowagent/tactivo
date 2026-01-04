@@ -169,8 +169,11 @@ export function CalendarioView() {
 
       // Cargar eventos de la company actual
       const cid = companyId
-      const { data: records, error } = await supabase.from('events').select('*').eq('company', cid).order('datetime')
+      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: cid })
       if (error) throw error
+      const records = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
+      // Sort by datetime
+      records.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
 
       // Precompute profile ids to fetch
       const allIds = new Set<string>()
