@@ -211,9 +211,11 @@ serve(async (req) => {
         let sendResult: any = null
         let resetUrl: string | null = null
         try {
-            // Use the password-reset Function as the redirect target and include the user's email so
-            // the function can optionally include the email when calling verifyOtp if required.
-            resetUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/password-reset?email=${encodeURIComponent(profile.email)}`
+            // Use the password-reset Function as the redirect target. We prefer the template
+            // that the email uses so the modal shows the same link the recipient will get.
+            // Note: Supabase will replace `{{ .TokenHash }}` in the email, we cannot access the
+            // actual token from the recover response reliably, so we expose the same template URL.
+            resetUrl = `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/password-reset?access_token={{ .TokenHash }}`
             const mailResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/recover`, {
                 method: 'POST',
                 headers: {
