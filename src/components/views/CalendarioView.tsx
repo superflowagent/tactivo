@@ -317,7 +317,7 @@ export function CalendarioView() {
       const newStart = info.event.start
 
       // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
-      const { error } = await supabase.from('events').update({ datetime: formatDateAsDbLocalString(newStart) }).eq('id', eventId)
+      const { error } = await supabase.rpc('update_event_json', { p_payload: { id: eventId, changes: { datetime: formatDateAsDbLocalString(newStart) } } })
       if (error) throw error
 
       // Recargar eventos
@@ -339,7 +339,7 @@ export function CalendarioView() {
       const durationMin = Math.round(durationMs / (1000 * 60))
 
       // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
-      const { error } = await supabase.from('events').update({ datetime: formatDateAsDbLocalString(newStart), duration: durationMin }).eq('id', eventId)
+      const { error } = await supabase.rpc('update_event_json', { p_payload: { id: eventId, changes: { datetime: formatDateAsDbLocalString(newStart), duration: durationMin } } })
       if (error) throw error
 
       // Recargar eventos

@@ -320,9 +320,9 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             }
 
             if (event?.id) {
-                // Update directly using Supabase client (only allowed fields)
+                // Update via secure RPC to avoid RLS/profile permission issues
                 const payload = sanitize(data)
-                const { error: updateErr } = await supabase.from('events').update(payload).eq('id', event.id)
+                const { error: updateErr } = await supabase.rpc('update_event_json', { p_payload: { id: event.id, changes: payload } })
                 if (updateErr) throw updateErr
             } else {
                 // Create directly using Supabase client (only allowed fields + company)
@@ -349,7 +349,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             setLoading(true)
             // Delete via server endpoint which will refund credits if needed
             // Delete directly using Supabase client
-            const { error: delErr } = await supabase.from('events').delete().eq('id', event.id)
+const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: { id: event.id } })
             if (delErr) throw delErr
 
             onSave()
@@ -420,12 +420,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.includes(user.id) ? selectedClients : [...selectedClients, user.id]
 
-            // Persist via server endpoint (server will validate credits and timings)
-            // Persist signup using Supabase client
-            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
-            if (fetchErr) throw fetchErr
-
-            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
+            // Persist signup via secure RPC (server will validate credits and timings)
+            const { error: updErr } = await supabase.rpc('update_event_json', { p_payload: { id: event.id, changes: { client: newClients } } })
             if (updErr) throw updErr
 
             // Update local state and notify parent
@@ -454,12 +450,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const newClients = selectedClients.filter(id => id !== user.id)
 
-            // Persist via server endpoint (server will validate timing rules)
-            // Persist unsign using Supabase client
-            const { error: fetchErr } = await supabase.from('events').select('client').eq('id', event.id).maybeSingle()
-            if (fetchErr) throw fetchErr
-
-            const { error: updErr } = await supabase.from('events').update({ client: newClients }).eq('id', event.id)
+            // Persist unsign via secure RPC (server will validate timing rules)
+            const { error: updErr } = await supabase.rpc('update_event_json', { p_payload: { id: event.id, changes: { client: newClients } } })
             if (updErr) throw updErr
 
             // Update local state and notify parent
