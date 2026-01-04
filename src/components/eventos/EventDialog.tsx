@@ -338,7 +338,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                     p_professional: dataWithCompany.professional || [],
                     p_company: dataWithCompany.company,
                 }
-                const { data: insertData, error: insertErr } = await supabase.rpc('insert_event_json', { p_payload: rpcParams })
+                const { data: insertData, error: insertErr } = await supabase.rpc('insert_event', rpcParams)
                 if (insertErr) throw insertErr
             }
 

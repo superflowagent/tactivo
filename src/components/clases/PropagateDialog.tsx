@@ -113,9 +113,9 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                             p_company: eventData.company,
                         }
 
-                        const { data, error } = await supabase.rpc('insert_event_json', { p_payload: rpcParams })
+                        const { error } = await supabase.rpc('insert_event', rpcParams)
                         if (error) throw error
-                        createdEvents.push({ ...eventData, id: Array.isArray(data) ? data[0]?.id : data?.id })
+                        createdEvents.push(eventData)
                     }
                 }
             }
