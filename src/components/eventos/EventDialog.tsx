@@ -182,7 +182,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
         }
 
         if (event) {
-            setFormData(event)
+            // Merge with defaults to avoid removing controlled fields (prevent controlled -> uncontrolled warnings)
+            setFormData(prev => ({ ...prev, ...event }))
             setSelectedClients(event.client || [])
             setSelectedProfessionals(event.professional || [])
             setClientSearch('')
@@ -521,7 +522,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                 <div className="space-y-2">
                                     <Label htmlFor="type">Tipo</Label>
                                     <Select
-                                        value={formData.type}
+                                        value={formData.type ?? 'appointment'}
                                         onValueChange={(value) => { if (isClientView) return; handleChange('type', value as Event['type']) }}
                                     >
                                         <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90 [&>svg]:hidden' : ''}>
@@ -579,7 +580,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 id="duration"
                                                 type="number"
                                                 min="1"
-                                                value={formData.duration}
+                                                value={formData.duration ?? 60}
                                                 onChange={(e) => { if (isClientView) return; handleChange('duration', parseInt(e.target.value)) }}
                                                 required
                                                 readOnly={isClientView}
@@ -888,7 +889,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                     type="number"
                                                     min="0"
                                                     step="1"
-                                                    value={formData.cost}
+                                                    value={formData.cost ?? 0}
                                                     onChange={(e) => { if (isClientView) return; handleChange('cost', parseFloat(e.target.value)) }}
                                                     required
                                                     readOnly={isClientView}
@@ -906,8 +907,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                                                 <div className="flex items-center h-10">
                                                     <Checkbox
                                                         id="paid"
-                                                        checked={formData.paid}
-                                                        onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', checked) }}
+                                                        checked={formData.paid ?? false}
+                                                        onCheckedChange={(checked) => { if (isClientView) return; handleChange('paid', Boolean(checked)) }}
                                                         tabIndex={isClientView ? -1 : undefined}
                                                     />
                                                     <label
