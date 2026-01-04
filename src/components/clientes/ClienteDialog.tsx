@@ -46,6 +46,7 @@ import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircl
 import { cn } from "@/lib/utils"
 import { getFilePublicUrl, supabase, getAuthToken } from "@/lib/supabase"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
+import InviteToast from '@/components/InviteToast'
 import type { Cliente } from "@/types/cliente"
 import type { Event } from "@/types/event"
 import { useAuth } from "@/contexts/AuthContext"
@@ -269,13 +270,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             // Fecha nacimiento
             if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, "yyyy-MM-dd")
 
-            // Role/company for new client
+            // Role/company for new client (do NOT include passwords in profiles table)
+            // The invite function will ensure an auth user is created and the recovery email is sent.
             if (!cliente?.id) {
                 payload.role = 'client'
                 if (companyId) payload.company = companyId
-                const randomPassword = Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10)
-                payload.password = randomPassword
-                payload.passwordConfirm = randomPassword
             }
 
             let savedUser: any = null
@@ -360,36 +359,59 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
             })
 
-            // If we just created a new cliente, request the send-invite function
+            // If we just created a new cliente, request the send-invite function (mirror profesional flow)
             if (!cliente?.id) {
                 try {
-                    const token = await getAuthToken()
-                    if (token) {
-                        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ profile_id: savedUserId })
-                        })
-                        const json = await res.json().catch(() => ({}))
-                        if (res.ok) {
-                            if (json?.invite_link) {
-                                setInviteLink(json.invite_link)
-                                setShowInviteToast(true)
-                            }
-                            if (json?.sendResult?.ok) {
-                                setShowInviteToast(true)
-                                setInviteLink(json.invite_link || null)
-                            }
-                            if (!json?.sendResult) {
-                                setShowInviteToast(true)
-                                setInviteLink(json.invite_link || null)
-                            }
+                    const lib = await import('@/lib/supabase')
+                    let ok = await lib.ensureValidSession()
+                    if (!ok) {
+                        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
+                    } else {
+                        let token = await lib.getAuthToken()
+                        if (!token) {
+                            console.warn('No token available after ensureValidSession()')
+                            alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
                         } else {
-                            console.warn('send-invite failed', json)
-                            alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + (json?.error || res.status))
+                            const doSend = async (tk: string) => {
+                                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${tk}`
+                                    },
+                                    body: JSON.stringify({ profile_id: savedUserId })
+                                }).catch((e) => { console.warn('send-invite fetch failed', e); throw e })
+                                const json = await res.json().catch(() => ({}))
+                                return { res, json }
+                            }
+
+                            try {
+                                const sendInvite = await import('@/lib/invites')
+                                const inviteKey = (savedUserId as string) || formData.email || ''
+                                if (!inviteKey) throw new Error('missing_profile_id_or_email')
+                                const { res, json } = await sendInvite.default(inviteKey)
+                                if (res.ok) {
+                                    if (json?.invite_link || json?.resetUrl) {
+                                        setInviteLink(json.resetUrl || json.invite_link)
+                                        setShowInviteToast(true)
+                                    }
+                                    if (json?.sendResult?.ok) {
+                                        setShowInviteToast(true)
+                                        setInviteLink(json.resetUrl || json.invite_link || null)
+                                    }
+                                    if (!json?.sendResult) {
+                                        setShowInviteToast(true)
+                                        setInviteLink(json.resetUrl || json.invite_link || null)
+                                    }
+                                } else {
+                                    const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
+                                    const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+                                    alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug)
+                                }
+                            } catch (e: any) {
+                                console.warn('Error calling send-invite helper', e)
+                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
+                            }
                         }
                     }
                 } catch (e: any) {
@@ -437,7 +459,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             const res = await fetch(funcUrl, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ profile_id: cliente.id })
+                body: JSON.stringify({ user_id: cliente.id })
             }).catch(() => ({ status: 404 }))
 
             // If endpoint missing, fall back to RLS delete
@@ -901,24 +923,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             </AlertDialog>
 
             {
-                showInviteToast && inviteLink && createPortal(
-                    <div className="fixed bottom-4 left-4 z-[99999] pointer-events-none w-fit">
-                        <div className="pointer-events-auto">
-                            <div className="p-3 shadow-lg bg-white rounded-md border flex items-center gap-3">
-                                <div className="flex-1">
-                                    <div className="font-semibold">Invitación creada</div>
-                                    <div className="text-sm text-muted-foreground break-words max-w-xs">{inviteLink}</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button size="sm" onClick={() => { try { navigator.clipboard.writeText(inviteLink || '') } catch { } }}>
-                                        <Copy className="mr-2 h-4 w-4" />Copiar
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => { setShowInviteToast(false); setInviteLink(null) }}>Cerrar</Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
+                showInviteToast && inviteLink && (
+                    <InviteToast inviteLink={inviteLink} onClose={() => { setShowInviteToast(false); setInviteLink(null) }} />
                 )
             }
 

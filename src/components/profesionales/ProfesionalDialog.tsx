@@ -22,9 +22,10 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { CalendarIcon, UserStar, X, Mail, CheckCircle, Copy } from "lucide-react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
-import { error } from '@/lib/logger'
+import { debug, error } from '@/lib/logger'
 import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
+import InviteToast from '@/components/InviteToast'
 import { useAuth } from "@/contexts/AuthContext"
 
 
@@ -327,22 +328,13 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                             }
 
                             try {
-                                let { res, json } = await doSend(token)
-                                if (!res.ok && res.status === 401) {
-                                    // Try a single automatic refresh+retry
-                                    console.info('send-invite: got 401, attempting session refresh+retry')
-                                    ok = await lib.ensureValidSession()
-                                    if (ok) {
-                                        const token2 = await lib.getAuthToken()
-                                        if (token2 && token2 !== token) {
-                                            const r2 = await doSend(token2)
-                                            res = r2.res; json = r2.json
-                                        }
-                                    }
-                                }
-
+                                try {
+                                const sendInvite = await import('@/lib/invites')
+                                const inviteKey = (savedUserId as string) || formData.email || ''
+                                if (!inviteKey) throw new Error('missing_profile_id_or_email')
+                                const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
-                                    // Prefer a direct reset URL (resetUrl) if the function returned it; fall back to invite_link
+                                    // Prefer resetUrl if present, fall back to invite_link
                                     if (json?.invite_link || json?.resetUrl) {
                                         setInviteLink(json.resetUrl || json.invite_link)
                                         setShowInviteToast(true)
@@ -356,15 +348,15 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                         setInviteLink(json.resetUrl || json.invite_link || null)
                                     }
                                 } else {
-                                    console.warn('send-invite failed', json)
-                                    if ((res as Response).status === 401) {
-                                        const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Unauthorized'
-                                        const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
-                                        alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug + '\n\nPor favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
-                                    } else {
-                                        alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + (json?.error || (res as Response).status))
-                                    }
+                                    // Show helpful info to user
+                                    const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
+                                    const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
+                                    alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug)
                                 }
+                            } catch (e: any) {
+                                console.warn('Error calling send-invite helper', e)
+                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
+                            }
                             } catch (e: any) {
                                 console.warn('Error calling send-invite function', e)
                                 alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
@@ -675,26 +667,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
 
             {
-                showInviteToast && inviteLink && createPortal(
-                    <div className="fixed bottom-4 left-4 z-[99999] pointer-events-none w-fit">
-                        <div className="pointer-events-auto">
-                            <div className="p-3 shadow-lg bg-white rounded-md border flex items-center gap-3">
-                                <div className="flex-1">
-                                    <div className="font-semibold">Invitación creada</div>
-                                    <div className="text-sm text-muted-foreground break-words max-w-xs">{inviteLink}</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button size="sm" onClick={() => {
-                                        try { navigator.clipboard.writeText(inviteLink || '') } catch { }
-                                    }}>
-                                        <Copy className="mr-2 h-4 w-4" />Copiar
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={() => { setShowInviteToast(false); setInviteLink(null) }}>Cerrar</Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>,
-                    document.body
+                showInviteToast && inviteLink && (
+                    <InviteToast inviteLink={inviteLink} onClose={() => { setShowInviteToast(false); setInviteLink(null) }} />
                 )
             }
         </>
