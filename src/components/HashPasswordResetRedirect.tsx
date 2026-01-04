@@ -16,7 +16,7 @@ export function HashPasswordResetRedirect() {
           if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
             await (supabase.auth as any).getSessionFromUrl()
           }
-        } catch (e) {
+        } catch {
           // ignore errors
         }
       }

@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react"
-import { createPortal } from 'react-dom'
 import { format } from "date-fns"
 import {
     Dialog,
@@ -42,9 +41,9 @@ import {
 } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil, Copy } from "lucide-react"
+import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getFilePublicUrl, supabase, getAuthToken } from "@/lib/supabase"
+import { getFilePublicUrl, supabase } from "@/lib/supabase"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
 import InviteToast from '@/components/InviteToast'
 import type { Cliente } from "@/types/cliente"
@@ -85,7 +84,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
     const [activeTab, setActiveTab] = useState("datos")
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-    const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [showInviteToast, setShowInviteToast] = useState(false)
 
     // Resolve existing customer photo URL (public or signed)
@@ -372,18 +370,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                             console.warn('No token available after ensureValidSession()')
                             alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
                         } else {
-                            const doSend = async (tk: string) => {
-                                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${tk}`
-                                    },
-                                    body: JSON.stringify({ profile_id: savedUserId })
-                                }).catch((e) => { console.warn('send-invite fetch failed', e); throw e })
-                                const json = await res.json().catch(() => ({}))
-                                return { res, json }
-                            }
+
 
                             try {
                                 const sendInvite = await import('@/lib/invites')
@@ -391,14 +378,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 if (!inviteKey) throw new Error('missing_profile_id_or_email')
                                 const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
-                                    const preferredLink = json?.email_link || json?.resetUrl || json?.invite_link || null
-                                    if (preferredLink) {
-                                        setInviteLink(preferredLink)
-                                        setShowInviteToast(true)
-                                    } else {
-                                        setShowInviteToast(true)
-                                        setInviteLink(null)
-                                    }
+                                    setShowInviteToast(true)
                                 } else {
                                     const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
                                     const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
@@ -919,8 +899,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             </AlertDialog>
 
             {
-                showInviteToast && inviteLink && (
-                    <InviteToast inviteLink={inviteLink} onClose={() => { setShowInviteToast(false); setInviteLink(null) }} />
+                showInviteToast && (
+                    <InviteToast onClose={() => { setShowInviteToast(false) }} />
                 )
             }
 
