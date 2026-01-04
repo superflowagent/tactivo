@@ -237,8 +237,18 @@ serve(async (req) => {
             sendResult = { ok: false, error: String(e?.message || e) }
         }
 
+        // Attempt to extract a password-reset URL with an access_token from the response body (some providers include it)
+        let email_link: string | null = null
+        try {
+            const raw = typeof sendResult?.raw === 'string' ? sendResult.raw : ''
+            const m = raw.match(/(https?:\/\/[^\s"']+\/functions\/v1\/password-reset\?access_token=[^&\s"']+)/)
+            if (m && m[1]) email_link = m[1]
+        } catch (e) {
+            // ignore
+        }
+
         // Log both results for diagnostics so dashboard logs show whether user creation and send were accepted
-        return jsonResponse({ ok: true, invite_link, resetUrl, createUserResult, sendResult }, 200)
+        return jsonResponse({ ok: true, invite_link, resetUrl, email_link, createUserResult, sendResult }, 200)
     } catch (err: any) {
         return jsonResponse({ error: String(err?.message || err) }, 500)
     }

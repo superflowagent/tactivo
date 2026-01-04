@@ -391,17 +391,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 if (!inviteKey) throw new Error('missing_profile_id_or_email')
                                 const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
-                                    if (json?.invite_link || json?.resetUrl) {
-                                        setInviteLink(json.resetUrl || json.invite_link)
+                                    const preferredLink = json?.email_link || json?.resetUrl || json?.invite_link || null
+                                    if (preferredLink) {
+                                        setInviteLink(preferredLink)
                                         setShowInviteToast(true)
-                                    }
-                                    if (json?.sendResult?.ok) {
+                                    } else {
                                         setShowInviteToast(true)
-                                        setInviteLink(json.resetUrl || json.invite_link || null)
-                                    }
-                                    if (!json?.sendResult) {
-                                        setShowInviteToast(true)
-                                        setInviteLink(json.resetUrl || json.invite_link || null)
+                                        setInviteLink(null)
                                     }
                                 } else {
                                     const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'

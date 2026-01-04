@@ -334,18 +334,15 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 if (!inviteKey) throw new Error('missing_profile_id_or_email')
                                 const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
-                                    // Prefer resetUrl if present, fall back to invite_link
-                                    if (json?.invite_link || json?.resetUrl) {
-                                        setInviteLink(json.resetUrl || json.invite_link)
+                                    // Prefer an actual link found in the email (email_link) if present,
+                                    // otherwise prefer resetUrl, then fallback to invite_link
+                                    const preferredLink = json?.email_link || json?.resetUrl || json?.invite_link || null
+                                    if (preferredLink) {
+                                        setInviteLink(preferredLink)
                                         setShowInviteToast(true)
-                                    }
-                                    if (json?.sendResult?.ok) {
+                                    } else {
                                         setShowInviteToast(true)
-                                        setInviteLink(json.resetUrl || json.invite_link || null)
-                                    }
-                                    if (!json?.sendResult) {
-                                        setShowInviteToast(true)
-                                        setInviteLink(json.resetUrl || json.invite_link || null)
+                                        setInviteLink(null)
                                     }
                                 } else {
                                     // Show helpful info to user
