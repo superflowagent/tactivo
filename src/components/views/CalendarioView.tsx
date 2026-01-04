@@ -184,6 +184,8 @@ export function CalendarioView() {
       if (allIds.size > 0) {
         const ids = Array.from(allIds)
         const profilesMap = await getProfilesByIds(ids)
+        profileMap = profilesMap || {}
+      }
 
       // Transformar eventos para FullCalendar
       const calendarEvents = (records || []).map((event: any) => {

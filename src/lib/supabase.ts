@@ -248,7 +248,8 @@ export async function deleteUserByProfileId(profileId: string) {
         const json = await res.json().catch(() => null)
         return { ok: res.ok, status: res.status, data: json }
     } catch (e) {
-        return { error: String(e?.message || e) }
+        const msg = (e as any)?.message ?? String(e)
+        return { error: String(msg) }
     }
 }
 

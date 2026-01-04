@@ -97,7 +97,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                             }
                         } catch { /* ignore */ }
                     })()
-            }
         } else {
             setFormData({
                 name: "",
