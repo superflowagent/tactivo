@@ -196,16 +196,6 @@ export function CalendarioView() {
 
       // Transformar eventos para FullCalendar
       const calendarEvents = (recordsFinal || []).map((event: any) => {
-
-      let profileMap: Record<string, any> = {}
-      if (allIds.size > 0) {
-        const ids = Array.from(allIds)
-        const profilesMap = await getProfilesByIds(ids)
-        profileMap = profilesMap || {}
-      }
-
-      // Transformar eventos para FullCalendar
-      const calendarEvents = (records || []).map((event: any) => {
         let title = ''
         let backgroundColor = ''
         let borderColor = ''
