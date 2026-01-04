@@ -265,8 +265,12 @@ export function CalendarioView() {
     const eventId = clickInfo.event.id
 
     try {
-      const { data: eventData, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
+      // Use secure RPC to fetch event and avoid direct SELECT that may trigger profiles RLS
+      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: companyId })
       if (error) throw error
+      const records = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
+      const eventData = (records || []).find((r: any) => r.id === eventId)
+      if (!eventData) throw new Error('event not found')
 
       // Enrich with profiles
       const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
