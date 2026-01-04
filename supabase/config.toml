@@ -18,3 +18,12 @@ entrypoint = "./functions/hello-world/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/send-invite/index.ts"
+
+# Disable platform-level JWT verification for delete-user as we perform our own
+# authentication and fine-grained authorization checks (require professional role
+# and same company). If verify_jwt is left enabled the gateway may reject valid
+# Bearer tokens before the function runs (observed behavior).
+[functions."delete-user"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/delete-user/index.ts"
