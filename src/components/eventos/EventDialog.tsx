@@ -48,6 +48,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { supabase, getFilePublicUrl } from '@/lib/supabase'
 import { getProfilesByRole } from '@/lib/profiles'
 import { formatDateAsDbLocalString } from '@/lib/utils'
+import { formatDateWithOffset } from '@/lib/date'
 
 interface EventDialogProps {
     open: boolean
@@ -300,7 +301,8 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
 
             const data = {
                 ...formData,
-                datetime: formatDateAsDbLocalString(datetime),
+                // Save with explicit timezone offset to preserve wall-clock time across server timezone
+                datetime: formatDateWithOffset(datetime),
                 duration,
                 client: formData.type === 'vacation' ? [] : selectedClients,
                 professional: selectedProfessionals,

@@ -37,6 +37,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { getProfilesByIds, getProfilesByRole } from "@/lib/profiles"
 import { formatDateAsDbLocalString } from '@/lib/utils'
+import { formatDateWithOffset } from '@/lib/date'
 
 interface ClassSlotDialogProps {
     open: boolean
@@ -230,7 +231,7 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
 
             const data = {
                 type: 'class',
-                datetime: formatDateAsDbLocalString(targetDate),
+                datetime: formatDateWithOffset(targetDate),
                 duration: formData.duration,
                 client: selectedClients,
                 professional: selectedProfessionals,

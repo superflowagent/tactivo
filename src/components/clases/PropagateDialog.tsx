@@ -23,6 +23,7 @@ import { supabase } from "@/lib/supabase"
 import { error as logError } from "@/lib/logger";
 import type { Event } from "@/types/event"
 import { formatDateAsDbLocalString } from '@/lib/utils'
+import { formatDateWithOffset } from '@/lib/date'
 
 interface PropagateDialogProps {
     open: boolean
@@ -93,7 +94,8 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
 
                         const eventData = {
                             type: 'class',
-                            datetime: formatDateAsDbLocalString(currentDate),
+                            // Use timezone-aware formatting to preserve local wall-clock time
+                            datetime: formatDateWithOffset(currentDate),
                             duration: slot.duration,
                             client: slot.client || [],
                             professional: slot.professional || [],
