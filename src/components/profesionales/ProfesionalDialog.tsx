@@ -87,12 +87,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
             setRemovePhoto(false)
 
-            // Ensure the user_cards entry is up to date when opening the dialog for an existing profesional
-            if (profesional?.id) {
-                import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
-                    try { syncUserCardOnUpsert(profesional) } catch { /* ignore */ }
-                })
-
                     // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
                     ; (async () => {
                         try {
@@ -295,11 +289,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     error('Error removiendo foto:', e)
                 }
             }
-
-            // Sync user_cards (best-effort)
-            import('@/lib/userCards').then(({ syncUserCardOnUpsert }) => {
-                try { syncUserCardOnUpsert(savedUser) } catch { /* ignore */ }
-            })
 
             // If we just created a new profile, request the send-invite function to generate token and (optionally) send the invite email
             if (!profesional?.id) {

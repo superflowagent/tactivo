@@ -1,6 +1,10 @@
+// @ts-ignore - Deno std library import in Supabase Edge function (editor may not resolve remote types)
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts'
 
-serve(async (req) => {
+// Minimal Deno env declaration so the editor/TypeScript doesn't complain about the global `Deno` object
+declare const Deno: { env: { get(name: string): string | undefined } }
+
+serve(async (req: Request) => {
     const origin = req.headers.get('origin') || '*'
     const corsHeaders: Record<string, string> = {
         'Access-Control-Allow-Origin': origin,

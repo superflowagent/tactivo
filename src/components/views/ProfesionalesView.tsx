@@ -27,6 +27,7 @@ import { normalizeForSearch } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext"
 import { ProfesionalDialog } from "@/components/profesionales/ProfesionalDialog"
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
+import { getProfilesByRole } from '@/lib/profiles'
 
 interface Profesional {
   id: string
@@ -104,13 +105,10 @@ export function ProfesionalesView() {
         setLoading(true)
         setError(null)
 
-        const cid = companyId
-
-        // Filtrar solo profesionales de la misma company. Select core fields
-        const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', cid).eq('role', 'professional').order('name')
-        if (error) throw error
+        // Use RPC-backed helper that enforces access rules
+        const records = await getProfilesByRole(companyId!, 'professional')
         const mapped = (records || []).map((r: any) => {
-          const uid = r.user || r.id
+          const uid = r.user_id || r.user || r.id
           return ({
             ...r,
             id: uid,
@@ -196,10 +194,9 @@ export function ProfesionalesView() {
     try {
       if (!companyId) return
 
-      const { data: records, error } = await supabase.from('profiles').select('id, user, name, last_name, dni, phone, photo_path, role, company').eq('company', companyId).eq('role', 'professional').order('name')
-      if (error) throw error
+      const records = await getProfilesByRole(companyId!, 'professional')
       const mapped = (records || []).map((r: any) => ({
-        id: r.user || r.id,
+        id: r.user_id || r.user || r.id,
         ...r,
         name: r.name || '',
         last_name: r.last_name || '',
