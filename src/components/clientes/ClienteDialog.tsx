@@ -192,8 +192,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     const handleEditEvent = async (eventId: string) => {
         try {
-            const { data: eventData, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
+            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: companyId })
             if (error) throw error
+            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
+            const eventData = (recordsAll || []).find((r: any) => r.id === eventId)
+            if (!eventData) throw new Error('event not found')
             const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
             let profileMap: Record<string, any> = {}
             if (ids.length > 0) {
