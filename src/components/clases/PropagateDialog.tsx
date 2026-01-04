@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import ProjectAlert from '@/components/ui/project-alert'
 import {
     Select,
     SelectContent,
@@ -219,14 +220,7 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                                 </p>
                             </div>
                             {preview.clientCount > 0 && (
-                                <Alert className="border-destructive/50 text-destructive [&>svg]:top-3.5 [&>svg+div]:translate-y-0 [&>svg]:text-destructive">
-                                    <AlertCircle className="h-4 w-4 text-destructive" />
-                                    <AlertDescription>
-                                        <div className="flex items-start gap-2">
-                                            <p className="text-sm">Esta acción deducirá clases a los clientes involucrados.</p>
-                                        </div>
-                                    </AlertDescription>
-                                </Alert>
+                                <ProjectAlert variant="destructive" title={<span className="text-sm">Esta acción deducirá clases a los clientes involucrados.</span>} />
                             )}
                         </div>
                     )}
