@@ -69,11 +69,17 @@ export function ProfesionalesView() {
       const funcUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
+      // Debug: log function call and token preview
+      try {
+        const tokenPreview = token ? (String(token).slice(0,8) + '...' + String(token).length) : null
+        console.debug('delete-user: calling function', { funcUrl, payload: { user_id: profesionalToDelete }, tokenPreview })
+      } catch { /* ignore */ }
+
       const res = await fetch(funcUrl, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ profile_id: profesionalToDelete })
-      }).catch(() => ({ status: 404 }))
+        body: JSON.stringify({ user_id: profesionalToDelete })
+      }).catch((e) => { console.warn('delete-user fetch failed', e); return ({ status: 404 }) })
 
       // If the endpoint doesn't exist (404) or isn't reachable in local dev, fall back to RLS delete
       if (!res || (res as any).status === 404) {

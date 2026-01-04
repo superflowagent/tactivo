@@ -27,6 +27,11 @@ export function PasswordResetView() {
     useEffect(() => {
         (async () => {
             if (!token) {
+                // Initialize and feature-detect auth helpers
+                try {
+                    // no-op: keep minimal runtime checks if needed
+                } catch { /* ignore */ }
+
                 // Check query param invite_token first (e.g. /auth/password-reset?invite_token=...)
                 try {
                     const sp = new URLSearchParams(window.location.search)
@@ -47,11 +52,24 @@ export function PasswordResetView() {
                             }
                             const sessionRes = await supabase.auth.getSession()
                             if (sessionRes?.data?.session?.user?.email) setEmail(sessionRes.data.session.user.email)
-                        } catch { /* ignore session set errors */ }
+                        } catch { /* ignore */ }
                     }
 
                     if (invite) {
                         setToken(invite)
+                        return
+                    }
+                    // Show any error passed via query param (our server function sends JSON-encoded errors)
+                    const errParam = sp.get('error')
+                    if (errParam) {
+                        try {
+                            const decoded = decodeURIComponent(errParam)
+                            const parsed = JSON.parse(decoded)
+                            // prefer a human message if present, otherwise show message
+                            setError(parsed?.message || decoded)
+                        } catch {
+                            try { setError(decodeURIComponent(errParam)) } catch { setError(errParam) }
+                        }
                         return
                     }
                     if (qtoken) {
@@ -85,8 +103,29 @@ export function PasswordResetView() {
                 const hash = window.location.hash || "";
 
                 // If Supabase left auth fragments like access_token=..., try to force session parsing
-                if ((hash.includes('access_token=') || hash.includes('refresh_token=')) && typeof (supabase.auth as any).getSessionFromUrl === 'function') {
-                    try { await (supabase.auth as any).getSessionFromUrl() } catch { /* ignore */ }
+                if (hash.includes('access_token=') || hash.includes('refresh_token=')) {
+                    if (typeof (supabase.auth as any).getSessionFromUrl === 'function') {
+                        try { await (supabase.auth as any).getSessionFromUrl() } catch { /* ignore */ }
+                    } else {
+                        // Fallback: parse fragment and set session manually
+                        try {
+                            const frag = hash.startsWith('#') ? hash.slice(1) : hash
+                            const params = new URLSearchParams(frag.replace(/^\/?/, ''))
+                            const access = params.get('access_token')
+                            const refresh = params.get('refresh_token')
+                            if (access && typeof (supabase.auth as any).setSession === 'function') {
+                                try {
+                                    await (supabase.auth as any).setSession({ access_token: access, refresh_token: refresh ?? undefined })
+                                } catch { /* ignore */ }
+                            }
+                        } catch { /* ignore */ }
+                    }
+
+                    // Try update email from any newly created session
+                    try {
+                        const sessionRes = await supabase.auth.getSession()
+                        if (sessionRes?.data?.session?.user?.email) setEmail(sessionRes.data.session.user.email)
+                    } catch { /* ignore */ }
                 }
 
                 // handle links like /_/#/auth/password-reset/{TOKEN}
@@ -130,9 +169,11 @@ export function PasswordResetView() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        try {
+            const current = await supabase.auth.getSession()
+        } catch { /* ignore */ }
         if (!token) {
-            setError("Token no encontrado");
-            return;
+            // continue: later block will explicitly check for session and error if missing
         }
         if (password !== passwordConfirm) {
             setError("Las contraseñas no coinciden.");
@@ -141,6 +182,22 @@ export function PasswordResetView() {
 
         setLoading(true);
         try {
+            // If no explicit token param, allow flow when a Supabase session was created from the fragment
+            if (!token) {
+                try {
+                    const check = await supabase.auth.getSession()
+                    if (!check.data.session) {
+                        setError('Token no encontrado')
+                        setLoading(false)
+                        return
+                    }
+                } catch {
+                    setError('Token no encontrado')
+                    setLoading(false)
+                    return
+                }
+            }
+
             // Supabase: ensure session available then update password
             const sessionRes = await supabase.auth.getSession()
             if (!sessionRes.data.session) {
@@ -150,7 +207,22 @@ export function PasswordResetView() {
             }
 
             const { error: updateErr } = await supabase.auth.updateUser({ password })
-            if (updateErr) throw updateErr
+            if (updateErr) {
+                // Supabase may reject identical passwords with an error like
+                // "New password should be different from the old password." —
+                // this is enforced server-side. Treat this specific error as success
+                // because the user's requested password is already in effect.
+                const msg = String(updateErr?.message || '')
+                if (msg.includes('New password should be different') || msg.toLowerCase().includes('same as')) {
+                    try { await logout() } catch { /* ignore */ }
+                    setSuccess(true)
+                    setLoading(false)
+                    setTimeout(() => navigate('/'), 1800)
+                    return
+                }
+
+                throw updateErr
+            }
 
             // Clear any existing session so the app does not auto-redirect to the panel
             try { await logout() } catch {

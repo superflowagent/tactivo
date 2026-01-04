@@ -31,8 +31,8 @@ serve(async (req) => {
 
         // Parse body
         const body = await req.json().catch(() => ({}))
-        const { profile_id } = body
-        if (!profile_id) return jsonResponse({ error: 'profile_id required' }, 400)
+        const { profile_id, user_id } = body
+        if (!profile_id && !user_id) return jsonResponse({ error: 'profile_id or user_id required' }, 400)
 
         // Helper to use Service Role REST for profiles
         const rest = async (method: string, path: string, body?: any) => {
@@ -52,10 +52,17 @@ serve(async (req) => {
             return { ok: res.ok, status: res.status, data }
         }
 
-        // Lookup profile using service role
-        const { ok: getOk, data: profileData } = await rest('GET', `/rest/v1/profiles?id=eq.${profile_id}`)
-        if (!getOk || !profileData || (Array.isArray(profileData) && profileData.length === 0)) return jsonResponse({ error: 'profile_not_found' }, 404)
-        const profile = Array.isArray(profileData) ? profileData[0] : profileData
+        // Lookup profile using service role (accept either profile_id or user_id)
+        let profile: any = null
+        if (user_id) {
+            const r = await rest('GET', `/rest/v1/profiles?user=eq.${user_id}`)
+            if (!r.ok || !r.data || (Array.isArray(r.data) && r.data.length === 0)) return jsonResponse({ error: 'profile_not_found' }, 404)
+            profile = Array.isArray(r.data) ? r.data[0] : r.data
+        } else {
+            const r = await rest('GET', `/rest/v1/profiles?id=eq.${profile_id}`)
+            if (!r.ok || !r.data || (Array.isArray(r.data) && r.data.length === 0)) return jsonResponse({ error: 'profile_not_found' }, 404)
+            profile = Array.isArray(r.data) ? r.data[0] : r.data
+        }
 
         // Authorization: admin-secret or bearer token validated + same-company admin
         let callerUserId: string | null = null
@@ -93,7 +100,9 @@ serve(async (req) => {
                 return jsonResponse({ error: 'caller_profile_missing', auth_debug: dbg }, 403)
             }
             const callerProfile = Array.isArray(caller.data) ? caller.data[0] : caller.data
-            if (!(['admin', 'owner'].includes(callerProfile.role || '')) || String(callerProfile.company) !== String(profile.company)) {
+            // Allow deletion by admin, owner or professional (within same company)
+            const allowedRoles = ['admin', 'owner', 'professional']
+            if (!(allowedRoles.includes(callerProfile.role || '')) || String(callerProfile.company) !== String(profile.company)) {
                 const dbg = { callerRole: callerProfile.role, callerCompany: callerProfile.company, targetCompany: profile.company }
                 console.warn('Forbidden: caller lacks permissions', dbg)
                 return jsonResponse({ error: 'forbidden', auth_debug: dbg }, 403)
