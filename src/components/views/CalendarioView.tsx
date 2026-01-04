@@ -169,17 +169,33 @@ export function CalendarioView() {
 
       // Cargar eventos de la company actual
       const cid = companyId
-      const { data: records, error } = await supabase.from('events').select('*').eq('company', cid).order('datetime')
+      const { data: records, error } = await supabase.rpc('get_events_by_company', { p_company: cid })
       if (error) throw error
+      // Normalize records to array (rpc returns setof rows)
+      const recordsArr = Array.isArray(records) ? records : (records ? [records] : [])
+      // Sort by datetime
+      recordsArr.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+      const recordsFinal = recordsArr
+
 
       // Precompute profile ids to fetch
       const allIds = new Set<string>()
-        ; (records || []).forEach((event: any) => {
+        ; (recordsFinal || []).forEach((event: any) => {
           const pros = Array.isArray(event.professional) ? event.professional : (event.professional ? [event.professional] : [])
           const clients = Array.isArray(event.client) ? event.client : (event.client ? [event.client] : [])
           pros.forEach((id: string) => allIds.add(id))
           clients.forEach((id: string) => allIds.add(id))
         })
+
+      let profileMap: Record<string, any> = {}
+      if (allIds.size > 0) {
+        const ids = Array.from(allIds)
+        const profilesMap = await getProfilesByIds(ids)
+        profileMap = profilesMap || {}
+      }
+
+      // Transformar eventos para FullCalendar
+      const calendarEvents = (recordsFinal || []).map((event: any) => {
 
       let profileMap: Record<string, any> = {}
       if (allIds.size > 0) {
@@ -262,8 +278,9 @@ export function CalendarioView() {
     const eventId = clickInfo.event.id
 
     try {
-      const { data: eventData, error } = await supabase.from('events').select('*').eq('id', eventId).maybeSingle()
+      const { data: eventData, error } = await supabase.rpc('get_event_by_id', { p_event: eventId })
       if (error) throw error
+      const record = Array.isArray(eventData) ? eventData[0] : eventData
 
       // Enrich with profiles
       const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
