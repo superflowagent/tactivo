@@ -19,7 +19,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, UserStar, X, Mail, CheckCircle, Copy } from "lucide-react"
+import { CalendarIcon, UserStar, X, Mail, CheckCircle } from "lucide-react"
 import { createPortal } from "react-dom"
 import { cn } from "@/lib/utils"
 import { debug, error } from '@/lib/logger'
@@ -134,7 +134,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
 
     const [sendingReset, setSendingReset] = useState(false)
     const [showResetSent, setShowResetSent] = useState(false)
-    const [inviteLink, setInviteLink] = useState<string | null>(null)
     const [showInviteToast, setShowInviteToast] = useState(false)
 
     const handleSendResetConfirm = async () => {
@@ -314,18 +313,6 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                             console.warn('No token available after ensureValidSession()')
                             alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
                         } else {
-                            const doSend = async (tk: string) => {
-                                const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`, {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Authorization': `Bearer ${tk}`
-                                    },
-                                    body: JSON.stringify({ profile_id: savedUserId })
-                                }).catch((e) => { console.warn('send-invite fetch failed', e); throw e })
-                                const json = await res.json().catch(() => ({}))
-                                return { res, json }
-                            }
 
                             try {
                                 try {
@@ -334,16 +321,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                                 if (!inviteKey) throw new Error('missing_profile_id_or_email')
                                 const { res, json } = await sendInvite.default(inviteKey)
                                 if (res.ok) {
-                                    // Prefer an actual link found in the email (email_link) if present,
-                                    // otherwise prefer resetUrl, then fallback to invite_link
-                                    const preferredLink = json?.email_link || json?.resetUrl || json?.invite_link || null
-                                    if (preferredLink) {
-                                        setInviteLink(preferredLink)
-                                        setShowInviteToast(true)
-                                    } else {
-                                        setShowInviteToast(true)
-                                        setInviteLink(null)
-                                    }
+                                    // Show toast (we don't expose the actual token in the modal for security)
+                                    setShowInviteToast(true)
                                 } else {
                                     // Show helpful info to user
                                     const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
@@ -664,8 +643,8 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
 
             {
-                showInviteToast && inviteLink && (
-                    <InviteToast inviteLink={inviteLink} onClose={() => { setShowInviteToast(false); setInviteLink(null) }} />
+                showInviteToast && (
+                    <InviteToast onClose={() => { setShowInviteToast(false) }} />
                 )
             }
         </>
