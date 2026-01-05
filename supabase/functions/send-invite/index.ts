@@ -212,10 +212,13 @@ serve(async (req) => {
       }
     }
 
-    // Ensure an auth user exists for the email so the recovery (password reset) email is actually sent.
-    // If no user exists, create one using the Admin REST API (Service Role key). This creates a temporary password
-    // which the recipient will replace via the recovery link.
+    // If profile has no email, skip user creation and sending emails (invite token is set in profile)
     let createUserResult: any = null;
+    if (!profile.email) {
+      // Nothing to send via email; return with invite link and a note so the client can decide how to proceed
+      return jsonResponse({ ok: true, invite_link, note: 'no_email' }, 200);
+    }
+
     try {
       const tmpPwd = crypto.randomUUID().slice(0, 12);
       const cuResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, {
