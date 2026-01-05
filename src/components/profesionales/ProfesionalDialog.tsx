@@ -238,14 +238,14 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
                     // Attempt to update profile.photo_path via helper, with fallbacks to direct updates
                     const upd = await api.updateProfileByUserId(savedUserId, { photo_path: filename })
                     if (upd?.error) {
-                        // attempt direct update by id
-                        const byId = await supabase.from('profiles').update({ photo_path: filename }).eq('id', savedUserId).select().maybeSingle()
+                        // attempt direct update by id without requesting returned columns
+                        const byId = await supabase.from('profiles').update({ photo_path: filename }).eq('id', savedUserId)
                         if (byId.error) throw byId.error
-                        if (!byId.data) {
+                        if (!byId.error && (byId as any).data === undefined) {
                             // attempt direct update by user
-                            const byUser = await supabase.from('profiles').update({ photo_path: filename }).eq('user', savedUserId).select().maybeSingle()
+                            const byUser = await supabase.from('profiles').update({ photo_path: filename }).eq('user', savedUserId)
                             if (byUser.error) throw byUser.error
-                            if (!byUser.data) throw new Error('No se pudo actualizar photo_path por id ni por user')
+                            if (byUser.error) throw new Error('No se pudo actualizar photo_path por id ni por user')
                         }
                     }
 

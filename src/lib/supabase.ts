@@ -158,24 +158,29 @@ export async function fetchProfileByUserId(userId: string) {
         // ignore and fallthrough to direct selects
     }
 
-    // try current 'user' column
+    // Try selecting only columns authenticated is allowed to read
     try {
-        const { data, error } = await supabase.from('profiles').select('*').eq('user', userId).maybeSingle()
+        const { data, error } = await supabase.from('profiles').select('id, user, name, last_name, photo_path, company').eq('user', userId).maybeSingle()
         if (!error && data) return data
     } catch {
         // ignore and fallthrough
     }
 
-    // try primary key 'id'
+    // try primary key 'id' (restricted column set)
+    try {
+        const { data, error } = await supabase.from('profiles').select('id, user, name, last_name, photo_path, company').eq('id', userId).maybeSingle()
+        if (!error && data) return data
+    } catch {
+        // ignore and fallthrough
+    }
+
+    // As a last resort, attempt unrestricted select in case the current role is privileged (e.g., admin/service-role)
     try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
         if (!error && data) return data
     } catch {
         // ignore and fallthrough
     }
-
-    // legacy 'user_id' removed — prefer 'user' or 'id' only (column not present)
-    // skipped user_id for performance and to avoid 400 errors.
 
     return null
 }
@@ -185,21 +190,21 @@ export async function fetchProfileByUserId(userId: string) {
  */
 export async function updateProfileByUserId(userId: string, payload: any) {
     if (!userId) return { error: 'missing userId' }
-    // try 'id' first (safer when 'user' column causes PostgREST issues)
+
+    // Perform update without requesting returned columns to avoid triggering SELECT permissions
     try {
-        const { data, error } = await supabase.from('profiles').update(payload).eq('id', userId).select().maybeSingle()
-        if (!error && data) return { data, error: null }
+        const { error } = await supabase.from('profiles').update(payload).eq('id', userId)
+        if (!error) return { data: null, error: null }
+    } catch {
+        // ignore and try by user
+    }
+
+    try {
+        const { error } = await supabase.from('profiles').update(payload).eq('user', userId)
+        if (!error) return { data: null, error: null }
     } catch {
         // ignore
     }
-    // try 'user'
-    try {
-        const { data, error } = await supabase.from('profiles').update(payload).eq('user', userId).select().maybeSingle()
-        if (!error && data) return { data, error: null }
-    } catch {
-        // ignore
-    }
-    // legacy 'user_id' removed — update by 'id' or 'user' only.
 
     return { error: 'not_updated' }
 }
