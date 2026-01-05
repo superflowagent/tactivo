@@ -339,8 +339,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                     if (card) {
                                         return (
                                             <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
-                                                {card.photo ? (
-                                                    <img src={card.photo} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                {card.photoUrl ? (
+                                                    <img src={card.photoUrl} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                 ) : (
                                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                         {String(card.name || '')?.charAt(0)}{String(card.last_name || '')?.charAt(0)}
@@ -432,8 +432,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                     const prof = profesionales.find(p => p.user === profId)
                                     return prof ? (
                                         <div key={profId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
-                                            {prof.photo ? (
-                                                <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                            {prof.photoUrl ? (
+                                                <img src={prof.photoUrl} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                             ) : (
                                                 <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                     {String(prof.name || '')?.charAt(0)}{String(prof.last_name || '')?.charAt(0)}
@@ -467,8 +467,8 @@ export function ClassSlotDialog({ open, onOpenChange, slot, dayOfWeek, onSave, o
                                     {profesionales.map((prof) => (
                                         <SelectItem key={prof.user} value={prof.user}>
                                             <div className="flex items-center gap-2">
-                                                {prof.photo ? (
-                                                    <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                {prof.photoUrl ? (
+                                                    <img src={prof.photoUrl} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                 ) : (
                                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                         {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}

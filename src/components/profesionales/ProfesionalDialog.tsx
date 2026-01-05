@@ -87,16 +87,16 @@ export function ProfesionalDialog({ open, onOpenChange, profesional, onSave }: P
             }
             setRemovePhoto(false)
 
-                    // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
-                    ; (async () => {
-                        try {
-                            if (!profesional.email) {
-                                const api = await import('@/lib/supabase')
-                                const profile = await api.fetchProfileByUserId(profesional.id!)
-                                if (profile?.email) setFormData(prev => ({ ...prev, email: profile.email }))
-                            }
-                        } catch { /* ignore */ }
-                    })()
+                // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
+                ; (async () => {
+                    try {
+                        if (!profesional.email) {
+                            const api = await import('@/lib/supabase')
+                            const profile = await api.fetchProfileByUserId(profesional.id!)
+                            if (profile?.email) setFormData(prev => ({ ...prev, email: profile.email }))
+                        }
+                    } catch { /* ignore */ }
+                })()
         } else {
             setFormData({
                 name: "",
