@@ -330,8 +330,11 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
                 // Create directly using Supabase client (only allowed fields + company)
                 const dataWithCompany = sanitize({ ...data, company: companyId })
 
-                const { error: insertErr } = await supabase.from('events').insert(dataWithCompany).select('id').maybeSingle()
+                const rpcPayload: any = { p_payload: dataWithCompany }
+                const { data: insertData, error: insertErr } = await supabase.rpc('insert_event_json', rpcPayload)
                 if (insertErr) throw insertErr
+                // Optionally, use returned id
+                const insertedId = Array.isArray(insertData) ? insertData[0]?.id : insertData?.id
             }
 
             onSave()
@@ -351,7 +354,7 @@ export function EventDialog({ open, onOpenChange, event, onSave, initialDateTime
             setLoading(true)
             // Delete via server endpoint which will refund credits if needed
             // Delete directly using Supabase client
-const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: { id: event.id } })
+            const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: { id: event.id } })
             if (delErr) throw delErr
 
             onSave()
@@ -518,7 +521,7 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                         value={formData.type ?? 'appointment'}
                                         onValueChange={(value) => { if (isClientView) return; handleChange('type', value as Event['type']) }}
                                     >
-                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90 [&>svg]:hidden' : ''}>
+                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'h-10 pointer-events-none opacity-90 [&>svg]:hidden' : 'h-10'}>
                                             <SelectValue placeholder="Selecciona un tipo" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -596,7 +599,7 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                                 variant="outline"
                                                 tabIndex={isClientView ? -1 : undefined}
                                                 className={cn(
-                                                    "w-full justify-start text-left font-normal",
+                                                    "w-full justify-start text-left font-normal h-10",
                                                     !fecha && "text-muted-foreground",
                                                     isClientView && 'pointer-events-none opacity-90'
                                                 )}
@@ -630,7 +633,7 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                         ) : (
                                             <>
                                                 <Select value={hora} onValueChange={(v) => setHora(v)}>
-                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1">
+                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1 h-10">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -643,7 +646,7 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                                 </Select>
                                                 <span className="flex items-center">:</span>
                                                 <Select value={minutos} onValueChange={(v) => setMinutos(v)}>
-                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1">
+                                                    <SelectTrigger tabIndex={isClientView ? -1 : undefined} className="flex-1 h-10">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -677,8 +680,8 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                             if (card) {
                                                 return (
                                                     <div key={clientId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
-                                                        {card.photo ? (
-                                                            <img src={card.photo} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                        {card.photoUrl ? (
+                                                            <img src={card.photoUrl} alt={`${card.name} ${card.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                         ) : (
                                                             <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                                 {String(card.name || '')?.charAt(0)}{String(card.last_name || '')?.charAt(0)}
@@ -745,16 +748,16 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                         })}
                                     </div>
                                     {!isClientView && (
-                                        <div className="space-y-2">
+                                        <div className="space-y-2 relative">
                                             <Input
                                                 placeholder="Buscar cliente..."
                                                 value={clientSearch}
                                                 onChange={(e) => setClientSearch(e.target.value)}
-                                                className="text-sm"
+                                                className="text-sm h-10"
                                                 ref={(el: HTMLInputElement) => clientSearchRef.current = el}
                                             />
                                             {clientSearch && (
-                                                <div className="border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 absolute z-50 bg-background">
+                                                <div className="absolute left-0 mt-1 w-full border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 z-50 bg-background pointer-events-auto">
                                                     {clientes
                                                         .filter(cliente => {
                                                             const normalizedSearch = clientSearch.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -763,7 +766,7 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                                         })
                                                         .filter(cliente => !selectedClients.includes(cliente.user))
                                                         .map((cliente) => {
-                                                            const photoUrl = cliente.photo ? cliente.photo : null
+                                                            const photoUrl = cliente.photoUrl || cliente.photo || (cliente.photo_path ? getFilePublicUrl('profile_photos', cliente.id, cliente.photo_path) : null)
                                                             return (
                                                                 <button
                                                                     key={cliente.user}
@@ -816,8 +819,8 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                         const prof = profesionales.find(p => p.user === profId)
                                         return prof ? (
                                             <div key={profId} className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm">
-                                                {prof.photo ? (
-                                                    <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                {prof.photoUrl ? (
+                                                    <img src={prof.photoUrl} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                 ) : (
                                                     <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                         {String(prof.name || '')?.charAt(0)}{String(prof.last_name || '')?.charAt(0)}
@@ -848,15 +851,15 @@ const { error: delErr } = await supabase.rpc('delete_event_json', { p_payload: {
                                             }
                                         }}
                                     >
-                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'pointer-events-none opacity-90' : ''}>
+                                        <SelectTrigger tabIndex={isClientView ? -1 : undefined} className={isClientView ? 'h-10 pointer-events-none opacity-90' : 'h-10'}>
                                             <SelectValue placeholder="Añadir profesional" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {profesionales.map((prof) => (
                                                 <SelectItem key={prof.user} value={prof.user}>
                                                     <div className="flex items-center gap-2">
-                                                        {prof.photo ? (
-                                                            <img src={prof.photo} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                                                        {prof.photoUrl ? (
+                                                            <img src={prof.photoUrl} alt={`${prof.name} ${prof.last_name}`} className="h-6 w-6 rounded object-cover flex-shrink-0" />
                                                         ) : (
                                                             <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
                                                                 {prof.name?.charAt(0)}{prof.last_name?.charAt(0)}
