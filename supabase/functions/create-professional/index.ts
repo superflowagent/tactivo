@@ -107,13 +107,21 @@ serve(async (req: any) => {
     const { name, last_name, email, company } = body || {};
     if (!name || !last_name) return jsonResponse({ error: 'name and last_name required' }, 400);
 
-    // Authorization: only admin (callerProfile.role === 'admin') or ADMIN_SECRET can create professionals
+    // Authorization: allow admin OR professionals acting within their own company
     if (!provided) {
-      if (!(callerProfile && callerProfile.role === 'admin')) {
-        // Include minimal diagnostic info to help debug why the caller was rejected
+      if (!callerProfile) {
+        return jsonResponse({ error: 'forbidden', auth_debug: { caller_profile_found: false } }, 403);
+      }
+
+      const targetCompany = body?.company || callerProfile.company;
+      const sameCompany = String(callerProfile.company) === String(targetCompany);
+
+      if (!(callerProfile.role === 'admin' || (callerProfile.role === 'professional' && sameCompany))) {
         const authDebug: any = {
-          caller_profile_found: !!callerProfile,
+          caller_profile_found: true,
           caller_role: callerProfile?.role ?? null,
+          caller_company: callerProfile?.company ?? null,
+          target_company: targetCompany ?? null,
         };
         console.warn('create-professional forbidden', authDebug);
         return jsonResponse({ error: 'forbidden', auth_debug: authDebug }, 403);
