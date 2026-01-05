@@ -92,21 +92,10 @@ serve(async (req: any) => {
       const userJson = await userResp.json();
       callerUserId = userJson.id;
       if (!callerUserId) return jsonResponse({ error: 'Invalid token' }, 401);
-      // fetch caller profile to check role; try several keys because past migrations used different column names (user, user_id, id)
-      let callerLookup: any = null;
-      const tries = [`user=eq.${callerUserId}`, `user_id=eq.${callerUserId}`, `id=eq.${callerUserId}`];
-      for (const q of tries) {
-        try {
-          const c = await restProfiles('GET', undefined, q);
-          if (c.ok && c.data && Array.isArray(c.data) && c.data.length > 0) {
-            callerLookup = c.data[0];
-            break;
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-      if (callerLookup) callerProfile = callerLookup;
+      // fetch caller profile to check role (lookup by `user` column)
+      const caller = await restProfiles('GET', undefined, `user=eq.${callerUserId}`);
+      if (caller.ok && caller.data && Array.isArray(caller.data) && caller.data.length > 0)
+        callerProfile = caller.data[0];
     } else {
       if (!ADMIN_SECRET) return jsonResponse({ error: 'ADMIN_SECRET not configured' }, 500);
       if (provided !== ADMIN_SECRET) return jsonResponse({ error: 'Unauthorized' }, 401);
@@ -120,8 +109,15 @@ serve(async (req: any) => {
 
     // Authorization: only admin (callerProfile.role === 'admin') or ADMIN_SECRET can create professionals
     if (!provided) {
-      if (!(callerProfile && callerProfile.role === 'admin'))
-        return jsonResponse({ error: 'forbidden' }, 403);
+      if (!(callerProfile && callerProfile.role === 'admin')) {
+        // Include minimal diagnostic info to help debug why the caller was rejected
+        const authDebug: any = {
+          caller_profile_found: !!callerProfile,
+          caller_role: callerProfile?.role ?? null,
+        };
+        console.warn('create-professional forbidden', authDebug);
+        return jsonResponse({ error: 'forbidden', auth_debug: authDebug }, 403);
+      }
     }
 
     // Force role to professional and company to provided or to caller's company if present
