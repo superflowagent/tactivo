@@ -1,2 +1,0 @@
-# Ignore server-side api files that are linted with a different tsconfig
-api/
