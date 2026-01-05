@@ -94,7 +94,28 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
     useEffect(() => {
         if (cliente) {
-            setFormData(cliente);
+            setFormData((prev) => ({
+                ...prev,
+                id: cliente.id,
+                name: cliente.name || '',
+                last_name: cliente.last_name || '',
+                dni: cliente.dni || '',
+                email: cliente.email || '',
+                phone: cliente.phone || '',
+                company: cliente.company || '',
+                session_credits: cliente.session_credits ?? 0,
+                class_credits: cliente.class_credits ?? 0,
+                photo: cliente.photo || '',
+                photo_path: cliente.photo_path ?? null,
+                birth_date: cliente.birth_date ?? undefined,
+                address: cliente.address || '',
+                occupation: cliente.occupation || '',
+                sport: cliente.sport || '',
+                history: cliente.history || '',
+                diagnosis: cliente.diagnosis || '',
+                allergies: cliente.allergies || '',
+                notes: cliente.notes || '',
+            }));
             if (cliente.birth_date) {
                 const date = new Date(cliente.birth_date);
                 setFechaNacimiento(date);
@@ -108,7 +129,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     if (!cliente.email) {
                         const api = await import('@/lib/supabase');
                         const profile = await api.fetchProfileByUserId(cliente.id!);
-                        if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email }));
+                        if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
                     }
                 } catch {
                     /* ignore */
@@ -725,7 +746,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="name">Nombre *</Label>
                                             <Input
                                                 id="name"
-                                                value={formData.name}
+                                                value={formData.name || ''}
                                                 onChange={(e) => handleChange('name', e.target.value)}
                                                 required
                                                 ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
@@ -736,7 +757,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="last_name">Apellidos *</Label>
                                             <Input
                                                 id="last_name"
-                                                value={formData.last_name}
+                                                value={formData.last_name || ''}
                                                 onChange={(e) => handleChange('last_name', e.target.value)}
                                                 required
                                             />
@@ -748,7 +769,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="dni">DNI *</Label>
                                             <Input
                                                 id="dni"
-                                                value={formData.dni}
+                                                value={formData.dni || ''}
                                                 onChange={(e) => handleChange('dni', e.target.value)}
                                                 required
                                             />
@@ -759,7 +780,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Input
                                                 id="phone"
                                                 type="tel"
-                                                value={formData.phone}
+                                                value={formData.phone || ''}
                                                 onChange={(e) => handleChange('phone', e.target.value)}
                                                 className={phoneError ? 'border-red-500' : ''}
                                                 required
