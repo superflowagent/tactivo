@@ -53,7 +53,7 @@ export function ProfesionalDialog({
     profesional,
     onSave,
 }: ProfesionalDialogProps) {
-    const { companyId, user } = useAuth();
+    const { companyId } = useAuth();
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Profesional>({
         name: '',
@@ -242,12 +242,7 @@ export function ProfesionalDialog({
                 const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
                 savedUser = data;
             } else {
-                // Create via Edge Function (requires admin role)
-                if (user?.role !== 'admin') {
-                    alert('No tienes permisos para crear profesionales. Solo los administradores pueden hacerlo.');
-                    setLoading(false);
-                    return;
-                }
+                // Create via Edge Function
                 const okSession = await api.ensureValidSession();
                 if (!okSession) throw new Error('session_invalid');
                 const token = await api.getAuthToken();
@@ -263,15 +258,6 @@ export function ProfesionalDialog({
                 );
                 const fnJson = await fnRes.json().catch(() => null);
                 if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                    // If the function returned a diagnostic 'auth_debug', include it in the client alert to help admins debug
-                    if (fnJson?.auth_debug) {
-                        const hint = fnJson.auth_debug.caller_profile_found
-                            ? `Tu perfil tiene role='${fnJson.auth_debug.caller_role}'. Solo admin puede crear profesionales.`
-                            : 'No se encontró tu perfil en la tabla profiles; comprueba que estás autenticado.';
-                        alert('No tienes permisos para crear profesionales. ' + hint);
-                        throw new Error('failed_to_create_professional: forbidden');
-                    }
-
                     throw new Error(
                         'failed_to_create_professional: ' + (fnJson?.error || JSON.stringify(fnJson))
                     );
@@ -522,16 +508,6 @@ export function ProfesionalDialog({
                                 ? 'Modifica los datos del profesional'
                                 : 'Completa los datos del nuevo profesional'}
                         </DialogDescription>
-                        {!profesional?.id && user?.role !== 'admin' && (
-                            <div className="mt-2 px-1">
-                                <Alert>
-                                    <AlertDescription>
-                                        Solo los administradores pueden crear profesionales. Si crees que necesitas
-                                        este permiso, contacta a un administrador de la cuenta.
-                                    </AlertDescription>
-                                </Alert>
-                            </div>
-                        )}
                     </DialogHeader>
 
                     <form
