@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react"
-import { format } from "date-fns"
+import { useState, useEffect, useRef } from 'react';
+import { format } from 'date-fns';
 import {
     Dialog,
     DialogContent,
@@ -7,12 +7,12 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label";
-import { debug, error as logError } from "@/lib/logger";
-import { Calendar } from "@/components/ui/calendar"
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { debug, error as logError } from '@/lib/logger';
+import { Calendar } from '@/components/ui/calendar';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,468 +22,704 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
+import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
-    Tabs,
-    TabsContent,
-    TabsList,
-    TabsTrigger,
-} from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
-import { CalendarIcon, ChevronDown, UserPlus, PencilLine, User, Euro, CheckCircle, XCircle, Pencil } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { getFilePublicUrl, supabase } from "@/lib/supabase"
-import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
-import { getProfilesByIds } from '@/lib/profiles'
-import InviteToast from '@/components/InviteToast'
-import type { Cliente } from "@/types/cliente"
-import type { Event } from "@/types/event"
-import { useAuth } from "@/contexts/AuthContext"
-import { EventDialog } from "@/components/eventos/EventDialog"
+    CalendarIcon,
+    ChevronDown,
+    UserPlus,
+    PencilLine,
+    User,
+    Euro,
+    CheckCircle,
+    XCircle,
+    Pencil,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { getFilePublicUrl, supabase } from '@/lib/supabase';
+import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
+import { getProfilesByIds } from '@/lib/profiles';
+import InviteToast from '@/components/InviteToast';
+import type { Cliente } from '@/types/cliente';
+import type { Event } from '@/types/event';
+import { useAuth } from '@/contexts/AuthContext';
+import { EventDialog } from '@/components/eventos/EventDialog';
 
 interface ClienteDialogProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    cliente?: Cliente | null
-    onSave: () => void
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    cliente?: Cliente | null;
+    onSave: () => void;
 }
 
 export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
-    const { companyId } = useAuth()
-    const nameInputRef = useRef<HTMLInputElement | null>(null)
+    const { companyId } = useAuth();
+    const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
-        name: "",
-        last_name: "",
-        dni: "",
-        email: "",
-        phone: "",
-        company: "",
+        name: '',
+        last_name: '',
+        dni: '',
+        email: '',
+        phone: '',
+        company: '',
         session_credits: 0,
         class_credits: 0,
-    })
-    const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined)
-    const [edad, setEdad] = useState<number | null>(null)
-    const [loading, setLoading] = useState(false)
-    const [photoFile, setPhotoFile] = useState<File | null>(null)
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null)
-    const [removePhoto, setRemovePhoto] = useState(false)
-    const [phoneError, setPhoneError] = useState<string>("")
-    const [eventos, setEventos] = useState<Event[]>([])
-    const [loadingEventos, setLoadingEventos] = useState(false)
-    const [eventDialogOpen, setEventDialogOpen] = useState(false)
-    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-    const [activeTab, setActiveTab] = useState("datos")
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-    const [showInviteToast, setShowInviteToast] = useState(false)
-    const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null)
+    });
+    const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined);
+    const [edad, setEdad] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [photoFile, setPhotoFile] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [removePhoto, setRemovePhoto] = useState(false);
+    const [phoneError, setPhoneError] = useState<string>('');
+    const [eventos, setEventos] = useState<Event[]>([]);
+    const [loadingEventos, setLoadingEventos] = useState(false);
+    const [eventDialogOpen, setEventDialogOpen] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [activeTab, setActiveTab] = useState('datos');
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showInviteToast, setShowInviteToast] = useState(false);
+    const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
 
     // Resolve existing customer photo URL (public or signed)
-    const resolvedClientePhoto = useResolvedFileUrl('profile_photos', cliente?.id || null, cliente?.photo_path || null)
+    const resolvedClientePhoto = useResolvedFileUrl(
+        'profile_photos',
+        cliente?.id || null,
+        cliente?.photo_path || null
+    );
 
     useEffect(() => {
         if (cliente) {
-            setFormData(cliente)
+            setFormData(cliente);
             if (cliente.birth_date) {
-                const date = new Date(cliente.birth_date)
-                setFechaNacimiento(date)
-                calcularEdad(date)
+                const date = new Date(cliente.birth_date);
+                setFechaNacimiento(date);
+                calcularEdad(date);
             }
 
             // Cargar events y asegurar email actualizado
             // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
-            ; (async () => {
+            (async () => {
                 try {
                     if (!cliente.email) {
-                        const api = await import('@/lib/supabase')
-                        const profile = await api.fetchProfileByUserId(cliente.id!)
-                        if (profile?.email) setFormData(prev => ({ ...prev, email: profile.email }))
+                        const api = await import('@/lib/supabase');
+                        const profile = await api.fetchProfileByUserId(cliente.id!);
+                        if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email }));
                     }
-                } catch { /* ignore */ }
-            })()
+                } catch {
+                    /* ignore */
+                }
+            })();
 
-            loadEventos(cliente.id!)
+            loadEventos(cliente.id!);
         } else {
             setFormData({
-                name: "",
-                last_name: "",
-                dni: "",
-                email: "",
-                phone: "",
-                company: "",
+                name: '',
+                last_name: '',
+                dni: '',
+                email: '',
+                phone: '',
+                company: '',
                 session_credits: 0,
                 class_credits: 0,
-            })
-            setFechaNacimiento(undefined)
-            setEdad(null)
-            setPhotoFile(null)
-            setPhotoPreview(null)
-            setRemovePhoto(false)
-            setEventos([])
+            });
+            setFechaNacimiento(undefined);
+            setEdad(null);
+            setPhotoFile(null);
+            setPhotoPreview(null);
+            setRemovePhoto(false);
+            setEventos([]);
         }
-        setPhoneError("")
+        setPhoneError('');
 
         // Autofocus removed per UX decision
-    }, [cliente, open])
+    }, [cliente, open]);
 
     // Update photo preview when the resolved URL or the selected file changes (without touching formData)
     useEffect(() => {
         if (cliente?.photo_path) {
-            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null)
+            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
         } else {
-            setPhotoPreview(null)
+            setPhotoPreview(null);
         }
-    }, [resolvedClientePhoto, photoFile, cliente?.photo_path])
+    }, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
 
     const calcularEdad = (fecha: Date) => {
-        const hoy = new Date()
-        let edad = hoy.getFullYear() - fecha.getFullYear()
-        const mes = hoy.getMonth() - fecha.getMonth()
+        const hoy = new Date();
+        let edad = hoy.getFullYear() - fecha.getFullYear();
+        const mes = hoy.getMonth() - fecha.getMonth();
         if (mes < 0 || (mes === 0 && hoy.getDate() < fecha.getDate())) {
-            edad--
+            edad--;
         }
-        setEdad(edad)
-    }
+        setEdad(edad);
+    };
 
     const loadEventos = async (clienteId: string) => {
-        if (!clienteId) return
+        if (!clienteId) return;
 
-        setLoadingEventos(true)
+        setLoadingEventos(true);
         try {
-            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: companyId })
-            if (error) throw error
-            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
-            const records = (recordsAll || []).filter((r: any) => (Array.isArray(r.client) ? r.client.includes(clienteId) : (r.client ? [r.client].includes(clienteId) : false)) && r.type === 'appointment')
+            // Resolve profile row for the given clienteId (could be user id or profile id)
+            let resolvedProfileId: string | null = null;
+            let resolvedUserId: string | null = null;
+            try {
+                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId] });
+                if (!profErr && profRows && (profRows as any[]).length > 0) {
+                    const row = (profRows as any[])[0];
+                    resolvedProfileId = row.id ?? null;
+                    resolvedUserId = row.user ?? null;
+                }
+            } catch {
+                // ignore resolution errors, we'll fallback to simple matching
+            }
+
+            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+                p_company: companyId,
+            });
+            if (error) throw error;
+            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+
+            // helper to check client membership supporting either profile id or user id stored in event.client
+            const clientMatches = (clientsField: any, pid: string, resolvedProfile: string | null, resolvedUser: string | null) => {
+                const arr = Array.isArray(clientsField) ? clientsField : (clientsField ? [clientsField] : []);
+                if (!arr || arr.length === 0) return false;
+                if (arr.includes(pid)) return true;
+                if (resolvedProfile && arr.includes(resolvedProfile)) return true;
+                if (resolvedUser && arr.includes(resolvedUser)) return true;
+                return false;
+            };
+
+            const records = (recordsAll || []).filter((r: any) => clientMatches(r.client, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment');
             // Enrich professional field
-            const profIds = new Set<string>()
-                ; (records || []).forEach((r: any) => {
-                    const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
-                    pros.forEach((id: string) => profIds.add(id))
-                })
-            let profileMap: Record<string, any> = {}
+            const profIds = new Set<string>();
+            (records || []).forEach((r: any) => {
+                const pros = Array.isArray(r.professional)
+                    ? r.professional
+                    : r.professional
+                        ? [r.professional]
+                        : [];
+                pros.forEach((id: string) => profIds.add(id));
+            });
+            let profileMap: Record<string, any> = {};
             if (profIds.size > 0) {
-                const ids = Array.from(profIds)
-                const profilesMap = await getProfilesByIds(ids)
-                profileMap = profilesMap || {}
+                const ids = Array.from(profIds);
+                const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+                profileMap = profilesMap || {};
             }
             const enriched = (records || []).map((r: any) => ({
                 ...r,
                 expand: {
-                    professional: (Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean)
-                }
-            }))
-            setEventos(enriched)
+                    professional: (Array.isArray(r.professional)
+                        ? r.professional
+                        : r.professional
+                            ? [r.professional]
+                            : []
+                    )
+                        .map((id: string) => profileMap[id] || null)
+                        .filter(Boolean),
+                },
+            }));
+            setEventos(enriched);
         } catch (err) {
-            logError('Error al cargar eventos:', err)
+            logError('Error al cargar eventos:', err);
         } finally {
-            setLoadingEventos(false)
+            setLoadingEventos(false);
         }
-    }
+    };
 
     const handleEditEvent = async (eventId: string) => {
         try {
-            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: companyId })
-            if (error) throw error
-            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
-            const eventData = (recordsAll || []).find((r: any) => r.id === eventId)
-            if (!eventData) throw new Error('event not found')
-            const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
-            let profileMap: Record<string, any> = {}
+            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+                p_company: companyId,
+            });
+            if (error) throw error;
+            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+            const eventData = (recordsAll || []).find((r: any) => r.id === eventId);
+            if (!eventData) throw new Error('event not found');
+            const ids = [
+                ...(Array.isArray(eventData.client)
+                    ? eventData.client
+                    : eventData.client
+                        ? [eventData.client]
+                        : []),
+                ...(Array.isArray(eventData.professional)
+                    ? eventData.professional
+                    : eventData.professional
+                        ? [eventData.professional]
+                        : []),
+            ];
+            let profileMap: Record<string, any> = {};
             if (ids.length > 0) {
-                const profilesMap = await getProfilesByIds(ids)
-                profileMap = profilesMap || {}
+                const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+                profileMap = profilesMap || {};
             }
             const enriched = {
                 ...eventData,
                 expand: {
-                    client: (Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-                    professional: (Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-                }
-            }
-            setSelectedEvent(enriched as any)
-            setEventDialogOpen(true)
+                    client: (Array.isArray(eventData.client)
+                        ? eventData.client
+                        : eventData.client
+                            ? [eventData.client]
+                            : []
+                    )
+                        .map((id: string) => profileMap[id] || null)
+                        .filter(Boolean),
+                    professional: (Array.isArray(eventData.professional)
+                        ? eventData.professional
+                        : eventData.professional
+                            ? [eventData.professional]
+                            : []
+                    )
+                        .map((id: string) => profileMap[id] || null)
+                        .filter(Boolean),
+                },
+            };
+            setSelectedEvent(enriched as any);
+            setEventDialogOpen(true);
         } catch (err) {
-            logError('Error cargando evento:', err)
+            logError('Error cargando evento:', err);
         }
-    }
+    };
 
     const handleEventSaved = () => {
-        loadEventos(cliente?.id!)
-    }
+        loadEventos(cliente?.id!);
+    };
 
     const handleDateSelect = (date: Date | undefined) => {
-        setFechaNacimiento(date)
+        setFechaNacimiento(date);
         if (date) {
-            calcularEdad(date)
+            calcularEdad(date);
         } else {
-            setEdad(null)
+            setEdad(null);
         }
-    }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
+        e.preventDefault();
 
         // Validar teléfono
         if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
-            setPhoneError("El teléfono debe tener exactamente 9 dígitos")
-            return
+            setPhoneError('El teléfono debe tener exactamente 9 dígitos');
+            return;
         }
 
-        setLoading(true)
+        setLoading(true);
 
         try {
             // Build payload object for non-file updates
-            const payload: any = {}
+            const payload: any = {};
 
             // Añadir campos regulares (excluyendo campos especiales y metadata)
             Object.entries(formData).forEach(([key, value]) => {
-                if (key === 'id' || key === 'created' || key === 'updated' || key === 'photo' || key === 'birth_date' || key === 'email') return
+                if (
+                    key === 'id' ||
+                    key === 'created' ||
+                    key === 'updated' ||
+                    key === 'photo' ||
+                    key === 'birth_date' ||
+                    key === 'email'
+                )
+                    return;
                 if (value !== undefined && value !== null && value !== '') {
                     if (key === 'session_credits' || key === 'class_credits') {
-                        const parsed = parseInt(String(value))
-                        payload[key] = String(isNaN(parsed) ? 0 : parsed)
+                        const parsed = parseInt(String(value));
+                        payload[key] = String(isNaN(parsed) ? 0 : parsed);
                     } else {
-                        payload[key] = String(value)
+                        payload[key] = String(value);
                     }
                 }
-            })
+            });
 
             // Email handling
             if (!cliente?.id) {
                 if (formData.email) {
-                    payload.email = formData.email
+                    payload.email = formData.email;
                 }
             } else if (formData.email && formData.email !== cliente.email) {
-                payload.email = formData.email
-                payload.emailVisibility = 'true'
+                payload.email = formData.email;
+                payload.emailVisibility = 'true';
             }
 
             // Fecha nacimiento
-            if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, "yyyy-MM-dd")
+            if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, 'yyyy-MM-dd');
 
             // Role/company for new client (do NOT include passwords in profiles table)
             // The invite function will ensure an auth user is created and the recovery email is sent.
             if (!cliente?.id) {
-                payload.role = 'client'
-                if (companyId) payload.company = companyId
+                payload.role = 'client';
+                if (companyId) payload.company = companyId;
             }
 
-            let savedUser: any = null
-            let savedUserId: string | null = null
+            let savedUser: any = null;
+            let savedUserId: string | null = null;
 
             if (photoFile) {
-                const originalFilename = photoFile.name
-                const ext = originalFilename.includes('.') ? originalFilename.slice(originalFilename.lastIndexOf('.')) : ''
-                const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`
+                const originalFilename = photoFile.name;
+                const ext = originalFilename.includes('.')
+                    ? originalFilename.slice(originalFilename.lastIndexOf('.'))
+                    : '';
+                const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
 
                 if (cliente?.id) {
-                    // Update profile first with metadata (we will upload file next)
-                    const api = await import('@/lib/supabase')
-                    const res = await api.updateProfileByUserId(cliente.id, { ...payload })
-                    if (res?.error) throw res.error
-                    savedUser = res.data || null
+                    // Update profile via Edge Function to avoid RLS
+                    const lib = await import('@/lib/supabase');
+                    const okSession = await lib.ensureValidSession();
+                    if (!okSession) throw new Error('session_invalid');
+                    const token = await lib.getAuthToken();
+                    if (!token) throw new Error('missing_token');
 
-                    // For updates we may not receive the full row (avoid SELECT), so use existing cliente.id as identifier
-                    savedUserId = cliente.id
+                    const fnRes = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                        {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                        }
+                    );
+                    const fnJson = await fnRes.json().catch(() => null);
+                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                        throw new Error(
+                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                        );
+                    }
+                    const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
+                    savedUser = data;
+
+                    savedUserId =
+                        savedUser && (savedUser.id || savedUser.user)
+                            ? savedUser.id || savedUser.user
+                            : cliente.id;
 
                     try {
-                        const storagePath = `${filename}`
-                        const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
+                        const storagePath = `${filename}`;
+                        const { data: uploadData, error: uploadErr } = await supabase.storage
+                            .from('profile_photos')
+                            .upload(storagePath, photoFile);
                         if (uploadErr) {
-                            console.error('Upload error for cliente', { bucket: 'profile_photos', path: storagePath, error: uploadErr })
-                            throw uploadErr
+                            console.error('Upload error for cliente', {
+                                bucket: 'profile_photos',
+                                path: storagePath,
+                                error: uploadErr,
+                            });
+                            throw uploadErr;
                         }
-                        debug('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
+                        debug('Upload success for cliente', {
+                            bucket: 'profile_photos',
+                            path: storagePath,
+                            data: uploadData,
+                        });
 
-                        // Attempt to set photo_path and verify
-                        const upd = await api.updateProfileByUserId(savedUserId!, { photo_path: filename })
-                        if (upd?.error) throw upd.error
-                        const verified = await api.fetchProfileByUserId(savedUserId!)
-                        if (!verified || verified.photo_path !== filename) throw new Error('photo_path no persistió para el cliente')
+                        // Attempt to set photo_path and verify via Edge Function to avoid RLS
+                        const patchPhotoRes = await fetch(
+                            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                            {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
+                            }
+                        );
+                        const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
+                        if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
+                            throw new Error(
+                                'failed_to_set_photo_path: ' +
+                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
+                            );
+                        }
+                        const api2 = await import('@/lib/supabase');
+                        const verified = await api2.fetchProfileByUserId(savedUserId!);
+                        if (!verified || verified.photo_path !== filename)
+                            throw new Error('photo_path no persistió para el cliente');
 
                         // Update preview to resolved public/signed URL (prefer root filename)
-                        setPhotoPreview(getFilePublicUrl('profile_photos', null, filename) || getFilePublicUrl('profile_photos', savedUserId, filename) || null)
+                        setPhotoPreview(
+                            getFilePublicUrl('profile_photos', null, filename) ||
+                            getFilePublicUrl('profile_photos', savedUserId, filename) ||
+                            null
+                        );
                     } catch (e) {
-                        logError('Error subiendo foto de cliente:', e)
+                        logError('Error subiendo foto de cliente:', e);
                     }
                 } else {
-                    // Create profile first, then upload file and set photo_path
-                    const { data, error } = await supabase.from('profiles').insert(payload).select('id').single()
-                    if (error) throw error
-                    savedUser = data
+                    // Create profile first via Edge Function to avoid RLS restrictions
+                    const lib = await import('@/lib/supabase');
+                    const okSession = await lib.ensureValidSession();
+                    if (!okSession) throw new Error('session_invalid');
+                    const token = await lib.getAuthToken();
+                    if (!token) throw new Error('missing_token');
 
-                    savedUserId = (savedUser && (savedUser.id || savedUser.user)) ? (savedUser.id || savedUser.user) : (savedUser?.id || null)
+                    const fnRes = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify(payload),
+                        }
+                    );
+                    const fnJson = await fnRes.json().catch(() => null);
+                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                        throw new Error(
+                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                        );
+                    }
+                    const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+                    savedUser = data;
+
+                    savedUserId =
+                        savedUser && (savedUser.id || savedUser.user)
+                            ? savedUser.id || savedUser.user
+                            : savedUser?.id || null;
 
                     try {
-                        const storagePath = `${filename}`
-                        const { data: uploadData, error: uploadErr } = await supabase.storage.from('profile_photos').upload(storagePath, photoFile)
-                        if (uploadErr) throw uploadErr
-                        debug('Upload success for cliente', { bucket: 'profile_photos', path: storagePath, data: uploadData })
-                        if (uploadErr) throw uploadErr
+                        const storagePath = `${filename}`;
+                        const { data: uploadData, error: uploadErr } = await supabase.storage
+                            .from('profile_photos')
+                            .upload(storagePath, photoFile);
+                        if (uploadErr) throw uploadErr;
+                        debug('Upload success for cliente', {
+                            bucket: 'profile_photos',
+                            path: storagePath,
+                            data: uploadData,
+                        });
+                        if (uploadErr) throw uploadErr;
 
-                        const api2 = await import('@/lib/supabase')
-                        const upd = await api2.updateProfileByUserId(savedUserId!, { photo_path: filename })
-                        if (upd?.error) throw upd.error
+                        const patchPhotoRes = await fetch(
+                            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                            {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
+                            }
+                        );
+                        const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
+                        if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
+                            throw new Error(
+                                'failed_to_set_photo_path: ' +
+                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
+                            );
+                        }
                         // Update preview to resolved public/signed URL (prefer root filename)
-                        setPhotoPreview(getFilePublicUrl('profile_photos', null, filename) || getFilePublicUrl('profile_photos', savedUserId, filename) || null)
+                        setPhotoPreview(
+                            getFilePublicUrl('profile_photos', null, filename) ||
+                            getFilePublicUrl('profile_photos', savedUserId, filename) ||
+                            null
+                        );
                     } catch (e) {
-                        logError('Error subiendo foto de cliente:', e)
+                        logError('Error subiendo foto de cliente:', e);
                     }
                 }
             } else {
                 // No new file
-                if (removePhoto && cliente?.id) payload.photo_path = null
+                if (removePhoto && cliente?.id) payload.photo_path = null;
 
                 if (cliente?.id) {
-                    const api = await import('@/lib/supabase')
-                    const res = await api.updateProfileByUserId(cliente.id, payload)
-                    if (res?.error) throw res.error
-                    savedUser = res.data
+                    // Update via Edge Function to avoid RLS
+                    const lib = await import('@/lib/supabase');
+                    const okSession = await lib.ensureValidSession();
+                    if (!okSession) throw new Error('session_invalid');
+                    const token = await lib.getAuthToken();
+                    if (!token) throw new Error('missing_token');
+
+                    const fnRes = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                        {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                        }
+                    );
+                    const fnJson = await fnRes.json().catch(() => null);
+                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                        throw new Error(
+                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                        );
+                    }
+                    const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
+                    savedUser = data;
                 } else {
-                    const { data, error } = await supabase.from('profiles').insert(payload).select('id').single()
-                    if (error) throw error
-                    savedUser = data
+                    // Use Edge Function to create client to bypass RLS (service role)
+                    const lib = await import('@/lib/supabase');
+                    const okSession = await lib.ensureValidSession();
+                    if (!okSession) throw new Error('session_invalid');
+                    const token = await lib.getAuthToken();
+                    if (!token) throw new Error('missing_token');
+
+                    const fnRes = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                            body: JSON.stringify(payload),
+                        }
+                    );
+                    const fnJson = await fnRes.json().catch(() => null);
+                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                        throw new Error(
+                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                        );
+                    }
+                    const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+                    savedUser = data;
                 }
             }
-
 
             // If we just created a new cliente, request the send-invite function (mirror profesional flow)
             if (!cliente?.id) {
                 try {
-                    const lib = await import('@/lib/supabase')
-                    let ok = await lib.ensureValidSession()
+                    const lib = await import('@/lib/supabase');
+                    let ok = await lib.ensureValidSession();
                     if (!ok) {
-                        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.')
+                        alert(
+                            'La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.'
+                        );
                     } else {
-                        let token = await lib.getAuthToken()
+                        let token = await lib.getAuthToken();
                         if (!token) {
-                            console.warn('No token available after ensureValidSession()')
-                            alert('No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.')
+                            console.warn('No token available after ensureValidSession()');
+                            alert(
+                                'No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.'
+                            );
                         } else {
-
-
                             try {
-                                const sendInvite = await import('@/lib/invites')
-                                const inviteKey = (savedUserId as string) || formData.email || ''
-                                if (!inviteKey) throw new Error('missing_profile_id_or_email')
-                                const { res, json } = await sendInvite.default(inviteKey)
+                                const sendInvite = await import('@/lib/invites');
+                                const inviteKey = (savedUserId as string) || formData.email || '';
+                                if (!inviteKey) throw new Error('missing_profile_id_or_email');
+                                const { res, json } = await sendInvite.default(inviteKey);
                                 if (res.ok) {
-                                    setInviteToastTitle('Invitación enviada al cliente')
-                                    setShowInviteToast(true)
+                                    if (json?.note === 'no_email') {
+                                        alert('Invitación creada, pero el perfil no tiene correo electrónico. No se pudo enviar el email de invitación.');
+                                    } else {
+                                        setInviteToastTitle('Invitación enviada al cliente');
+                                        setShowInviteToast(true);
+                                    }
                                 } else {
-                                    const hint = (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) || json?.message || json?.error || json?.code || 'Error'
-                                    const debug = json?.auth_debug ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug) : ''
-                                    alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug)
+                                    const hint =
+                                        (json?.auth_error &&
+                                            (json.auth_error.message || json.auth_error.error_description)) ||
+                                        json?.message ||
+                                        json?.error ||
+                                        json?.code ||
+                                        'Error';
+                                    const debug = json?.auth_debug
+                                        ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug)
+                                        : '';
+                                    alert(
+                                        'La invitación fue creada pero no se pudo ejecutar la función de envío: ' +
+                                        hint +
+                                        debug
+                                    );
                                 }
                             } catch (e: any) {
-                                console.warn('Error calling send-invite helper', e)
-                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)))
+                                console.warn('Error calling send-invite helper', e);
+                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)));
                             }
                         }
                     }
                 } catch (e: any) {
-                    console.warn('Error calling send-invite function', e)
+                    console.warn('Error calling send-invite function', e);
                 }
             }
 
-            onSave()
-            onOpenChange(false)
-            setRemovePhoto(false)
+            onSave();
+            onOpenChange(false);
+            setRemovePhoto(false);
         } catch (err: any) {
-            logError('Error al guardar cliente:', err)
-            logError('Error completo:', JSON.stringify(err, null, 2))
+            logError('Error al guardar cliente:', err);
+            logError('Error completo:', JSON.stringify(err, null, 2));
             if (err?.response) {
-                logError('Response data:', err.response)
+                logError('Response data:', err.response);
             }
-            const msg = String(err?.message || err || '')
+            const msg = String(err?.message || err || '');
             if (msg.includes('PGRST204') || msg.includes("Could not find the 'email' column")) {
-                alert('Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.')
+                alert(
+                    'Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.'
+                );
             } else {
-                alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`)
+                alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`);
             }
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const handleDelete = async () => {
-        if (!cliente?.id) return
+        if (!cliente?.id) return;
 
         try {
-            setLoading(true)
+            setLoading(true);
             // Ensure session is valid and attempt refresh if needed
-            const lib = await import('@/lib/supabase')
-            const ok = await lib.ensureValidSession()
+            const lib = await import('@/lib/supabase');
+            const ok = await lib.ensureValidSession();
             if (!ok) {
-                alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.')
-                return
+                alert(
+                    'La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.'
+                );
+                return;
             }
             // Request server-side deletion: removes both the profile row and the linked auth user (service role) if present.
-            const api = await import('@/lib/supabase')
-            const res = await api.deleteUserByProfileId(cliente.id!)
-            if (!res || !res.ok) throw (res?.data || res?.error || new Error('failed_to_delete_user'))
+            const api = await import('@/lib/supabase');
+            const res = await api.deleteUserByProfileId(cliente.id!);
+            if (!res || !res.ok) throw res?.data || res?.error || new Error('failed_to_delete_user');
 
-
-            onSave()
-            onOpenChange(false)
-            setShowDeleteDialog(false)
+            onSave();
+            onOpenChange(false);
+            setShowDeleteDialog(false);
         } catch (err: any) {
-            logError('Error al eliminar cliente:', err)
-            alert(`Error al eliminar el cliente: ${err?.message || 'Error desconocido'}`)
+            logError('Error al eliminar cliente:', err);
+            alert(`Error al eliminar el cliente: ${err?.message || 'Error desconocido'}`);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const handleChange = (field: keyof Cliente, value: string | number) => {
-        setFormData(prev => ({ ...prev, [field]: value }))
+        setFormData((prev) => ({ ...prev, [field]: value }));
 
         // Validar teléfono en tiempo real
         if (field === 'phone') {
-            const phoneStr = String(value)
+            const phoneStr = String(value);
             if (phoneStr && !/^\d{9}$/.test(phoneStr)) {
-                setPhoneError("Debe tener 9 dígitos")
+                setPhoneError('Debe tener 9 dígitos');
             } else {
-                setPhoneError("")
+                setPhoneError('');
             }
         }
-    }
+    };
 
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+                <DialogContent className="max-w-3xl h-[90vh] flex flex-col overflow-hidden">
                     <DialogHeader>
                         <div className="flex items-center gap-2">
                             {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            <DialogTitle>{cliente ? "Editar Cliente" : "Crear Cliente"}</DialogTitle>
+                            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
                         </div>
                         <DialogDescription>
-                            {cliente ? "Modifica los datos del cliente" : "Completa los datos del nuevo cliente"}
+                            {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <Tabs defaultValue="datos" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+                    <Tabs
+                        defaultValue="datos"
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                        className="flex-1 flex flex-col overflow-hidden"
+                    >
                         <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="datos">Datos</TabsTrigger>
-                            <TabsTrigger value="historial" disabled={!cliente?.id}>Citas</TabsTrigger>
+                            <TabsTrigger value="historial" disabled={!cliente?.id}>
+                                Citas
+                            </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4">
                             <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                 {/* Campos Obligatorios */}
                                 <div className="space-y-4">
-
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="name">Nombre *</Label>
@@ -492,7 +728,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 value={formData.name}
                                                 onChange={(e) => handleChange('name', e.target.value)}
                                                 required
-                                                ref={(el: HTMLInputElement) => nameInputRef.current = el}
+                                                ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
                                             />
                                         </div>
 
@@ -525,7 +761,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 type="tel"
                                                 value={formData.phone}
                                                 onChange={(e) => handleChange('phone', e.target.value)}
-                                                className={phoneError ? "border-red-500" : ""}
+                                                className={phoneError ? 'border-red-500' : ''}
                                                 required
                                             />
                                             {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
@@ -544,7 +780,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                 readOnly={!!cliente?.id}
                                                 required
                                             />
-
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
@@ -587,16 +822,16 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         accept="image/*"
                                                         className="hidden"
                                                         onChange={(e) => {
-                                                            const file = e.target.files?.[0]
+                                                            const file = e.target.files?.[0];
                                                             if (file) {
-                                                                setPhotoFile(file)
-                                                                setRemovePhoto(false)
+                                                                setPhotoFile(file);
+                                                                setRemovePhoto(false);
                                                                 // Crear preview
-                                                                const reader = new FileReader()
+                                                                const reader = new FileReader();
                                                                 reader.onloadend = () => {
-                                                                    setPhotoPreview(reader.result as string)
-                                                                }
-                                                                reader.readAsDataURL(file)
+                                                                    setPhotoPreview(reader.result as string);
+                                                                };
+                                                                reader.readAsDataURL(file);
                                                             }
                                                         }}
                                                     />
@@ -604,21 +839,21 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         htmlFor="photo"
                                                         className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
                                                     >
-                                                        <span>
-                                                            {photoFile ? photoFile.name : "Elegir archivo"}
-                                                        </span>
+                                                        <span>{photoFile ? photoFile.name : 'Elegir archivo'}</span>
                                                         {(photoFile || photoPreview) && (
                                                             <button
                                                                 type="button"
                                                                 onClick={(e) => {
-                                                                    e.preventDefault()
-                                                                    setPhotoFile(null)
-                                                                    setPhotoPreview(null)
-                                                                    setRemovePhoto(true)
-                                                                    setFormData(prev => ({ ...prev, photo: '' }))
+                                                                    e.preventDefault();
+                                                                    setPhotoFile(null);
+                                                                    setPhotoPreview(null);
+                                                                    setRemovePhoto(true);
+                                                                    setFormData((prev) => ({ ...prev, photo: '' }));
                                                                     // Reset file input
-                                                                    const input = document.getElementById('photo') as HTMLInputElement
-                                                                    if (input) input.value = ''
+                                                                    const input = document.getElementById(
+                                                                        'photo'
+                                                                    ) as HTMLInputElement;
+                                                                    if (input) input.value = '';
                                                                 }}
                                                                 className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
                                                             >
@@ -643,7 +878,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="address">Dirección</Label>
                                             <Input
                                                 id="address"
-                                                value={formData.address || ""}
+                                                value={formData.address || ''}
                                                 onChange={(e) => handleChange('address', e.target.value)}
                                             />
                                         </div>
@@ -657,12 +892,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                     <Button
                                                         variant="outline"
                                                         className={cn(
-                                                            "w-full justify-start text-left font-normal h-10",
-                                                            !fechaNacimiento && "text-muted-foreground"
+                                                            'w-full justify-start text-left font-normal h-10',
+                                                            !fechaNacimiento && 'text-muted-foreground'
                                                         )}
                                                     >
                                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {fechaNacimiento ? format(fechaNacimiento, "dd/MM/yyyy") : "Seleccionar fecha"}
+                                                        {fechaNacimiento
+                                                            ? format(fechaNacimiento, 'dd/MM/yyyy')
+                                                            : 'Seleccionar fecha'}
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-auto p-0">
@@ -682,7 +919,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         <div className="space-y-2">
                                             <Label>Edad</Label>
                                             <Input
-                                                value={edad !== null ? `${edad} años` : ""}
+                                                value={edad !== null ? `${edad} años` : ''}
                                                 disabled
                                                 className="bg-muted h-10"
                                             />
@@ -694,7 +931,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="occupation">Ocupación</Label>
                                             <Input
                                                 id="occupation"
-                                                value={formData.occupation || ""}
+                                                value={formData.occupation || ''}
                                                 onChange={(e) => handleChange('occupation', e.target.value)}
                                             />
                                         </div>
@@ -703,7 +940,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <Label htmlFor="sport">Actividad Física</Label>
                                             <Input
                                                 id="sport"
-                                                value={formData.sport || ""}
+                                                value={formData.sport || ''}
                                                 onChange={(e) => handleChange('sport', e.target.value)}
                                             />
                                         </div>
@@ -711,7 +948,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
                                     <Collapsible className="rounded-lg border">
                                         <CollapsibleTrigger asChild>
-                                            <Button variant="ghost" className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50" type="button">
+                                            <Button
+                                                variant="ghost"
+                                                className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50"
+                                                type="button"
+                                            >
                                                 <span className="font-semibold">Información Adicional</span>
                                                 <ChevronDown className="h-4 w-4" />
                                             </Button>
@@ -720,32 +961,32 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                             <div className="border-t bg-muted/30 p-4 space-y-4">
                                                 <div className="space-y-2">
                                                     <Label>Antecedentes</Label>
-                                                    <RichTextEditor
-                                                        value={formData.history || ""}
+                                                    <LazyRichTextEditor
+                                                        value={formData.history || ''}
                                                         onChange={(value) => handleChange('history', value)}
                                                     />
                                                 </div>
 
                                                 <div className="space-y-2">
                                                     <Label>Diagnóstico</Label>
-                                                    <RichTextEditor
-                                                        value={formData.diagnosis || ""}
+                                                    <LazyRichTextEditor
+                                                        value={formData.diagnosis || ''}
                                                         onChange={(value) => handleChange('diagnosis', value)}
                                                     />
                                                 </div>
 
                                                 <div className="space-y-2">
                                                     <Label>Alergias</Label>
-                                                    <RichTextEditor
-                                                        value={formData.allergies || ""}
+                                                    <LazyRichTextEditor
+                                                        value={formData.allergies || ''}
                                                         onChange={(value) => handleChange('allergies', value)}
                                                     />
                                                 </div>
 
                                                 <div className="space-y-2">
                                                     <Label>Notas</Label>
-                                                    <RichTextEditor
-                                                        value={formData.notes || ""}
+                                                    <LazyRichTextEditor
+                                                        value={formData.notes || ''}
                                                         onChange={(value) => handleChange('notes', value)}
                                                     />
                                                 </div>
@@ -769,12 +1010,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 ) : (
                                     <div className="space-y-2">
                                         {eventos.map((evento) => {
-                                            const fecha = new Date(evento.datetime)
+                                            const fecha = new Date(evento.datetime);
                                             const profesionalNames = Array.isArray(evento.expand?.professional)
-                                                ? evento.expand.professional.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
+                                                ? evento.expand.professional
+                                                    .map((p: any) => `${p.name} ${p.last_name}`)
+                                                    .join(', ')
                                                 : evento.expand?.professional
                                                     ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
-                                                    : 'Sin asignar'
+                                                    : 'Sin asignar';
 
                                             return (
                                                 <Card key={evento.id} className="p-4">
@@ -783,7 +1026,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                                             <div>
                                                                 <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
-                                                                <p className="text-sm text-muted-foreground">{format(fecha, 'HH:mm')}</p>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {format(fecha, 'HH:mm')}
+                                                                </p>
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2 col-span-2">
@@ -818,7 +1063,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         </div>
                                                     </div>
                                                 </Card>
-                                            )
+                                            );
                                         })}
                                     </div>
                                 )}
@@ -829,7 +1074,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     <DialogFooter className="mt-4">
                         <div className="flex w-full justify-between">
                             <div>
-                                {cliente?.id && activeTab === "datos" && (
+                                {cliente?.id && activeTab === 'datos' && (
                                     <Button
                                         type="button"
                                         variant="destructive"
@@ -845,7 +1090,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                     Cancelar
                                 </Button>
                                 <Button type="submit" form="cliente-form" disabled={loading}>
-                                    {loading ? "Guardando..." : "Guardar"}
+                                    {loading ? 'Guardando...' : 'Guardar'}
                                 </Button>
                             </div>
                         </div>
@@ -857,24 +1102,30 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer.
-                        </AlertDialogDescription>
+                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
                             Eliminar
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
-            {
-                showInviteToast && (
-                    <InviteToast title={inviteToastTitle ?? 'Invitación enviada'} durationMs={4000} onClose={() => { setShowInviteToast(false); setInviteToastTitle(null) }} />
-                )
-            }
+            {showInviteToast && (
+                <InviteToast
+                    title={inviteToastTitle ?? 'Invitación enviada'}
+                    durationMs={4000}
+                    onClose={() => {
+                        setShowInviteToast(false);
+                        setInviteToastTitle(null);
+                    }}
+                />
+            )}
 
             <EventDialog
                 open={eventDialogOpen}
@@ -883,5 +1134,5 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 onSave={handleEventSaved}
             />
         </>
-    )
+    );
 }
