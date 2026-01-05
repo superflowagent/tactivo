@@ -291,9 +291,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     const api = await import('@/lib/supabase')
                     const res = await api.updateProfileByUserId(cliente.id, { ...payload })
                     if (res?.error) throw res.error
-                    savedUser = res.data
+                    savedUser = res.data || null
 
-                    savedUserId = (savedUser && (savedUser.id || savedUser.user)) ? (savedUser.id || savedUser.user) : cliente.id
+                    // For updates we may not receive the full row (avoid SELECT), so use existing cliente.id as identifier
+                    savedUserId = cliente.id
 
                     try {
                         const storagePath = `${filename}`
@@ -317,7 +318,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     }
                 } else {
                     // Create profile first, then upload file and set photo_path
-                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    const { data, error } = await supabase.from('profiles').insert(payload).select('id').single()
                     if (error) throw error
                     savedUser = data
 
@@ -349,7 +350,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     if (res?.error) throw res.error
                     savedUser = res.data
                 } else {
-                    const { data, error } = await supabase.from('profiles').insert(payload).select().single()
+                    const { data, error } = await supabase.from('profiles').insert(payload).select('id').single()
                     if (error) throw error
                     savedUser = data
                 }
