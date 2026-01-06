@@ -63,7 +63,7 @@ interface ClienteDialogProps {
     onSave: () => void;
 }
 
-export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps): JSX.Element {
+export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
     // Debug: ensure open prop flows from parent
     if (typeof window !== 'undefined') {
         // eslint-disable-next-line no-console
