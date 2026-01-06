@@ -293,6 +293,13 @@ export function ClientesView() {
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
                     <ActionButton
+                      tooltip="Editar"
+                      onClick={() => handleEdit(cliente)}
+                      aria-label="Editar cliente"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </ActionButton>
+                    <ActionButton
                       tooltip="Programas"
                       onClick={() => {
                         setSelectedCliente(cliente);
@@ -302,13 +309,6 @@ export function ClientesView() {
                       aria-label="Ver programas"
                     >
                       <Dumbbell className="h-4 w-4" />
-                    </ActionButton>
-                    <ActionButton
-                      tooltip="Editar"
-                      onClick={() => handleEdit(cliente)}
-                      aria-label="Editar cliente"
-                    >
-                      <Pencil className="h-4 w-4" />
                     </ActionButton>
                     <ActionButton
                       tooltip="Eliminar"
