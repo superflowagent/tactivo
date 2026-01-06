@@ -1390,8 +1390,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 <TabsTrigger value="programas">Programas</TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="datos" className="flex-1 flex flex-col mt-4">
-                                <div className="flex-1 overflow-y-auto">
+                            <TabsContent value="datos" className="flex-1 min-h-0 flex flex-col mt-4">
+                                <div className="flex-1 min-h-0 overflow-y-auto">
                                     <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                     {/* Campos Obligatorios */}
                                     <div className="space-y-4">
@@ -1672,9 +1672,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </form>
                                 </div>
                             </TabsContent>
-                            <TabsContent value="programas" className="flex-1 flex flex-col mt-4">
-                                <div className="flex-1 overflow-y-auto">
-                                <div className="px-1 flex-1 flex flex-col">
+                            <TabsContent value="programas" className="flex-1 min-h-0 flex flex-col mt-4">
+                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                <div className="px-1 flex-1 min-h-0 flex flex-col">
                                     <div className="flex items-center gap-2">
                                         <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
                                             <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
@@ -1806,17 +1806,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                                     if (!items.length) {
                                                                                         return (
                                                                                             <div className="flex items-center justify-center py-6">
-                                                                                                <Button onClick={async () => {
-                                                                                                    setCurrentProgramForPicker(p.id ?? p.tempId);
-                                                                                                    setCurrentDayForPicker(day);
-                                                                                                    try {
-                                                                                                        const { data } = await supabase.from('exercises').select('*').eq('company', p.company).order('name');
-                                                                                                        setExercisesForCompany((data as any) || []);
-                                                                                                        setShowAddExercisesDialog(true);
-                                                                                                    } catch (err) {
-                                                                                                        logError('Error loading exercises', err);
-                                                                                                    }
-                                                                                                }} className="px-4 py-2">+ Ejercicio</Button>
+                                                                                                <Button onClick={() => openAddExercises(p.id ?? p.tempId, day)} className="px-4 py-2">+ Ejercicio</Button>
                                                                                             </div>
                                                                                         );
                                                                                     } else {
@@ -1887,8 +1877,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </div>
                             </div>
                         </TabsContent>
-                            <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
-                                <div className="flex-1 overflow-y-auto px-1 space-y-4">
+                            <TabsContent value="historial" className="flex-1 min-h-0 flex flex-col mt-4">
+                                <div className="flex-1 min-h-0 overflow-y-auto px-1 space-y-4">
                                     {loadingEventos ? (
                                         <div className="flex items-center justify-center py-8">
                                             <p className="text-muted-foreground">Cargando historial...</p>
