@@ -63,7 +63,7 @@ interface ClienteDialogProps {
     onSave: () => void;
 }
 
-export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
+export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps): JSX.Element {
     const { companyId } = useAuth();
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
@@ -985,569 +985,569 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     };
 
     const openAddExercises = async (programId: string) => {
-    const saveCurrentProgram = async () => {
-        if (!activeProgramId) return;
-        const idKey = activeProgramId;
-        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
-        if (idx === -1) return;
-        const p = programs[idx];
-        setSavingProgram(true);
-        try {
-            // If program is temporary, persist it (this will also persist attached exercises if any)
-            if ((p.tempId && idKey === p.tempId) || !p.persisted) {
-                await persistSingleProgram(idKey);
+        const saveCurrentProgram = async () => {
+            if (!activeProgramId) return;
+            const idKey = activeProgramId;
+            const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+            if (idx === -1) return;
+            const p = programs[idx];
+            setSavingProgram(true);
+            try {
+                // If program is temporary, persist it (this will also persist attached exercises if any)
+                if ((p.tempId && idKey === p.tempId) || !p.persisted) {
+                    await persistSingleProgram(idKey);
+                    setSavingProgram(false);
+                    return;
+                }
+
+                // Persist description/name updates
+                const updates: any = { description: p.description || '' };
+                if (p.name) updates.name = p.name;
+                const { data, error } = await supabase.from('programs').update(updates).eq('id', p.id).select().single();
+                if (error) throw error;
+                setPrograms((prev) => prev.map((x) => (x.id === p.id ? { ...x, name: data.name, description: data.description } : x)));
+
+                // Ensure exercises are persisted (only add missing ones)
+                const { data: existing, error: exErr } = await supabase.from('program_exercises').select('exercise').eq('program', p.id);
+                if (exErr) throw exErr;
+                const existingIds = (existing || []).map((r: any) => r.exercise);
+                const toAdd = (p.exercises || []).map((ex: any) => ex.id).filter((id: string) => !existingIds.includes(id));
+                if (toAdd.length) {
+                    await addExercisesToProgramDB(p.id, toAdd);
+                }
+            } catch (e) {
+                console.error('Error saving program', e);
+                alert('Error guardando programa: ' + String(e));
+            } finally {
                 setSavingProgram(false);
+            }
+        };
+
+        const openAddExercises = async (programId: string) => {
+            setCurrentProgramForPicker(programId);
+            setSelectedExerciseIds(new Set());
+            setShowAddExercisesDialog(true);
+            try {
+                if (!companyId) return;
+                setExercisesLoading(true);
+                const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+                if (error) throw error;
+                setExercisesForCompany((data as any) || []);
+            } catch (e) {
+                console.error('Error loading exercises for picker', e);
+                alert('Error cargando ejercicios: ' + String(e));
+            } finally {
+                setExercisesLoading(false);
+            }
+        };
+
+        const removeExerciseFromProgram = async (programId: string, exerciseId: string) => {
+            // If program is temporary, remove locally
+            if ((programId as string).startsWith('t-')) {
+                setPrograms((prev) => prev.map((p) => (p.tempId === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
                 return;
             }
 
-            // Persist description/name updates
-            const updates: any = { description: p.description || '' };
-            if (p.name) updates.name = p.name;
-            const { data, error } = await supabase.from('programs').update(updates).eq('id', p.id).select().single();
-            if (error) throw error;
-            setPrograms((prev) => prev.map((x) => (x.id === p.id ? { ...x, name: data.name, description: data.description } : x)));
-
-            // Ensure exercises are persisted (only add missing ones)
-            const { data: existing, error: exErr } = await supabase.from('program_exercises').select('exercise').eq('program', p.id);
-            if (exErr) throw exErr;
-            const existingIds = (existing || []).map((r: any) => r.exercise);
-            const toAdd = (p.exercises || []).map((ex: any) => ex.id).filter((id: string) => !existingIds.includes(id));
-            if (toAdd.length) {
-                await addExercisesToProgramDB(p.id, toAdd);
+            try {
+                const { error } = await supabase.from('program_exercises').delete().match({ program: programId, exercise: exerciseId });
+                if (error) throw error;
+                setPrograms((prev) => prev.map((p) => (p.id === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
+            } catch (e) {
+                console.error('Error removing exercise from program', e);
+                alert('Error eliminando ejercicio del programa: ' + String(e));
             }
-        } catch (e) {
-            console.error('Error saving program', e);
-            alert('Error guardando programa: ' + String(e));
-        } finally {
-            setSavingProgram(false);
-        }
-    };
+        };
 
-    const openAddExercises = async (programId: string) => {
-        setCurrentProgramForPicker(programId);
-        setSelectedExerciseIds(new Set());
-        setShowAddExercisesDialog(true);
-        try {
-            if (!companyId) return;
-            setExercisesLoading(true);
-            const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
-            if (error) throw error;
-            setExercisesForCompany((data as any) || []);
-        } catch (e) {
-            console.error('Error loading exercises for picker', e);
-            alert('Error cargando ejercicios: ' + String(e));
-        } finally {
-            setExercisesLoading(false);
-        }
-    };
+        const toggleSelectExercise = (id: string) => {
+            setSelectedExerciseIds((prev) => {
+                const s = new Set(prev);
+                if (s.has(id)) s.delete(id);
+                else s.add(id);
+                return s;
+            });
+        };
 
-    const removeExerciseFromProgram = async (programId: string, exerciseId: string) => {
-        // If program is temporary, remove locally
-        if ((programId as string).startsWith('t-')) {
-            setPrograms((prev) => prev.map((p) => (p.tempId === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
-            return;
-        }
+        const confirmAddExercises = async () => {
+            if (!currentProgramForPicker) return;
+            const selected = Array.from(selectedExerciseIds);
+            if (!selected.length) {
+                setShowAddExercisesDialog(false);
+                setCurrentProgramForPicker(null);
+                return;
+            }
 
-        try {
-            const { error } = await supabase.from('program_exercises').delete().match({ program: programId, exercise: exerciseId });
-            if (error) throw error;
-            setPrograms((prev) => prev.map((p) => (p.id === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
-        } catch (e) {
-            console.error('Error removing exercise from program', e);
-            alert('Error eliminando ejercicio del programa: ' + String(e));
-        }
-    };
+            // If program is temporary, just attach locally
+            if (currentProgramForPicker.startsWith('t-')) {
+                setPrograms((prev) => prev.map((p) => (p.tempId === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...exercisesForCompany.filter((e) => selected.includes(e.id))] } : p)));
+                setShowAddExercisesDialog(false);
+                setCurrentProgramForPicker(null);
+                setSelectedExerciseIds(new Set());
+                return;
+            }
 
-    const toggleSelectExercise = (id: string) => {
-        setSelectedExerciseIds((prev) => {
-            const s = new Set(prev);
-            if (s.has(id)) s.delete(id);
-            else s.add(id);
-            return s;
-        });
-    };
+            // Persist to DB and attach locally
+            setAddingExercisesLoading(true);
+            try {
+                await addExercisesToProgramDB(currentProgramForPicker, selected);
+                const added = exercisesForCompany.filter((e) => selected.includes(e.id));
+                setPrograms((prev) => prev.map((p) => (p.id === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...added] } : p)));
+                setShowAddExercisesDialog(false);
+                setCurrentProgramForPicker(null);
+                setSelectedExerciseIds(new Set());
+            } catch (e) {
+                console.error('Error adding exercises to program', e);
+                alert('Error añadiendo ejercicios: ' + String(e));
+            } finally {
+                setAddingExercisesLoading(false);
+            }
+        };
 
-    const confirmAddExercises = async () => {
-        if (!currentProgramForPicker) return;
-        const selected = Array.from(selectedExerciseIds);
-        if (!selected.length) {
-            setShowAddExercisesDialog(false);
-            setCurrentProgramForPicker(null);
-            return;
-        }
+        return (
+            <>
+                <Dialog open={open} onOpenChange={onOpenChange}>
+                    <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
+                        <DialogHeader>
+                            <div className="flex items-center gap-2">
+                                {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                                <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
+                            </div>
+                            <DialogDescription>
+                                {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
+                            </DialogDescription>
+                        </DialogHeader>
 
-        // If program is temporary, just attach locally
-        if (currentProgramForPicker.startsWith('t-')) {
-            setPrograms((prev) => prev.map((p) => (p.tempId === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...exercisesForCompany.filter((e) => selected.includes(e.id))] } : p)));
-            setShowAddExercisesDialog(false);
-            setCurrentProgramForPicker(null);
-            setSelectedExerciseIds(new Set());
-            return;
-        }
+                        <Tabs
+                            defaultValue="datos"
+                            value={activeTab}
+                            onValueChange={setActiveTab}
+                            className="flex-1 flex flex-col overflow-hidden"
+                        >
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="datos">Datos</TabsTrigger>
+                                <TabsTrigger value="historial" disabled={!cliente?.id}>
+                                    Citas
+                                </TabsTrigger>
+                                <TabsTrigger value="programas">
+                                    Programas
+                                </TabsTrigger>
+                            </TabsList>
 
-        // Persist to DB and attach locally
-        setAddingExercisesLoading(true);
-        try {
-            await addExercisesToProgramDB(currentProgramForPicker, selected);
-            const added = exercisesForCompany.filter((e) => selected.includes(e.id));
-            setPrograms((prev) => prev.map((p) => (p.id === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...added] } : p)));
-            setShowAddExercisesDialog(false);
-            setCurrentProgramForPicker(null);
-            setSelectedExerciseIds(new Set());
-        } catch (e) {
-            console.error('Error adding exercises to program', e);
-            alert('Error añadiendo ejercicios: ' + String(e));
-        } finally {
-            setAddingExercisesLoading(false);
-        }
-    };
+                            <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
+                                    {/* Campos Obligatorios */}
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="name">Nombre *</Label>
+                                                <Input
+                                                    id="name"
+                                                    value={formData.name || ''}
+                                                    onChange={(e) => handleChange('name', e.target.value)}
+                                                    required
+                                                    ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
+                                                />
+                                            </div>
 
-    return (
-        <>
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
-                    <DialogHeader>
-                        <div className="flex items-center gap-2">
-                            {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
-                        </div>
-                        <DialogDescription>
-                            {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <Tabs
-                        defaultValue="datos"
-                        value={activeTab}
-                        onValueChange={setActiveTab}
-                        className="flex-1 flex flex-col overflow-hidden"
-                    >
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="datos">Datos</TabsTrigger>
-                            <TabsTrigger value="historial" disabled={!cliente?.id}>
-                                Citas
-                            </TabsTrigger>
-                            <TabsTrigger value="programas">
-                                Programas
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4">
-                            <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
-                                {/* Campos Obligatorios */}
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="name">Nombre *</Label>
-                                            <Input
-                                                id="name"
-                                                value={formData.name || ''}
-                                                onChange={(e) => handleChange('name', e.target.value)}
-                                                required
-                                                ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="last_name">Apellidos *</Label>
-                                            <Input
-                                                id="last_name"
-                                                value={formData.last_name || ''}
-                                                onChange={(e) => handleChange('last_name', e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="dni">DNI *</Label>
-                                            <Input
-                                                id="dni"
-                                                value={formData.dni || ''}
-                                                onChange={(e) => handleChange('dni', e.target.value)}
-                                                required
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="phone">Teléfono *</Label>
-                                            <Input
-                                                id="phone"
-                                                type="tel"
-                                                value={formData.phone || ''}
-                                                onChange={(e) => handleChange('phone', e.target.value)}
-                                                className={phoneError ? 'border-red-500' : ''}
-                                                required
-                                            />
-                                            {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email *</Label>
-                                            <Input
-                                                id="email"
-                                                type="email"
-                                                value={formData.email || ''}
-                                                onChange={(e) => handleChange('email', e.target.value)}
-                                                disabled={!!cliente?.id}
-                                                readOnly={!!cliente?.id}
-                                                required
-                                            />
+                                            <div className="space-y-2">
+                                                <Label htmlFor="last_name">Apellidos *</Label>
+                                                <Input
+                                                    id="last_name"
+                                                    value={formData.last_name || ''}
+                                                    onChange={(e) => handleChange('last_name', e.target.value)}
+                                                    required
+                                                />
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <Label htmlFor="session_credits">Sesiones *</Label>
+                                                <Label htmlFor="dni">DNI *</Label>
                                                 <Input
-                                                    id="session_credits"
-                                                    type="text"
-                                                    value={String(formData.session_credits ?? '')}
-                                                    onChange={(e) => handleChange('session_credits', e.target.value)}
+                                                    id="dni"
+                                                    value={formData.dni || ''}
+                                                    onChange={(e) => handleChange('dni', e.target.value)}
                                                     required
                                                 />
                                             </div>
 
                                             <div className="space-y-2">
-                                                <Label htmlFor="class_credits">Clases *</Label>
+                                                <Label htmlFor="phone">Teléfono *</Label>
                                                 <Input
-                                                    id="class_credits"
-                                                    type="text"
-                                                    value={String(formData.class_credits ?? '')}
-                                                    onChange={(e) => handleChange('class_credits', e.target.value)}
+                                                    id="phone"
+                                                    type="tel"
+                                                    value={formData.phone || ''}
+                                                    onChange={(e) => handleChange('phone', e.target.value)}
+                                                    className={phoneError ? 'border-red-500' : ''}
                                                     required
                                                 />
+                                                {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
 
-                                {/* Campos Opcionales */}
-                                <div className="space-y-4 pt-4 border-t">
-                                    {/* Foto y Dirección en la misma línea */}
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="photo">Foto</Label>
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <div className="relative">
+                                                <Label htmlFor="email">Email *</Label>
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    value={formData.email || ''}
+                                                    onChange={(e) => handleChange('email', e.target.value)}
+                                                    disabled={!!cliente?.id}
+                                                    readOnly={!!cliente?.id}
+                                                    required
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="session_credits">Sesiones *</Label>
                                                     <Input
-                                                        id="photo"
-                                                        type="file"
-                                                        accept="image/*"
-                                                        className="hidden"
-                                                        onChange={(e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (file) {
-                                                                setPhotoFile(file);
-                                                                setRemovePhoto(false);
-                                                                // Crear preview
-                                                                const reader = new FileReader();
-                                                                reader.onloadend = () => {
-                                                                    setPhotoPreview(reader.result as string);
-                                                                };
-                                                                reader.readAsDataURL(file);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <label
-                                                        htmlFor="photo"
-                                                        className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
-                                                    >
-                                                        <span>{photoFile ? photoFile.name : 'Elegir archivo'}</span>
-                                                        {(photoFile || photoPreview) && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    setPhotoFile(null);
-                                                                    setPhotoPreview(null);
-                                                                    setRemovePhoto(true);
-                                                                    setFormData((prev) => ({ ...prev, photo: '' }));
-                                                                    // Reset file input
-                                                                    const input = document.getElementById(
-                                                                        'photo'
-                                                                    ) as HTMLInputElement;
-                                                                    if (input) input.value = '';
-                                                                }}
-                                                                className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
-                                                            >
-                                                                ×
-                                                            </button>
-                                                        )}
-                                                    </label>
-                                                </div>
-                                                {photoPreview && (
-                                                    <div className="relative w-1/2 aspect-square rounded-lg overflow-hidden border">
-                                                        <img
-                                                            src={photoPreview}
-                                                            alt="Preview"
-                                                            className="object-cover w-full h-full"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="address">Dirección</Label>
-                                            <Input
-                                                id="address"
-                                                value={formData.address || ''}
-                                                onChange={(e) => handleChange('address', e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label>Fecha de Nacimiento</Label>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className={cn(
-                                                            'w-full justify-start text-left font-normal h-10',
-                                                            !fechaNacimiento && 'text-muted-foreground'
-                                                        )}
-                                                    >
-                                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {fechaNacimiento
-                                                            ? format(fechaNacimiento, 'dd/MM/yyyy')
-                                                            : 'Seleccionar fecha'}
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={fechaNacimiento}
-                                                        onSelect={handleDateSelect}
-                                                        captionLayout="dropdown"
-                                                        fromYear={1920}
-                                                        toYear={new Date().getFullYear()}
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label>Edad</Label>
-                                            <Input
-                                                value={edad !== null ? `${edad} años` : ''}
-                                                disabled
-                                                className="bg-muted h-10"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="occupation">Ocupación</Label>
-                                            <Input
-                                                id="occupation"
-                                                value={formData.occupation || ''}
-                                                onChange={(e) => handleChange('occupation', e.target.value)}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="sport">Actividad Física</Label>
-                                            <Input
-                                                id="sport"
-                                                value={formData.sport || ''}
-                                                onChange={(e) => handleChange('sport', e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <Collapsible className="rounded-lg border">
-                                        <CollapsibleTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50"
-                                                type="button"
-                                            >
-                                                <span className="font-semibold">Información Adicional</span>
-                                                <ChevronDown className="h-4 w-4" />
-                                            </Button>
-                                        </CollapsibleTrigger>
-                                        <CollapsibleContent>
-                                            <div className="border-t bg-muted/30 p-4 space-y-4">
-                                                <div className="space-y-2">
-                                                    <Label>Antecedentes</Label>
-                                                    <LazyRichTextEditor
-                                                        value={formData.history || ''}
-                                                        onChange={(value) => handleChange('history', value)}
+                                                        id="session_credits"
+                                                        type="text"
+                                                        value={String(formData.session_credits ?? '')}
+                                                        onChange={(e) => handleChange('session_credits', e.target.value)}
+                                                        required
                                                     />
                                                 </div>
 
                                                 <div className="space-y-2">
-                                                    <Label>Diagnóstico</Label>
-                                                    <LazyRichTextEditor
-                                                        value={formData.diagnosis || ''}
-                                                        onChange={(value) => handleChange('diagnosis', value)}
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <Label>Alergias</Label>
-                                                    <LazyRichTextEditor
-                                                        value={formData.allergies || ''}
-                                                        onChange={(value) => handleChange('allergies', value)}
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <Label>Notas</Label>
-                                                    <LazyRichTextEditor
-                                                        value={formData.notes || ''}
-                                                        onChange={(value) => handleChange('notes', value)}
+                                                    <Label htmlFor="class_credits">Clases *</Label>
+                                                    <Input
+                                                        id="class_credits"
+                                                        type="text"
+                                                        value={String(formData.class_credits ?? '')}
+                                                        onChange={(e) => handleChange('class_credits', e.target.value)}
+                                                        required
                                                     />
                                                 </div>
                                             </div>
-                                        </CollapsibleContent>
-                                    </Collapsible>
-                                </div>
-                            </form>
-                        </TabsContent>
+                                        </div>
+                                    </div>
 
-                        <TabsContent value="programas" className="flex-1 overflow-y-auto mt-4">
-                            <div className="px-1">
-                                <div className="flex items-center gap-2">
-                                    <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
-                                        <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
-                                            {programs.map((p) => {
-                                                const idKey = p.id ?? p.tempId;
-                                                return (
-                                                    <div key={idKey} className="flex items-center gap-2">
-                                                        <TabsTrigger value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
-                                                            {editingProgramId === idKey ? (
-                                                                <input
-                                                                    autoFocus
-                                                                    className="text-sm rounded px-2 py-0.5 w-40"
-                                                                    value={editingProgramName}
-                                                                    onChange={(e) => setEditingProgramName(e.target.value)}
-                                                                    onBlur={async () => {
-                                                                        const newName = editingProgramName.trim();
-                                                                        setEditingProgramId(null);
-                                                                        setEditingProgramName('');
-                                                                        if (newName && newName !== p.name) {
-                                                                            await saveProgramName(idKey, newName);
-                                                                        } else if (!newName) {
-                                                                            alert('El nombre no puede estar vacío');
-                                                                        }
-                                                                    }}
-                                                                    onKeyDown={async (e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            (e.target as HTMLInputElement).blur();
-                                                                        } else if (e.key === 'Escape') {
-                                                                            setEditingProgramId(null);
-                                                                            setEditingProgramName('');
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
-                                                            )}
-                                                        </TabsTrigger>
-                                                    </div>
-                                                );
-                                            })}
-
-                                            <div className="pl-1">
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <Button
-                                                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 transition-colors hover:text-foreground hover:bg-[hsl(var(--background))]"
-                                                                onClick={addProgram}
-                                                            >
-                                                                <Plus className="h-3 w-3" />
-                                                            </Button>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">Crear programa</TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                        </TabsList>
-                                    </Tabs>
-
-
-                                </div>
-
-                                <Tabs value={activeProgramId} onValueChange={setActiveProgramId} className="mt-4">
-                                    {programs.map((p) => {
-                                        const idKey = p.id ?? p.tempId;
-                                        return (
-                                            <TabsContent key={idKey} value={idKey} className="p-0">
-                                                <Card className="p-4 space-y-4">
-                                                    <div className="mt-2">
+                                    {/* Campos Opcionales */}
+                                    <div className="space-y-4 pt-4 border-t">
+                                        {/* Foto y Dirección en la misma línea */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="photo">Foto</Label>
+                                                <div className="space-y-2">
+                                                    <div className="relative">
                                                         <Input
-                                                            value={p.description || ''}
+                                                            id="photo"
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
                                                             onChange={(e) => {
-                                                                const val = e.target.value;
-                                                                setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)));
-                                                            }}
-                                                            onBlur={async () => {
-                                                                // If user added description and this program isn't persisted yet, persist it
-                                                                const current = programs.find((x) => (x.id === p.id || x.tempId === p.tempId));
-                                                                if ((current?.description || '').trim() !== '' && !current?.persisted) {
-                                                                    await persistSingleProgram(idKey);
+                                                                const file = e.target.files?.[0];
+                                                                if (file) {
+                                                                    setPhotoFile(file);
+                                                                    setRemovePhoto(false);
+                                                                    // Crear preview
+                                                                    const reader = new FileReader();
+                                                                    reader.onloadend = () => {
+                                                                        setPhotoPreview(reader.result as string);
+                                                                    };
+                                                                    reader.readAsDataURL(file);
                                                                 }
                                                             }}
-                                                            placeholder="Descripción del programa"
-                                                            className="w-full"
+                                                        />
+                                                        <label
+                                                            htmlFor="photo"
+                                                            className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
+                                                        >
+                                                            <span>{photoFile ? photoFile.name : 'Elegir archivo'}</span>
+                                                            {(photoFile || photoPreview) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        setPhotoFile(null);
+                                                                        setPhotoPreview(null);
+                                                                        setRemovePhoto(true);
+                                                                        setFormData((prev) => ({ ...prev, photo: '' }));
+                                                                        // Reset file input
+                                                                        const input = document.getElementById(
+                                                                            'photo'
+                                                                        ) as HTMLInputElement;
+                                                                        if (input) input.value = '';
+                                                                    }}
+                                                                    className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            )}
+                                                        </label>
+                                                    </div>
+                                                    {photoPreview && (
+                                                        <div className="relative w-1/2 aspect-square rounded-lg overflow-hidden border">
+                                                            <img
+                                                                src={photoPreview}
+                                                                alt="Preview"
+                                                                className="object-cover w-full h-full"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="address">Dirección</Label>
+                                                <Input
+                                                    id="address"
+                                                    value={formData.address || ''}
+                                                    onChange={(e) => handleChange('address', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Fecha de Nacimiento</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            className={cn(
+                                                                'w-full justify-start text-left font-normal h-10',
+                                                                !fechaNacimiento && 'text-muted-foreground'
+                                                            )}
+                                                        >
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {fechaNacimiento
+                                                                ? format(fechaNacimiento, 'dd/MM/yyyy')
+                                                                : 'Seleccionar fecha'}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={fechaNacimiento}
+                                                            onSelect={handleDateSelect}
+                                                            captionLayout="dropdown"
+                                                            fromYear={1920}
+                                                            toYear={new Date().getFullYear()}
+                                                            initialFocus
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label>Edad</Label>
+                                                <Input
+                                                    value={edad !== null ? `${edad} años` : ''}
+                                                    disabled
+                                                    className="bg-muted h-10"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="occupation">Ocupación</Label>
+                                                <Input
+                                                    id="occupation"
+                                                    value={formData.occupation || ''}
+                                                    onChange={(e) => handleChange('occupation', e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="sport">Actividad Física</Label>
+                                                <Input
+                                                    id="sport"
+                                                    value={formData.sport || ''}
+                                                    onChange={(e) => handleChange('sport', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <Collapsible className="rounded-lg border">
+                                            <CollapsibleTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50"
+                                                    type="button"
+                                                >
+                                                    <span className="font-semibold">Información Adicional</span>
+                                                    <ChevronDown className="h-4 w-4" />
+                                                </Button>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <div className="border-t bg-muted/30 p-4 space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label>Antecedentes</Label>
+                                                        <LazyRichTextEditor
+                                                            value={formData.history || ''}
+                                                            onChange={(value) => handleChange('history', value)}
                                                         />
                                                     </div>
 
-                                                    {/* Program exercises */}
-                                                    <div>
-                                                        <Label>Ejercicios</Label>
-                                                        <div className="flex gap-2 mt-2 items-center flex-wrap">
-                                                            {p.exercises && p.exercises.length > 0 ? (
-                                                                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
-                                                                    {p.exercises.map((ex: any) => (
-                                                                        <Card key={ex.id} className="p-2 flex flex-col">
-                                                                            <CardHeader className="py-1 px-2">
-                                                                                <div className="flex items-center justify-between gap-2">
-                                                                                    <CardTitle className="text-sm font-medium line-clamp-2">{ex.name}</CardTitle>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <ActionButton tooltip="Eliminar del programa" onClick={async () => await removeExerciseFromProgram(idKey, ex.id)} aria-label="Eliminar ejercicio">
-                                                                                            <Trash className="h-4 w-4" />
-                                                                                        </ActionButton>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </CardHeader>
-                                                                            <div className="px-2 pb-2 text-xs text-muted-foreground">
-                                                                                {ex.description}
-                                                                            </div>
-                                                                        </Card>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-sm text-muted-foreground">Sin ejercicios</span>
-                                                            )}
-
-                                                            <Button
-                                                                variant="ghost"
-                                                                className="h-8 w-8 rounded-full border border-dashed border-border flex items-center justify-center"
-                                                                onClick={() => openAddExercises(idKey)}
-                                                                aria-label="Agregar ejercicios"
-                                                            >
-                                                                <Plus className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Diagnóstico</Label>
+                                                        <LazyRichTextEditor
+                                                            value={formData.diagnosis || ''}
+                                                            onChange={(value) => handleChange('diagnosis', value)}
+                                                        />
                                                     </div>
 
+                                                    <div className="space-y-2">
+                                                        <Label>Alergias</Label>
+                                                        <LazyRichTextEditor
+                                                            value={formData.allergies || ''}
+                                                            onChange={(value) => handleChange('allergies', value)}
+                                                        />
+                                                    </div>
 
-                                                </Card>
-                                            </TabsContent>
-                                        );
-                                    })}
-                                </Tabs>
-                            </div>
+                                                    <div className="space-y-2">
+                                                        <Label>Notas</Label>
+                                                        <LazyRichTextEditor
+                                                            value={formData.notes || ''}
+                                                            onChange={(value) => handleChange('notes', value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </CollapsibleContent>
+                                        </Collapsible>
+                                    </div>
+                                </form>
+                            </TabsContent>
+
+                            <TabsContent value="programas" className="flex-1 overflow-y-auto mt-4">
+                                <div className="px-1">
+                                    <div className="flex items-center gap-2">
+                                        <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
+                                            <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
+                                                {programs.map((p) => {
+                                                    const idKey = p.id ?? p.tempId;
+                                                    return (
+                                                        <div key={idKey} className="flex items-center gap-2">
+                                                            <TabsTrigger value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                                                                {editingProgramId === idKey ? (
+                                                                    <input
+                                                                        autoFocus
+                                                                        className="text-sm rounded px-2 py-0.5 w-40"
+                                                                        value={editingProgramName}
+                                                                        onChange={(e) => setEditingProgramName(e.target.value)}
+                                                                        onBlur={async () => {
+                                                                            const newName = editingProgramName.trim();
+                                                                            setEditingProgramId(null);
+                                                                            setEditingProgramName('');
+                                                                            if (newName && newName !== p.name) {
+                                                                                await saveProgramName(idKey, newName);
+                                                                            } else if (!newName) {
+                                                                                alert('El nombre no puede estar vacío');
+                                                                            }
+                                                                        }}
+                                                                        onKeyDown={async (e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                (e.target as HTMLInputElement).blur();
+                                                                            } else if (e.key === 'Escape') {
+                                                                                setEditingProgramId(null);
+                                                                                setEditingProgramName('');
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
+                                                                )}
+                                                            </TabsTrigger>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                <div className="pl-1">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 transition-colors hover:text-foreground hover:bg-[hsl(var(--background))]"
+                                                                    onClick={addProgram}
+                                                                >
+                                                                    <Plus className="h-3 w-3" />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">Crear programa</TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
+                                            </TabsList>
+                                        </Tabs>
+
+
+                                    </div>
+
+                                    <Tabs value={activeProgramId} onValueChange={setActiveProgramId} className="mt-4">
+                                        {programs.map((p) => {
+                                            const idKey = p.id ?? p.tempId;
+                                            return (
+                                                <TabsContent key={idKey} value={idKey} className="p-0">
+                                                    <Card className="p-4 space-y-4">
+                                                        <div className="mt-2">
+                                                            <Input
+                                                                value={p.description || ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)));
+                                                                }}
+                                                                onBlur={async () => {
+                                                                    // If user added description and this program isn't persisted yet, persist it
+                                                                    const current = programs.find((x) => (x.id === p.id || x.tempId === p.tempId));
+                                                                    if ((current?.description || '').trim() !== '' && !current?.persisted) {
+                                                                        await persistSingleProgram(idKey);
+                                                                    }
+                                                                }}
+                                                                placeholder="Descripción del programa"
+                                                                className="w-full"
+                                                            />
+                                                        </div>
+
+                                                        {/* Program exercises */}
+                                                        <div>
+                                                            <Label>Ejercicios</Label>
+                                                            <div className="flex gap-2 mt-2 items-center flex-wrap">
+                                                                {p.exercises && p.exercises.length > 0 ? (
+                                                                    <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                                                                        {p.exercises.map((ex: any) => (
+                                                                            <Card key={ex.id} className="p-2 flex flex-col">
+                                                                                <CardHeader className="py-1 px-2">
+                                                                                    <div className="flex items-center justify-between gap-2">
+                                                                                        <CardTitle className="text-sm font-medium line-clamp-2">{ex.name}</CardTitle>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <ActionButton tooltip="Eliminar del programa" onClick={async () => await removeExerciseFromProgram(idKey, ex.id)} aria-label="Eliminar ejercicio">
+                                                                                                <Trash className="h-4 w-4" />
+                                                                                            </ActionButton>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </CardHeader>
+                                                                                <div className="px-2 pb-2 text-xs text-muted-foreground">
+                                                                                    {ex.description}
+                                                                                </div>
+                                                                            </Card>
+                                                                        ))}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-sm text-muted-foreground">Sin ejercicios</span>
+                                                                )}
+
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    className="h-8 w-8 rounded-full border border-dashed border-border flex items-center justify-center"
+                                                                    onClick={() => openAddExercises(idKey)}
+                                                                    aria-label="Agregar ejercicios"
+                                                                >
+                                                                    <Plus className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+
+
+                                                    </Card>
+                                                </TabsContent>
+                                            );
+                                        })}
+                                    </Tabs>
+                                </div>
 
                                 <div className="border-t mt-2 pt-3 flex items-center justify-between px-1">
                                     <div>
@@ -1575,190 +1575,190 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 </div>
                             </TabsContent>
 
-                        <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
-                            <div className="space-y-4 px-1">
-                                {loadingEventos ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <p className="text-muted-foreground">Cargando historial...</p>
-                                    </div>
-                                ) : eventos.length === 0 ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <p className="text-muted-foreground">No hay citas registradas</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {eventos.map((evento) => {
-                                            const fecha = new Date(evento.datetime);
-                                            const profesionalNames = Array.isArray(evento.expand?.professional)
-                                                ? evento.expand.professional
-                                                    .map((p: any) => `${p.name} ${p.last_name}`)
-                                                    .join(', ')
-                                                : evento.expand?.professional
-                                                    ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
-                                                    : 'Sin asignar';
+                            <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
+                                <div className="space-y-4 px-1">
+                                    {loadingEventos ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <p className="text-muted-foreground">Cargando historial...</p>
+                                        </div>
+                                    ) : eventos.length === 0 ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <p className="text-muted-foreground">No hay citas registradas</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {eventos.map((evento) => {
+                                                const fecha = new Date(evento.datetime);
+                                                const profesionalNames = Array.isArray(evento.expand?.professional)
+                                                    ? evento.expand.professional
+                                                        .map((p: any) => `${p.name} ${p.last_name}`)
+                                                        .join(', ')
+                                                    : evento.expand?.professional
+                                                        ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
+                                                        : 'Sin asignar';
 
-                                            return (
-                                                <Card key={evento.id} className="p-4">
-                                                    <div className="grid grid-cols-6 gap-4 items-center">
-                                                        <div className="flex items-center gap-2">
-                                                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                                            <div>
-                                                                <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
-                                                                <p className="text-sm text-muted-foreground">
-                                                                    {format(fecha, 'HH:mm')}
-                                                                </p>
+                                                return (
+                                                    <Card key={evento.id} className="p-4">
+                                                        <div className="grid grid-cols-6 gap-4 items-center">
+                                                            <div className="flex items-center gap-2">
+                                                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                                                <div>
+                                                                    <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
+                                                                    <p className="text-sm text-muted-foreground">
+                                                                        {format(fecha, 'HH:mm')}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 col-span-2">
+                                                                <User className="h-4 w-4 text-muted-foreground" />
+                                                                <p className="text-sm">{profesionalNames}</p>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Euro className="h-4 w-4 text-muted-foreground" />
+                                                                <p className="text-sm font-medium">{evento.cost || 0}</p>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {evento.paid ? (
+                                                                    <div className="flex items-center gap-1 text-green-600">
+                                                                        <CheckCircle className="h-4 w-4" />
+                                                                        <span className="text-sm">Pagada</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-1 text-red-600">
+                                                                        <XCircle className="h-4 w-4" />
+                                                                        <span className="text-sm">No pagada</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex justify-end">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleEditEvent(evento.id!)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 col-span-2">
-                                                            <User className="h-4 w-4 text-muted-foreground" />
-                                                            <p className="text-sm">{profesionalNames}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <Euro className="h-4 w-4 text-muted-foreground" />
-                                                            <p className="text-sm font-medium">{evento.cost || 0}</p>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {evento.paid ? (
-                                                                <div className="flex items-center gap-1 text-green-600">
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                    <span className="text-sm">Pagada</span>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex items-center gap-1 text-red-600">
-                                                                    <XCircle className="h-4 w-4" />
-                                                                    <span className="text-sm">No pagada</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex justify-end">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleEditEvent(evento.id!)}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </div>
-                                                </Card>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </TabsContent>
-                    </Tabs>
+                                                    </Card>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </TabsContent>
+                        </Tabs>
 
-                    <DialogFooter className="mt-4">
-                        <div className="flex w-full justify-between">
-                            <div>
-                                {cliente?.id && activeTab === 'datos' && (
-                                    <Button
-                                        type="button"
-                                        variant="destructive"
-                                        onClick={() => setShowDeleteDialog(true)}
-                                        disabled={loading}
-                                    >
-                                        Eliminar
+                        <DialogFooter className="mt-4">
+                            <div className="flex w-full justify-between">
+                                <div>
+                                    {cliente?.id && activeTab === 'datos' && (
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            onClick={() => setShowDeleteDialog(true)}
+                                            disabled={loading}
+                                        >
+                                            Eliminar
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                        Cancelar
                                     </Button>
-                                )}
-                            </div>
-                            <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                                    Cancelar
-                                </Button>
-                                <Button type="submit" form="cliente-form" disabled={loading}>
-                                    {loading ? 'Guardando...' : 'Guardar'}
-                                </Button>
-                            </div>
-                        </div>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={showDeleteProgramDialog} onOpenChange={setShowDeleteProgramDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar programa?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel
-                            onClick={() => {
-                                setProgramToDeleteId(null);
-                            }}
-                        >
-                            Cancelar
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={async () => {
-                                if (!programToDeleteId) return;
-                                await deleteProgram(programToDeleteId);
-                                setShowDeleteProgramDialog(false);
-                                setProgramToDeleteId(null);
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            {/* Add exercises dialog */}
-            <Dialog open={showAddExercisesDialog} onOpenChange={setShowAddExercisesDialog}>
-                <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Añadir ejercicios al programa</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="p-2">
-                        {exercisesLoading ? (
-                            <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
-                        ) : (
-                            <div className="h-64 overflow-y-auto">
-                                <div className="grid gap-2">
-                                    {exercisesForCompany.map((ex) => (
-                                        <label key={ex.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
-                                            <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
-                                            <div className="flex-1">
-                                                <div className="font-medium text-sm">{ex.name}</div>
-                                                {ex.description && <div className="text-xs text-muted-foreground">{ex.description}</div>}
-                                            </div>
-                                        </label>
-                                    ))}
+                                    <Button type="submit" form="cliente-form" disabled={loading}>
+                                        {loading ? 'Guardando...' : 'Guardar'}
+                                    </Button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-                    <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowAddExercisesDialog(false)}>Cancelar</Button>
-                        <Button onClick={confirmAddExercises} disabled={selectedExerciseIds.size === 0 || addingExercisesLoading}>
-                            {addingExercisesLoading ? 'Añadiendo...' : 'Añadir'}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
-    );
-}
+                <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDelete}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Eliminar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={showDeleteProgramDialog} onOpenChange={setShowDeleteProgramDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar programa?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel
+                                onClick={() => {
+                                    setProgramToDeleteId(null);
+                                }}
+                            >
+                                Cancelar
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={async () => {
+                                    if (!programToDeleteId) return;
+                                    await deleteProgram(programToDeleteId);
+                                    setShowDeleteProgramDialog(false);
+                                    setProgramToDeleteId(null);
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Eliminar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Add exercises dialog */}
+                <Dialog open={showAddExercisesDialog} onOpenChange={setShowAddExercisesDialog}>
+                    <DialogContent className="max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>Añadir ejercicios al programa</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="p-2">
+                            {exercisesLoading ? (
+                                <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
+                            ) : (
+                                <div className="h-64 overflow-y-auto">
+                                    <div className="grid gap-2">
+                                        {exercisesForCompany.map((ex) => (
+                                            <label key={ex.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                                                <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
+                                                <div className="flex-1">
+                                                    <div className="font-medium text-sm">{ex.name}</div>
+                                                    {ex.description && <div className="text-xs text-muted-foreground">{ex.description}</div>}
+                                                </div>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setShowAddExercisesDialog(false)}>Cancelar</Button>
+                            <Button onClick={confirmAddExercises} disabled={selectedExerciseIds.size === 0 || addingExercisesLoading}>
+                                {addingExercisesLoading ? 'Añadiendo...' : 'Añadir'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </>
+        );
+    }
 }
