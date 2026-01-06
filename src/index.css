@@ -139,14 +139,26 @@
 
   /* Utilities for event action buttons using theme variables */
   .btn-propagate {
-    background-color: hsl(var(--class-color));
-    color: hsl(var(--on-primary));
-    transition: background-color .12s ease;
+    /* Use the page background as requested */
+    background-color: hsl(var(--background));
+    /* Ensure readable text on background */
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+    transition: background-color 0.12s ease, border-color 0.12s ease, filter 0.08s ease;
   }
 
+  /* Use a more specific selector and !important to override Tailwind utilities */
   .btn-propagate:hover,
-  .btn-propagate:focus-visible {
-    background-color: hsl(var(--class-color-light));
+  .btn-propagate:focus-visible,
+  button.btn-propagate:hover,
+  button.btn-propagate:focus-visible {
+    background-color: hsl(var(--sidebar-accent)) !important;
+    color: hsl(var(--on-accent)) !important;
+  }
+
+  /* Active / click state: slight darkening without movement */
+  .btn-propagate:active {
+    filter: brightness(0.92);
   }
 
   /* Action icon (reusable) */
@@ -158,7 +170,10 @@
     align-items: center;
     justify-content: center;
     border-radius: var(--radius);
-    transition: background-color .12s ease, color .12s ease, transform .08s ease;
+    transition:
+      background-color 0.12s ease,
+      color 0.12s ease,
+      transform 0.08s ease;
     outline: none;
     box-shadow: none;
     /* No background by default; hover will show accent */
@@ -185,27 +200,48 @@
     .action-icon:focus-visible,
     button:hover,
     button:active,
-    [role="button"]:hover,
-    [role="button"]:active,
+    [role='button']:hover,
+    [role='button']:active,
     a.button:hover,
-    a[role="button"]:hover {
+    a[role='button']:hover {
       background-color: transparent !important;
       color: inherit !important;
       border: none !important;
       box-shadow: none !important;
       transform: none !important;
       filter: none !important;
-      transition: none !important;
     }
+  }
 
-    /* Also remove hover-based focus outlines for touch */
-    :focus:not(:focus-visible) {
-      outline: none !important;
+  /* Reduce action icon size on small screens to avoid overflow */
+  @media (max-width: 640px) {
+    .action-icon {
+      height: 1.5rem;
+      width: 1.5rem;
     }
+  }
+
+  /* Also remove hover-based focus outlines for touch */
+  :focus:not(:focus-visible) {
+    outline: none !important;
+  }
+
+  /* Hide scrollbars utility (webkit + firefox + IE) */
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari, Opera */
   }
 
   /* Drag and drop styling */
   [data-slot-id] {
     cursor: grab;
   }
+
 }

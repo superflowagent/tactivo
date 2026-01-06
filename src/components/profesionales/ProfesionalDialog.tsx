@@ -291,7 +291,7 @@ export function ProfesionalDialog({
                         .upload(storagePath, photoFile);
                     // Log response for debugging
                     if (uploadErr) {
-                        console.error('Upload error', {
+                        error('Upload error', {
                             bucket: 'profile_photos',
                             path: storagePath,
                             error: uploadErr,

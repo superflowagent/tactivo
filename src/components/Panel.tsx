@@ -1,21 +1,31 @@
-import { useState, useEffect } from "react"
-import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from "@/contexts/AuthContext"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar"
-import ActionButton from "@/components/ui/ActionButton";
-import { Menu } from "lucide-react"
-import { CalendarioView } from "@/components/views/CalendarioView"
-import { ClientesView } from "@/components/views/ClientesView"
-import { ClasesView } from "@/components/views/ClasesView"
-import { ProfesionalesView } from "@/components/views/ProfesionalesView"
-import { AjustesView } from "@/components/views/AjustesView"
-import { EjerciciosView } from "@/components/views/EjerciciosView"
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SidebarInset, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
+import ActionButton from '@/components/ui/ActionButton';
+import { Menu } from 'lucide-react';
+const CalendarioView = lazy(() => import('@/components/views/CalendarioView').then(m => ({ default: m.CalendarioView })));
+const ClientesView = lazy(() => import('@/components/views/ClientesView').then(m => ({ default: m.ClientesView })));
+const ClasesView = lazy(() => import('@/components/views/ClasesView').then(m => ({ default: m.ClasesView })));
+const ProfesionalesView = lazy(() => import('@/components/views/ProfesionalesView').then(m => ({ default: m.ProfesionalesView })));
+const AjustesView = lazy(() => import('@/components/views/AjustesView').then(m => ({ default: m.AjustesView })));
+const EjerciciosView = lazy(() => import('@/components/views/EjerciciosView').then(m => ({ default: m.EjerciciosView })));
+const ProgramasView = lazy(() => import('@/components/views/ProgramasView').then(m => ({ default: m.ProgramasView })));
 
-export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
+
+
+export type ViewType =
+  | 'calendario'
+  | 'clientes'
+  | 'clases'
+  | 'ejercicios'
+  | 'profesionales'
+  | 'programas'
+  | 'ajustes';
 
 function MobileHamburgerButton() {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar } = useSidebar();
   return (
     <ActionButton
       tooltip="Expandir menú"
@@ -25,80 +35,125 @@ function MobileHamburgerButton() {
     >
       <Menu className="h-5 w-5" />
     </ActionButton>
-  )
+  );
 }
 
 export function Panel() {
-  const { user, companyName } = useAuth()
+  const { user, companyName } = useAuth();
   // Persist current view so remounts / focus changes don't reset it unintentionally
   const initialView = (() => {
     try {
-      const sv = localStorage.getItem('tactivo.currentView')
-      if (sv === 'clientes' || sv === 'clases' || sv === 'ejercicios' || sv === 'profesionales' || sv === 'ajustes') return sv as ViewType
-    } catch { }
-    return 'calendario'
-  })()
-  const [currentView, setCurrentView] = useState<ViewType>(initialView)
+      const sv = localStorage.getItem('tactivo.currentView');
+      if (
+        sv === 'clientes' ||
+        sv === 'clases' ||
+        sv === 'ejercicios' ||
+        sv === 'profesionales' ||
+        sv === 'programas' ||
+        sv === 'ajustes'
+      )
+        return sv as ViewType;
+    } catch {}
+    return 'calendario';
+  })();
+  const [currentView, setCurrentView] = useState<ViewType>(initialView);
 
   // Persist changes
   useEffect(() => {
-    try { localStorage.setItem('tactivo.currentView', currentView) } catch { }
-  }, [currentView])
+    try {
+      localStorage.setItem('tactivo.currentView', currentView);
+    } catch {}
+  }, [currentView]);
 
   // Ensure the URL contains the correct companyName path segment
   // If the route's param (provided by react-router) doesn't match the logged-in user's companyName,
   // redirect to the canonical `/:companyName/panel` URL.
-  const { companyName: routeCompany } = useParams()
-  const navigate = useNavigate()
+  const { companyName: routeCompany } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Always redirect to canonical company route when we have a companyName
     if (companyName && companyName !== routeCompany) {
-      navigate(`/${companyName}/panel`, { replace: true })
+      navigate(`/${companyName}/panel`, { replace: true });
     }
-  }, [companyName, routeCompany, navigate])
+  }, [companyName, routeCompany, navigate]);
 
   // Prefetch heavy calendar chunk when the company is known so the calendar renders fast
   useEffect(() => {
     if (companyName) {
-      import('./views/FullCalendarWrapper').catch(() => null)
+      import('./views/FullCalendarWrapper').catch(() => null);
     }
-  }, [companyName])
+  }, [companyName]);
 
   // If the user is a client, force the view to 'calendario' and prevent switching
   useEffect(() => {
     if (user?.role === 'client') {
-      setCurrentView('calendario')
+      setCurrentView('calendario');
     }
-  }, [user])
+  }, [user]);
 
   const viewTitles: Record<ViewType, string> = {
-    calendario: "Calendario",
-    clientes: "Clientes",
-    clases: "Clases",
-    ejercicios: "Ejercicios",
-    profesionales: "Profesionales",
-    ajustes: "Ajustes",
-  }
+    calendario: 'Calendario',
+    clientes: 'Clientes',
+    clases: 'Clases',
+    ejercicios: 'Ejercicios',
+    profesionales: 'Profesionales',
+    programas: 'Programas',
+    ajustes: 'Ajustes',
+  };
 
   const renderView = () => {
     switch (currentView) {
-      case "calendario":
-        return <CalendarioView />
-      case "clientes":
-        return <ClientesView />
-      case "clases":
-        return <ClasesView />
-      case "ejercicios":
-        return <EjerciciosView />
-      case "profesionales":
-        return <ProfesionalesView />
-      case "ajustes":
-        return <AjustesView />
+      case 'calendario':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando calendario...</div>}>
+            <CalendarioView />
+          </Suspense>
+        );
+      case 'clientes':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando clientes...</div>}>
+            <ClientesView />
+          </Suspense>
+        );
+      case 'clases':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando clases...</div>}>
+            <ClasesView />
+          </Suspense>
+        );
+      case 'ejercicios':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando ejercicios...</div>}>
+            <EjerciciosView />
+          </Suspense>
+        );
+      case 'profesionales':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando profesionales...</div>}>
+            <ProfesionalesView />
+          </Suspense>
+        );
+      case 'programas':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando programas...</div>}>
+            <ProgramasView />
+          </Suspense>
+        );
+      case 'ajustes':
+        return (
+          <Suspense fallback={<div className="p-4">Cargando ajustes...</div>}>
+            <AjustesView />
+          </Suspense>
+        );
       default:
-        return <CalendarioView />
+        return (
+          <Suspense fallback={<div className="p-4">Cargando calendario...</div>}>
+            <CalendarioView />
+          </Suspense>
+        );
     }
-  }
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -108,11 +163,8 @@ export function Panel() {
           <MobileHamburgerButton />
           <h1 className="text-xl md:text-2xl font-bold">{viewTitles[currentView]}</h1>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">
-          {renderView()}
-        </div>
+        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">{renderView()}</div>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }
-

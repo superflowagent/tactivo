@@ -646,7 +646,14 @@ export function EjerciciosView() {
 
                   {/* Media Container */}
                   <div className="relative bg-slate-200 overflow-hidden aspect-video mt-auto group">
-                    {exercise.file ? (
+                    {pendingUploads.has(exercise.id) ? (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-400 border-r-transparent animate-spin" />
+                          <p className="text-sm text-slate-400">Subiendo...</p>
+                        </div>
+                      </div>
+                    ) : exercise.file ? (
                       <>
                         {isVideo(exercise.file) ? (
                           <video
@@ -670,14 +677,7 @@ export function EjerciciosView() {
                       </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center bg-slate-100">
-                        {pendingUploads.has(exercise.id) ? (
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block h-4 w-4 rounded-full border-2 border-slate-400 border-r-transparent animate-spin" />
-                            <p className="text-sm text-slate-400">Subiendo...</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-slate-400">Sin video</p>
-                        )}
+                        <p className="text-sm text-slate-400">Sin video</p>
                       </div>
                     )}
                   </div>

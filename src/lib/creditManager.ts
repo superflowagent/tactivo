@@ -7,8 +7,15 @@
 // during the transition. Replace with real implementation when reintroducing the
 // credit system.
 
-export async function onEventCreate(_: any): Promise<void> { return }
-export async function onEventUpdate(_: any, __: any): Promise<void> { return }
-export async function onEventDelete(_: any): Promise<void> { return }
-export async function onBatchEventsCreate(_: any[]): Promise<void> { return }
-
+export async function onEventCreate(_: any): Promise<void> {
+  return;
+}
+export async function onEventUpdate(_: any, __: any): Promise<void> {
+  return;
+}
+export async function onEventDelete(_: any): Promise<void> {
+  return;
+}
+export async function onBatchEventsCreate(_: any[]): Promise<void> {
+  return;
+}

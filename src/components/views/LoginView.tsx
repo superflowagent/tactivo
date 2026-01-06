@@ -1,103 +1,104 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { error as logError } from '@/lib/logger'
-import { AlertCircle, CheckCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { error as logError } from '@/lib/logger';
+import { AlertCircle, CheckCircle } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import RegisterDialog from '@/components/auth/RegisterDialog';
 
 // Cleanup: removed nested <form>, fixed unused vars and streamlined password reset inline UI
 export function LoginView() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Password reset inline state
-  const [resetOpen, setResetOpen] = useState(false)
-  const [resetEmail, setResetEmail] = useState('')
-  const [sendingReset, setSendingReset] = useState(false)
-  const [resetSent, setResetSent] = useState(false)
-  const [resetError, setResetError] = useState('')
-  const resetInputRef = useRef<HTMLInputElement | null>(null)
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState('');
+
+  // Register dialog state
+  const [registerOpen, setRegisterOpen] = useState(false);
+  const resetInputRef = useRef<HTMLInputElement | null>(null);
 
   // UI state
-  const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { login, companyName } = useAuth()
-  const navigate = useNavigate()
-
-
+  const { login, companyName } = useAuth();
+  const navigate = useNavigate();
 
   // Usar useEffect para la navegación en lugar de hacerlo durante el render
   useEffect(() => {
     if (companyName) {
-      navigate(`/${companyName}/panel`, { replace: true })
+      navigate(`/${companyName}/panel`, { replace: true });
     }
-  }, [companyName, navigate])
+  }, [companyName, navigate]);
 
   const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault?.()
-    setError('')
-    setIsLoading(true)
+    e?.preventDefault?.();
+    setError('');
+    setIsLoading(true);
 
     try {
       // login now returns immediately and sets companyName in context; also returns companyUrlName for quick navigation
-      const companyUrl = await login(email, password) as unknown as string | undefined
-      if (companyUrl) navigate(`/${companyUrl}/panel`, { replace: true })
+      const companyUrl = (await login(email, password)) as unknown as string | undefined;
+      if (companyUrl) navigate(`/${companyUrl}/panel`, { replace: true });
       // Note: the useEffect watching companyName will also redirect if needed
     } catch (err: any) {
-      logError('Login error:', err)
-      logError('Error status:', err.status)
-      logError('Error data:', err.data)
+      logError('Login error:', err);
+      logError('Error status:', err.status);
+      logError('Error data:', err.data);
 
       if (err.status === 400) {
-        setError('Email o contraseña incorrecta')
+        setError('Email o contraseña incorrecta');
       } else if (err.status === 0 || err.isAbort) {
-        setError('Error de conexión. Verifica tu conexión a internet.')
+        setError('Error de conexión. Verifica tu conexión a internet.');
       } else {
-        setError(err.message || 'Error al iniciar sesión. Inténtalo de nuevo.')
+        setError(err.message || 'Error al iniciar sesión. Inténtalo de nuevo.');
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // duplicate handleSubmit removed — navigation is handled immediately by the first handler and by the companyName useEffect
 
-
   const handleSendReset = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    setResetError('')
+    e?.preventDefault();
+    setResetError('');
     if (!resetEmail) {
-      setResetError('Introduce un email válido')
-      return
+      setResetError('Introduce un email válido');
+      return;
     }
-    setSendingReset(true)
+    setSendingReset(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, { redirectTo: window.location.origin + '/auth/password-reset' })
-      if (error) throw error
-      setResetSent(true)
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: window.location.origin + '/auth/password-reset',
+      });
+      if (error) throw error;
+      setResetSent(true);
       // clear input after sending — keep success message visible until user cancels
-      setResetEmail('')
+      setResetEmail('');
     } catch (err: any) {
-      setResetError(err?.message || 'Error enviando correo de restablecimiento')
+      setResetError(err?.message || 'Error enviando correo de restablecimiento');
     } finally {
-      setSendingReset(false)
+      setSendingReset(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6">
       <Card className="w-full max-w-md mx-4">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Bienvenido a Tactivo</CardTitle>
-          <CardDescription>
-            Iniciar sesión
-          </CardDescription>
+          <CardDescription>Iniciar sesión</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -136,18 +137,32 @@ export function LoginView() {
 
           <div className="mt-3 w-full max-w-md mx-auto">
             {/* Botón en su propia línea, alineado a la derecha */}
-            <div className="w-full flex justify-end">
+            <div className="w-full flex justify-between items-center gap-4">
+              {/* Registrarme button (left) */}
+              <div className="inline-flex">
+                <Button type="button" onClick={() => setRegisterOpen(true)}>
+                  Registrarme
+                </Button>
+              </div>
+
               <div className="inline-flex justify-end min-w-[12rem]">
-                <Button variant="link" type="button" className="pr-0 text-right whitespace-nowrap" onClick={() => {
-                  if (resetOpen) {
-                    setResetOpen(false)
-                    setResetEmail('')
-                    setResetError('')
-                    setResetSent(false)
-                  } else {
-                    setResetOpen(true)
-                  }
-                }}>{resetOpen ? 'Cancelar' : 'Restablecer contraseña'}</Button>
+                <Button
+                  variant="link"
+                  type="button"
+                  className="pr-0 text-right whitespace-nowrap"
+                  onClick={() => {
+                    if (resetOpen) {
+                      setResetOpen(false);
+                      setResetEmail('');
+                      setResetError('');
+                      setResetSent(false);
+                    } else {
+                      setResetOpen(true);
+                    }
+                  }}
+                >
+                  {resetOpen ? 'Cancelar' : 'Restablecer contraseña'}
+                </Button>
               </div>
             </div>
 
@@ -159,14 +174,18 @@ export function LoginView() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <div>
                       <p className="font-medium">Correo enviado</p>
-                      <p className="text-sm text-muted-foreground">Revisa tu email para completar el restablecimiento.</p>
+                      <p className="text-sm text-muted-foreground">
+                        Revisa tu email para completar el restablecimiento.
+                      </p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
                     <div className="w-full">
                       <div className="space-y-2">
-                        <Label htmlFor="resetEmail" className="text-left">Email</Label>
+                        <Label htmlFor="resetEmail" className="text-left">
+                          Email
+                        </Label>
                         <div className="relative">
                           <Input
                             ref={resetInputRef}
@@ -176,10 +195,22 @@ export function LoginView() {
                             autoComplete="email"
                             value={resetEmail}
                             onChange={(e) => setResetEmail(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSendReset(); } }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleSendReset();
+                              }
+                            }}
                             required
                           />
-                          <button type="button" onClick={() => handleSendReset()} className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-primary hover:underline" disabled={sendingReset}>{sendingReset ? 'Enviando...' : 'Enviar enlace'}</button>
+                          <button
+                            type="button"
+                            onClick={() => handleSendReset()}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-primary hover:underline"
+                            disabled={sendingReset}
+                          >
+                            {sendingReset ? 'Enviando...' : 'Enviar enlace'}
+                          </button>
                         </div>
                       </div>
 
@@ -202,12 +233,18 @@ export function LoginView() {
       {/* Alert en esquina inferior derecha */}
       {error && (
         <div className="fixed bottom-4 right-4 left-4 md:left-auto z-50 w-auto md:max-w-md animate-in slide-in-from-right">
-          <Alert variant="destructive" className="border-destructive/50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
+          <Alert
+            variant="destructive"
+            className="border-destructive/50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0"
+          >
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         </div>
       )}
+
+      {/* Register Dialog */}
+      <RegisterDialog open={registerOpen} onOpenChange={setRegisterOpen} />
     </div>
-  )
+  );
 }

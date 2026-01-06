@@ -1,228 +1,273 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-const FullCalendarLazy = lazy(() => import('./FullCalendarWrapper'))
+const FullCalendarLazy = lazy(() => import('./FullCalendarWrapper'));
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { CalendarPlus, AlertTriangle } from "lucide-react"
-import { supabase } from '@/lib/supabase'
-import { error as logError } from '@/lib/logger'
-import type { Event } from '@/types/event'
-import type { Company } from '@/types/company'
-import { EventDialog } from '@/components/eventos/EventDialog'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { useAuth } from '@/contexts/AuthContext'
-import { normalizeForSearch, parseDbDatetimeAsLocal } from '@/lib/utils'
-import { formatDateWithOffset } from '@/lib/date'
-import { getFilePublicUrl } from '@/lib/supabase'
-import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles'
+} from '@/components/ui/select';
+import { CalendarPlus, AlertTriangle, Dumbbell } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { error as logError } from '@/lib/logger';
+import type { Event } from '@/types/event';
+import type { Company } from '@/types/company';
+import { EventDialog } from '@/components/eventos/EventDialog';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
+import { normalizeForSearch } from '@/lib/stringUtils'
+import { parseDbDatetimeAsLocal } from '@/lib/utils';
+import { formatDateWithOffset } from '@/lib/date';
+import { getFilePublicUrl } from '@/lib/supabase';
+import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
 // user_cards removed, load professionals from profiles directly
-import './calendario.css'
+import './calendario.css';
 
 export function CalendarioView() {
-  const { companyId, user } = useAuth()
-  const isClient = user?.role === 'client'
-  const [events, setEvents] = useState<any[]>([])
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([])
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
-  const [clickedDateTime, setClickedDateTime] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedProfessional, setSelectedProfessional] = useState<string>('all')
-  const [professionals, setProfessionals] = useState<any[]>([])
-  const [showMyEvents, setShowMyEvents] = useState<boolean>(false) // Toggle for clients: show only events where user is an attendee
-  const [company, setCompany] = useState<Company | null>(null)
+  const { companyId, user } = useAuth();
+  const isClient = user?.role === 'client';
+  const [events, setEvents] = useState<any[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [clickedDateTime, setClickedDateTime] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedProfessional, setSelectedProfessional] = useState<string>('all');
+  const [professionals, setProfessionals] = useState<any[]>([]);
+  const [showMyEvents, setShowMyEvents] = useState<boolean>(false); // Toggle for clients: show only events where user is an attendee
+  const [company, setCompany] = useState<Company | null>(null);
   // Client credits state (only used when logged in as a client)
-  const [clientCredits, setClientCredits] = useState<number | null>(null)
-  const isMobile = useIsMobile()
+  const [clientCredits, setClientCredits] = useState<number | null>(null);
+  const isMobile = useIsMobile();
 
   // Load company, events and professionals when the companyId changes only
   useEffect(() => {
-    if (!companyId) return
+    if (!companyId) return;
     // Ensure the calendar prefetch and initial load happen once when company is known
-    loadCompany()
-    loadProfessionals()
-    loadEvents(true) // force the initial load
+    loadCompany();
+    loadProfessionals();
+    loadEvents(true); // force the initial load
     // keep last load timestamp to avoid noisy reloads on tab visibility changes
-  }, [companyId])
+  }, [companyId]);
 
   // Load client credits only when client state or user id changes
   useEffect(() => {
     if (isClient && user?.id) {
-      loadClientCredits()
+      loadClientCredits();
     }
-  }, [isClient, user?.id])
+  }, [isClient, user?.id]);
 
   // Avoid frequent reloads (e.g., when returning from another tab)
   // by tracking last load time and ignoring reload attempts that happen
   // within a short interval.
   const lastEventsLoadRef = (function () {
     // keep a stable ref via closure - simple alternative to useRef in this module
-    let last = 0
+    let last = 0;
     return {
       get: () => last,
-      set: (v: number) => { last = v }
-    }
-  })()
-
+      set: (v: number) => {
+        last = v;
+      },
+    };
+  })();
 
   // Load the client's `class_credits` from the `users` collection (uses view rules)
   const loadClientCredits = async () => {
-    if (!isClient || !user?.id) return
+    if (!isClient || !user?.id) return;
 
     try {
-      const fetcher = await import('@/lib/supabase')
-      const profile = await fetcher.fetchProfileByUserId(user.id)
-      setClientCredits(profile?.class_credits ?? 0)
+      const fetcher = await import('@/lib/supabase');
+      const profile = await fetcher.fetchProfileByUserId(user.id);
+      setClientCredits(profile?.class_credits ?? 0);
     } catch (err) {
-      logError('Error cargando créditos del usuario:', err)
-      setClientCredits(0)
+      logError('Error cargando créditos del usuario:', err);
+      setClientCredits(0);
     }
-  }
+  };
 
   useEffect(() => {
-    filterEvents()
-  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id])
+    filterEvents();
+  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id]);
 
   const loadProfessionals = async () => {
-    if (!companyId) return
+    if (!companyId) return;
 
     try {
-      const profiles = await getProfilesByRole(companyId!, 'professional')
+      const profiles = await getProfilesByRole(companyId!, 'professional');
       const records = (profiles || []).map((p: any) => ({
         id: p.user_id || p.user || p.id,
         user: p.user_id || p.user || p.id,
         name: p.name || '',
         last_name: p.last_name || '',
         photo: p.photo_path || null,
-        photoUrl: p.photo_path ? getFilePublicUrl('profile_photos', p.user || p.id, p.photo_path) : null,
+        photoUrl: p.photo_path
+          ? getFilePublicUrl('profile_photos', p.user || p.id, p.photo_path)
+          : null,
         role: p.role || null,
         company: p.company || null,
-      }))
-      setProfessionals(records)
+      }));
+      setProfessionals(records);
     } catch (err) {
-      logError('Error cargando profesionales desde profiles:', err)
+      logError('Error cargando profesionales desde profiles:', err);
     }
-  }
+  };
 
   const loadCompany = async () => {
-    if (!companyId) return
+    if (!companyId) return;
 
     try {
-      const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', { p_company: companyId })
-      if (compErr) throw compErr
-      const record = Array.isArray(comp) ? comp[0] : comp
-      setCompany(record)
+      const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', {
+        p_company: companyId,
+      });
+      if (compErr) throw compErr;
+      const record = Array.isArray(comp) ? comp[0] : comp;
+      setCompany(record);
     } catch (err) {
-      logError('Error cargando configuración de company:', err)
+      logError('Error cargando configuración de company:', err);
     }
-  }
+  };
 
   const filterEvents = () => {
-    let filtered = [...events]
+    let filtered = [...events];
 
     // Filtrar por búsqueda de texto
     if (searchQuery) {
-      const q = normalizeForSearch(searchQuery)
-      filtered = filtered.filter(event => {
-        const titleMatch = event.title && normalizeForSearch(event.title).includes(q)
-        const notesMatch = event.extendedProps?.notes && normalizeForSearch(event.extendedProps.notes).includes(q)
-        const clientMatch = event.extendedProps?.clientNames && normalizeForSearch(event.extendedProps.clientNames).includes(q)
-        const professionalMatch = event.extendedProps?.professionalNames && normalizeForSearch(event.extendedProps.professionalNames).includes(q)
-        return Boolean(titleMatch || notesMatch || clientMatch || professionalMatch)
-      })
+      const q = normalizeForSearch(searchQuery);
+      filtered = filtered.filter((event) => {
+        const titleMatch = event.title && normalizeForSearch(event.title).includes(q);
+        const notesMatch =
+          event.extendedProps?.notes && normalizeForSearch(event.extendedProps.notes).includes(q);
+        const clientMatch =
+          event.extendedProps?.clientNames &&
+          normalizeForSearch(event.extendedProps.clientNames).includes(q);
+        const professionalMatch =
+          event.extendedProps?.professionalNames &&
+          normalizeForSearch(event.extendedProps.professionalNames).includes(q);
+        return Boolean(titleMatch || notesMatch || clientMatch || professionalMatch);
+      });
     }
 
     // Filtrar por profesional (por id)
     if (selectedProfessional !== 'all') {
-      filtered = filtered.filter(event =>
+      filtered = filtered.filter((event) =>
         event.extendedProps?.professional?.includes(selectedProfessional)
-      )
+      );
     }
 
     // Si el toggle 'Ver mis eventos' está activo para clientes, filtrar por cliente actual
     if (showMyEvents && isClient && user?.id) {
-      filtered = filtered.filter(event => {
-        const clients = event.extendedProps?.client || []
-        return Array.isArray(clients) && clients.includes(user.id)
-      })
+      filtered = filtered.filter((event) => {
+        const clients = event.extendedProps?.client || [];
+        const clientUserIds = event.extendedProps?.clientUserIds || [];
+        // Accept either stored profile ids or normalized user ids
+        return (
+          (Array.isArray(clients) && clients.map(String).includes(String(user.id))) ||
+          (Array.isArray(clientUserIds) && clientUserIds.map(String).includes(String(user.id)))
+        );
+      });
     }
 
-    setFilteredEvents(filtered)
-  }
+    setFilteredEvents(filtered);
+  };
 
   const loadEvents = async (force = false) => {
-    if (!companyId) return
+    if (!companyId) return;
 
     try {
       // Avoid reload storm when returning to tab: if last load was less than 10s ago, skip unless forced
-      const last = lastEventsLoadRef.get()
-      const now = Date.now()
-      if (!force && last && (now - last) < 10000) return
-      lastEventsLoadRef.set(now)
+      const last = lastEventsLoadRef.get();
+      const now = Date.now();
+      if (!force && last && now - last < 10000) return;
+      lastEventsLoadRef.set(now);
 
       // Cargar eventos de la company actual
-      const cid = companyId
-      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: cid })
-      if (error) throw error
-      const records = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
+      const cid = companyId;
+      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+        p_company: cid,
+      });
+      if (error) throw error;
+      const records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
       // Sort by datetime
-      records.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
+      records.sort(
+        (a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
+      );
 
       // Precompute profile ids to fetch
-      const allIds = new Set<string>()
-        ; (records || []).forEach((event: any) => {
-          const pros = Array.isArray(event.professional) ? event.professional : (event.professional ? [event.professional] : [])
-          const clients = Array.isArray(event.client) ? event.client : (event.client ? [event.client] : [])
-          pros.forEach((id: string) => allIds.add(id))
-          clients.forEach((id: string) => allIds.add(id))
-        })
+      const allIds = new Set<string>();
+      (records || []).forEach((event: any) => {
+        const pros = Array.isArray(event.professional)
+          ? event.professional
+          : event.professional
+            ? [event.professional]
+            : [];
+        const clients = Array.isArray(event.client)
+          ? event.client
+          : event.client
+            ? [event.client]
+            : [];
+        pros.forEach((id: string) => allIds.add(id));
+        clients.forEach((id: string) => allIds.add(id));
+      });
 
-      let profileMap: Record<string, any> = {}
+      let profileMap: Record<string, any> = {};
       if (allIds.size > 0) {
-        const ids = Array.from(allIds)
-        const profilesMap = await getProfilesByIds(ids)
-        profileMap = profilesMap || {}
+        const ids = Array.from(allIds);
+        const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+        profileMap = profilesMap || {};
       }
 
       // Transformar eventos para FullCalendar
       const calendarEvents = (records || []).map((event: any) => {
-        let title = ''
-        let backgroundColor = ''
-        let borderColor = ''
+        let title = '';
+        let backgroundColor = '';
+        let borderColor = '';
 
-        const expandedClients = (Array.isArray(event.client) ? event.client : (event.client ? [event.client] : [])).map((id: string) => profileMap[id]).filter(Boolean)
-        const expandedProfessionals = (Array.isArray(event.professional) ? event.professional : (event.professional ? [event.professional] : [])).map((id: string) => profileMap[id]).filter(Boolean)
+        const expandedClients = (
+          Array.isArray(event.client) ? event.client : event.client ? [event.client] : []
+        )
+          .map((id: string) => profileMap[id])
+          .filter(Boolean);
+        const expandedProfessionals = (
+          Array.isArray(event.professional)
+            ? event.professional
+            : event.professional
+              ? [event.professional]
+              : []
+        )
+          .map((id: string) => profileMap[id])
+          .filter(Boolean);
 
         // Construir strings con nombres para búsqueda
-        const clientNames = expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ')
-        const professionalNames = expandedProfessionals.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
+        const clientNames = expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ');
+        const professionalNames = expandedProfessionals
+          .map((p: any) => `${p.name} ${p.last_name}`)
+          .join(', ');
 
         // Determinar título y color según tipo
         if (event.type === 'appointment') {
-          const expandedClient = expandedClients[0]
-          title = expandedClient ? `${expandedClient.name} ${expandedClient.last_name}` : 'Cita'
-          backgroundColor = 'hsl(var(--appointment-color))'
-          borderColor = 'hsl(var(--appointment-color))'
+          const expandedClient = expandedClients[0];
+          title = expandedClient ? `${expandedClient.name} ${expandedClient.last_name}` : 'Cita';
+          backgroundColor = 'hsl(var(--appointment-color))';
+          borderColor = 'hsl(var(--appointment-color))';
         } else if (event.type === 'class') {
-          title = 'Clase'
-          backgroundColor = 'hsl(var(--class-color))'
-          borderColor = 'hsl(var(--class-color))'
+          title = 'Clase';
+          backgroundColor = 'hsl(var(--class-color))';
+          borderColor = 'hsl(var(--class-color))';
         } else if (event.type === 'vacation') {
-          title = professionalNames || 'Vacaciones'
-          backgroundColor = 'hsl(var(--vacation-color))'
-          borderColor = 'hsl(var(--vacation-color))'
+          title = professionalNames || 'Vacaciones';
+          backgroundColor = 'hsl(var(--vacation-color))';
+          borderColor = 'hsl(var(--vacation-color))';
         }
 
-        const startDate = parseDbDatetimeAsLocal(event.datetime) || new Date(event.datetime)
-        const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000)
+        const startDate = parseDbDatetimeAsLocal(event.datetime) || new Date(event.datetime);
+        const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000);
+        const clientIds = Array.isArray(event.client) ? event.client : event.client ? [event.client] : [];
+        const clientUserIds = expandedClients.map((c: any) => c.user || c.id).filter(Boolean);
+
         return {
           id: event.id,
           title,
@@ -235,121 +280,156 @@ export function CalendarioView() {
             cost: event.cost,
             paid: event.paid,
             notes: event.notes,
-            professional: event.professional,
-            client: event.client || [],
+            professional: Array.isArray(event.professional) ? event.professional : event.professional ? [event.professional] : [],
+            client: clientIds,
+            clientUserIds, // normalized user ids for robust matching
             clientNames,
             professionalNames,
           },
-          _rawEvent: event
-        }
-      })
+          _rawEvent: event,
+        };
+      });
 
-      setEvents(calendarEvents)
-      setFilteredEvents(calendarEvents)
-      loadClientCredits()
+      setEvents(calendarEvents);
+      setFilteredEvents(calendarEvents);
+      loadClientCredits();
     } catch (err) {
-      logError('Error cargando eventos:', err)
+      logError('Error cargando eventos:', err);
     }
-  }
+  };
 
   const handleDateClick = (arg: any) => {
     // Clientes no pueden crear eventos desde el calendario (sin funcionalidad por ahora)
-    if (isClient) return
+    if (isClient) return;
 
     // Abrir modal de crear evento con la fecha/hora clickeada
-    setClickedDateTime(arg.dateStr)
-    setSelectedEvent(null)
-    setDialogOpen(true)
-  }
+    setClickedDateTime(arg.dateStr);
+    setSelectedEvent(null);
+    setDialogOpen(true);
+  };
 
   const handleEventClick = async (clickInfo: any) => {
-    const eventId = clickInfo.event.id
+    const eventId = clickInfo.event.id;
 
     try {
       // Use secure RPC to fetch event and avoid direct SELECT that may trigger profiles RLS
-      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', { p_company: companyId })
-      if (error) throw error
-      const records = Array.isArray(rpcRecords) ? rpcRecords : (rpcRecords ? [rpcRecords] : [])
-      const eventData = (records || []).find((r: any) => r.id === eventId)
-      if (!eventData) throw new Error('event not found')
+      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+        p_company: companyId,
+      });
+      if (error) throw error;
+      const records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+      const eventData = (records || []).find((r: any) => r.id === eventId);
+      if (!eventData) throw new Error('event not found');
 
       // Enrich with profiles
-      const ids = [...(Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])), ...(Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : []))]
-      let profileMap: Record<string, any> = {}
+      const ids = [
+        ...(Array.isArray(eventData.client)
+          ? eventData.client
+          : eventData.client
+            ? [eventData.client]
+            : []),
+        ...(Array.isArray(eventData.professional)
+          ? eventData.professional
+          : eventData.professional
+            ? [eventData.professional]
+            : []),
+      ];
+      let profileMap: Record<string, any> = {};
       if (ids.length > 0) {
-        const profilesMap = await getProfilesByIds(ids)
-        profileMap = profilesMap || {}
+        const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+        profileMap = profilesMap || {};
       }
 
       const enriched = {
         ...eventData,
         expand: {
-          client: (Array.isArray(eventData.client) ? eventData.client : (eventData.client ? [eventData.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-          professional: (Array.isArray(eventData.professional) ? eventData.professional : (eventData.professional ? [eventData.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-        }
-      }
+          client: (Array.isArray(eventData.client)
+            ? eventData.client
+            : eventData.client
+              ? [eventData.client]
+              : []
+          )
+            .map((id: string) => profileMap[id] || null)
+            .filter(Boolean),
+          professional: (Array.isArray(eventData.professional)
+            ? eventData.professional
+            : eventData.professional
+              ? [eventData.professional]
+              : []
+          )
+            .map((id: string) => profileMap[id] || null)
+            .filter(Boolean),
+        },
+      };
 
-      setSelectedEvent(enriched as any)
-      setDialogOpen(true)
+      setSelectedEvent(enriched as any);
+      setDialogOpen(true);
     } catch (err) {
-      logError('Error cargando evento:', err)
+      logError('Error cargando evento:', err);
     }
-  }
+  };
 
   const handleAdd = () => {
-    if (isClient) return // No-op for clients (show 'Agendar cita' button without functionality)
-    setClickedDateTime(null)
-    setSelectedEvent(null)
-    setDialogOpen(true)
-  }
+    if (isClient) return; // No-op for clients (show 'Agendar cita' button without functionality)
+    setClickedDateTime(null);
+    setSelectedEvent(null);
+    setDialogOpen(true);
+  };
 
   const handleSave = () => {
-    loadEvents()
-  }
+    loadEvents();
+  };
 
   const handleClearFilters = () => {
-    setSearchQuery('')
-    setSelectedProfessional('all')
-  }
+    setSearchQuery('');
+    setSelectedProfessional('all');
+  };
 
   const handleEventDrop = async (info: any) => {
     try {
-      const eventId = info.event.id
-      const newStart = info.event.start
+      const eventId = info.event.id;
+      const newStart = info.event.start;
 
       // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
-      const { error } = await supabase.rpc('update_event_json', { p_payload: { id: eventId, changes: { datetime: formatDateWithOffset(newStart) } } })
-      if (error) throw error
+      const { error } = await supabase.rpc('update_event_json', {
+        p_payload: { id: eventId, changes: { datetime: formatDateWithOffset(newStart) } },
+      });
+      if (error) throw error;
 
       // Recargar eventos
-      loadEvents()
+      loadEvents();
     } catch (err) {
-      logError('Error moviendo evento:', err)
-      info.revert() // Revertir si falla
+      logError('Error moviendo evento:', err);
+      info.revert(); // Revertir si falla
     }
-  }
+  };
 
   const handleEventResize = async (info: any) => {
     try {
-      const eventId = info.event.id
-      const newStart = info.event.start
-      const newEnd = info.event.end
+      const eventId = info.event.id;
+      const newStart = info.event.start;
+      const newEnd = info.event.end;
 
       // Calcular nueva duración en minutos
-      const durationMs = newEnd.getTime() - newStart.getTime()
-      const durationMin = Math.round(durationMs / (1000 * 60))
+      const durationMs = newEnd.getTime() - newStart.getTime();
+      const durationMin = Math.round(durationMs / (1000 * 60));
 
       // Actualizar en Supabase using timezone-less local format to preserve wall-clock time
-      const { error } = await supabase.rpc('update_event_json', { p_payload: { id: eventId, changes: { datetime: formatDateWithOffset(newStart), duration: durationMin } } })
-      if (error) throw error
+      const { error } = await supabase.rpc('update_event_json', {
+        p_payload: {
+          id: eventId,
+          changes: { datetime: formatDateWithOffset(newStart), duration: durationMin },
+        },
+      });
+      if (error) throw error;
 
       // Recargar eventos
-      loadEvents()
+      loadEvents();
     } catch (err) {
-      logError('Error redimensionando evento:', err)
-      info.revert() // Revertir si falla
+      logError('Error redimensionando evento:', err);
+      info.revert(); // Revertir si falla
     }
-  }
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
@@ -383,7 +463,9 @@ export function CalendarioView() {
           </Select>
         ) : (
           <div className="flex items-center gap-3">
-            <label htmlFor="show-my-events" className="text-sm font-medium cursor-pointer">Ver mis eventos</label>
+            <label htmlFor="show-my-events" className="text-sm font-medium cursor-pointer">
+              Ver mis eventos
+            </label>
             <label className="flex items-center cursor-pointer">
               <input
                 id="show-my-events"
@@ -393,7 +475,9 @@ export function CalendarioView() {
                 onChange={(e) => setShowMyEvents(e.target.checked)}
               />
               <div className="h-5 w-9 rounded-full bg-muted relative peer-checked:bg-primary transition-colors">
-                <div className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-background shadow transform transition-transform ${showMyEvents ? 'translate-x-4' : 'translate-x-0'}`} />
+                <div
+                  className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-background shadow transform transition-transform ${showMyEvents ? 'translate-x-4' : 'translate-x-0'}`}
+                />
               </div>
             </label>
           </div>
@@ -406,7 +490,8 @@ export function CalendarioView() {
 
         {isClient && (
           <div className="flex items-center gap-3 sm:ml-4">
-            <div className="flex items-center text-sm font-medium">Clases restantes: <span className="font-bold ml-1">{clientCredits ?? 0}</span>
+            <div className="flex items-center text-sm font-medium">
+              Clases restantes: <span className="font-bold ml-1">{clientCredits ?? 0}</span>
               {(clientCredits ?? 0) <= 0 && (
                 <span className="ml-2 inline-block" role="img" aria-label="Créditos insuficientes">
                   <AlertTriangle className="h-4 w-4 text-orange-600" aria-hidden="true" />
@@ -428,22 +513,22 @@ export function CalendarioView() {
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
             {/* Render calendar even if no company row exists: use defaults when company is null */}
             {(() => {
-              const openTime = company?.open_time || '08:00'
-              const closeTime = company?.close_time || '20:00'
+              const openTime = company?.open_time || '08:00';
+              const closeTime = company?.close_time || '20:00';
 
               return (
                 <FullCalendarLazy
-                  initialView={isMobile ? "timeGridDay" : "timeGridWeek"}
+                  initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
                   headerToolbar={{
                     left: isMobile ? 'prev,next' : 'prev,next today',
                     center: 'title',
-                    right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay'
+                    right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay',
                   }}
                   buttonText={{
                     today: 'Hoy',
                     month: 'Mes',
                     week: 'Semana',
-                    day: 'Día'
+                    day: 'Día',
                   }}
                   slotMinTime={openTime}
                   slotMaxTime={closeTime}
@@ -455,8 +540,8 @@ export function CalendarioView() {
                   dateClick={handleDateClick}
                   eventClick={handleEventClick}
                   editable={true}
-                  selectable={true}
-                  selectMirror={true}
+                  selectable={!isClient}
+                  selectMirror={!isClient}
                   dayMaxEvents={true}
                   weekends={true}
                   eventDrop={handleEventDrop}
@@ -464,11 +549,27 @@ export function CalendarioView() {
                   titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
                   dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
                 />
-              )
+              );
             })()}
           </Suspense>
         </CardContent>
       </Card>
+
+      {isClient && (
+        <Card>
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Dumbbell className="mr-2 h-4 w-4" />
+              Programas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground">
+              Aquí verás los programas que tienes asignados.
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <EventDialog
         open={dialogOpen}
@@ -478,5 +579,5 @@ export function CalendarioView() {
         initialDateTime={clickedDateTime}
       />
     </div>
-  )
+  );
 }

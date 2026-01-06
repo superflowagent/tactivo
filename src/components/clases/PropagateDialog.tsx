@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -6,161 +6,147 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import ProjectAlert from '@/components/ui/project-alert'
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import ProjectAlert from '@/components/ui/project-alert';
 import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
-} from "@/components/ui/select"
-import { CalendarRange, AlertCircle } from "lucide-react"
-import { supabase } from "@/lib/supabase"
-import { error as logError } from "@/lib/logger";
-import type { Event } from "@/types/event"
-import { formatDateAsDbLocalString } from '@/lib/utils'
-import { formatDateWithOffset } from '@/lib/date'
+} from '@/components/ui/select';
+import { CalendarRange } from 'lucide-react';
+import { error as logError } from '@/lib/logger';
+import type { Event } from '@/types/event';
 
 interface PropagateDialogProps {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    templateSlots: Event[]
-    companyId: string
-    onSuccess: () => void
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    templateSlots: Event[];
+    companyId: string;
+    onSuccess: () => void;
 }
 
-export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, onSuccess }: PropagateDialogProps) {
-    const currentYear = new Date().getFullYear()
-    const currentMonth = new Date().getMonth() + 1
+export function PropagateDialog({
+    open,
+    onOpenChange,
+    templateSlots,
+    companyId,
+    onSuccess,
+}: PropagateDialogProps) {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
 
     // Calculate next month
-    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
-    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear
+    const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+    const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
 
-    const [selectedMonth, setSelectedMonth] = useState<string>(nextMonth.toString())
-    const [selectedYear, setSelectedYear] = useState<string>(nextYear.toString())
-    const [loading, setLoading] = useState(false)
+    const [selectedMonth, setSelectedMonth] = useState<string>(nextMonth.toString());
+    const [selectedYear, setSelectedYear] = useState<string>(nextYear.toString());
+    const [loading, setLoading] = useState(false);
 
     const months = [
-        { value: "1", label: "Enero" },
-        { value: "2", label: "Febrero" },
-        { value: "3", label: "Marzo" },
-        { value: "4", label: "Abril" },
-        { value: "5", label: "Mayo" },
-        { value: "6", label: "Junio" },
-        { value: "7", label: "Julio" },
-        { value: "8", label: "Agosto" },
-        { value: "9", label: "Septiembre" },
-        { value: "10", label: "Octubre" },
-        { value: "11", label: "Noviembre" },
-        { value: "12", label: "Diciembre" },
-    ]
+        { value: '1', label: 'Enero' },
+        { value: '2', label: 'Febrero' },
+        { value: '3', label: 'Marzo' },
+        { value: '4', label: 'Abril' },
+        { value: '5', label: 'Mayo' },
+        { value: '6', label: 'Junio' },
+        { value: '7', label: 'Julio' },
+        { value: '8', label: 'Agosto' },
+        { value: '9', label: 'Septiembre' },
+        { value: '10', label: 'Octubre' },
+        { value: '11', label: 'Noviembre' },
+        { value: '12', label: 'Diciembre' },
+    ];
 
-    const years = Array.from({ length: 3 }, (_, i) => currentYear + i)
+    const years = Array.from({ length: 3 }, (_, i) => currentYear + i);
 
     const isMonthDisabled = (monthValue: string) => {
-        const month = parseInt(monthValue)
-        const year = parseInt(selectedYear)
-        return year === currentYear && month < currentMonth
-    }
+        const month = parseInt(monthValue);
+        const year = parseInt(selectedYear);
+        return year === currentYear && month < currentMonth;
+    };
 
     const handlePropagate = async () => {
-        if (!selectedMonth || !selectedYear) return
+        if (!selectedMonth || !selectedYear) return;
 
-        setLoading(true)
+        setLoading(true);
         try {
-            const month = parseInt(selectedMonth)
-            const year = parseInt(selectedYear)
-            const createdEvents: any[] = []
+            const month = parseInt(selectedMonth);
+            const year = parseInt(selectedYear);
 
-            // Collect all events to create
-            for (const slot of templateSlots) {
-                const templateDate = new Date(slot.datetime)
-                const templateDayOfWeek = templateDate.getDay()
-                const templateHours = templateDate.getHours()
-                const templateMinutes = templateDate.getMinutes()
+            // Build a sanitized template payload for the server
+            const templates = templateSlots.map((slot) => ({
+                id: slot.id,
+                day: slot.day,
+                time: (slot as any).time || undefined,
+                datetime: slot.datetime || undefined,
+                duration: slot.duration,
+                client: slot.client || [],
+                professional: slot.professional || [],
+                notes: slot.notes || '',
+            }));
 
-                const daysInMonth = new Date(year, month, 0).getDate()
-
-                for (let day = 1; day <= daysInMonth; day++) {
-                    const currentDate = new Date(year, month - 1, day)
-
-                    if (currentDate.getDay() === templateDayOfWeek) {
-                        currentDate.setHours(templateHours, templateMinutes, 0, 0)
-
-                        const eventData = {
-                            type: 'class',
-                            // Use timezone-aware formatting to preserve local wall-clock time
-                            datetime: formatDateWithOffset(currentDate),
-                            duration: slot.duration,
-                            client: slot.client || [],
-                            professional: slot.professional || [],
-                            company: companyId,
-                            notes: slot.notes || '',
-                        }
-
-                        const { error } = await supabase.from('events').insert(eventData)
-                        if (error) throw error
-                        createdEvents.push(eventData)
-                    }
-                }
+            // Call edge function to create events and deduct credits
+            const { default: propagateClasses } = await import('@/lib/propagate');
+            const res = await propagateClasses(companyId, month, year, templates);
+            if (!res.ok) {
+                logError('propagate-classes failed', res);
+                throw new Error(res?.data?.error || 'Propagate failed');
             }
 
-            // Credit adjustments removed — will be handled by server-side implementation in the future.
-
-            onSuccess()
-            onOpenChange(false)
+            onSuccess();
+            onOpenChange(false);
         } catch (err) {
-            logError('Error al propagar clases:', err)
-            alert('Error al propagar las clases')
+            logError('Error al propagar clases:', err);
+            alert('Error al propagar las clases');
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const getPreviewInfo = () => {
-        if (!selectedMonth || !selectedYear) return null
+        if (!selectedMonth || !selectedYear) return null;
 
-        const month = parseInt(selectedMonth)
-        const year = parseInt(selectedYear)
-        const daysInMonth = new Date(year, month, 0).getDate()
-        let totalEvents = 0
-        const clientsSet = new Set<string>()
+        const month = parseInt(selectedMonth);
+        const year = parseInt(selectedYear);
+        const daysInMonth = new Date(year, month, 0).getDate();
+        let totalEvents = 0;
+        const clientsSet = new Set<string>();
 
         // Contar cuántos eventos se crearían y recopilar clientes únicos
         for (const slot of templateSlots) {
-            const templateDate = new Date(slot.datetime)
-            const templateDayOfWeek = templateDate.getDay()
+            const templateDate = new Date(slot.datetime);
+            const templateDayOfWeek = templateDate.getDay();
 
             // Añadir clientes del slot
             if (slot.client && Array.isArray(slot.client)) {
-                slot.client.forEach(clientId => clientsSet.add(clientId))
+                slot.client.forEach((clientId) => clientsSet.add(clientId));
             }
 
             for (let day = 1; day <= daysInMonth; day++) {
-                const currentDate = new Date(year, month - 1, day)
+                const currentDate = new Date(year, month - 1, day);
                 if (currentDate.getDay() === templateDayOfWeek) {
-                    totalEvents++
+                    totalEvents++;
                 }
             }
         }
 
         // Calcular créditos por cliente
-        const creditsPerClient = totalEvents
+        const creditsPerClient = totalEvents;
 
         return {
             totalEvents,
-            monthName: months.find(m => m.value === selectedMonth)?.label,
+            monthName: months.find((m) => m.value === selectedMonth)?.label,
             clientCount: clientsSet.size,
             creditsPerClient,
-        }
-    }
+        };
+    };
 
-    const preview = getPreviewInfo()
+    const preview = getPreviewInfo();
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,11 +204,19 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                         <div className="space-y-2">
                             <div className="bg-muted p-4 rounded-lg">
                                 <p className="text-sm font-medium">
-                                    Se crearán <span className="font-bold text-primary">{preview.totalEvents}</span> clases en {preview.monthName} de {selectedYear}
+                                    Se crearán <span className="font-bold text-primary">{preview.totalEvents}</span>{' '}
+                                    clases en {preview.monthName} de {selectedYear}
                                 </p>
                             </div>
                             {preview.clientCount > 0 && (
-                                <ProjectAlert variant="destructive" title={<span className="text-sm">Esta acción deducirá clases a los clientes involucrados.</span>} />
+                                <ProjectAlert
+                                    variant="destructive"
+                                    title={
+                                        <span className="text-sm">
+                                            Esta acción deducirá clases a los clientes involucrados.
+                                        </span>
+                                    }
+                                />
                             )}
                         </div>
                     )}
@@ -237,10 +231,10 @@ export function PropagateDialog({ open, onOpenChange, templateSlots, companyId, 
                         onClick={handlePropagate}
                         disabled={loading || !preview || preview.totalEvents === 0}
                     >
-                        {loading ? "Propagando..." : "Propagar"}
+                        {loading ? 'Propagando...' : 'Propagar'}
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-    )
+    );
 }

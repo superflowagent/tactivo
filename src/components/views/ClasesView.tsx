@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button";
-import ActionButton from "@/components/ui/ActionButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import ActionButton from '@/components/ui/ActionButton';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -12,16 +12,16 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from "lucide-react"
-import { supabase } from '@/lib/supabase'
-import { error as logError } from '@/lib/logger'
-import { useAuth } from '@/contexts/AuthContext'
-import { getProfilesByIds } from '@/lib/profiles'
-import type { Event } from '@/types/event'
-import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog'
-import { PropagateDialog } from '@/components/clases/PropagateDialog'
-import { formatDateAsDbLocalString } from '@/lib/utils'
+} from '@/components/ui/alert-dialog';
+import { Plus, Pencil, Trash, CalendarRange, CheckCircle, Copy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { error as logError } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
+import { getProfilesByIds } from '@/lib/profiles';
+import type { Event } from '@/types/event';
+import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog';
+import { PropagateDialog } from '@/components/clases/PropagateDialog';
+import { formatDateAsDbLocalString } from '@/lib/utils';
 
 const WEEKDAYS = [
     { name: 'Lunes', value: 1 },
@@ -29,206 +29,258 @@ const WEEKDAYS = [
     { name: 'Miércoles', value: 3 },
     { name: 'Jueves', value: 4 },
     { name: 'Viernes', value: 5 },
-]
+];
 
 export function ClasesView() {
-    const { companyId } = useAuth()
-    const [templateSlots, setTemplateSlots] = useState<Event[]>([])
-    const [loading, setLoading] = useState(true)
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-    const [slotToDelete, setSlotToDelete] = useState<Event | null>(null)
-    const [dialogOpen, setDialogOpen] = useState(false)
-    const [selectedSlot, setSelectedSlot] = useState<Event | null>(null)
-    const [selectedDay, setSelectedDay] = useState<number>(1)
-    const [propagateDialogOpen, setPropagateDialogOpen] = useState(false)
-    const [showSuccessAlert, setShowSuccessAlert] = useState(false)
-    const [draggedSlot, setDraggedSlot] = useState<Event | null>(null)
-    const [dragOverDay, setDragOverDay] = useState<number | null>(null)
+    const { companyId } = useAuth();
+    const [templateSlots, setTemplateSlots] = useState<Event[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [slotToDelete, setSlotToDelete] = useState<Event | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [selectedSlot, setSelectedSlot] = useState<Event | null>(null);
+    const [selectedDay, setSelectedDay] = useState<number>(1);
+    const [propagateDialogOpen, setPropagateDialogOpen] = useState(false);
+    const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+    const [draggedSlot, setDraggedSlot] = useState<Event | null>(null);
+    const [dragOverDay, setDragOverDay] = useState<number | null>(null);
 
     useEffect(() => {
-        loadTemplateSlots()
-    }, [companyId])
+        loadTemplateSlots();
+    }, [companyId]);
 
     const loadTemplateSlots = async () => {
-        if (!companyId) return
+        if (!companyId) return;
 
         try {
-            setLoading(true)
-            const cid = companyId
-            const { data: records, error } = await supabase.from('classes_template').select('*').eq('company', cid).order('datetime')
-            if (error) throw error
+            setLoading(true);
+            const cid = companyId;
+            // Order by day (1..7) and time to reflect weekly templates
+            const { data: records, error } = await supabase
+                .from('classes_templates')
+                .select('*')
+                .eq('company', cid)
+                .order('day')
+                .order('time');
+            if (error) throw error;
 
             // Enrich with profiles for client and professional ids
             const allIds = new Set<string>();
             (records || []).forEach((r: any) => {
-                const pros = Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])
-                const clients = Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])
-                pros.forEach((id: string) => allIds.add(id))
-                clients.forEach((id: string) => allIds.add(id))
-            })
+                const pros = Array.isArray(r.professional)
+                    ? r.professional
+                    : r.professional
+                        ? [r.professional]
+                        : [];
+                const clients = Array.isArray(r.client) ? r.client : r.client ? [r.client] : [];
+                pros.forEach((id: string) => allIds.add(id));
+                clients.forEach((id: string) => allIds.add(id));
+            });
 
-            let profileMap: Record<string, any> = {}
+            let profileMap: Record<string, any> = {};
             if (allIds.size > 0) {
-                const ids = Array.from(allIds)
-                const profilesMap = await getProfilesByIds(ids)
-                profileMap = profilesMap || {}
+                const ids = Array.from(allIds);
+                const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+                profileMap = profilesMap || {};
             }
 
-            const enriched = (records || []).map((r: any) => ({
-                ...r,
-                expand: {
-                    client: (Array.isArray(r.client) ? r.client : (r.client ? [r.client] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-                    professional: (Array.isArray(r.professional) ? r.professional : (r.professional ? [r.professional] : [])).map((id: string) => profileMap[id] || null).filter(Boolean),
-                }
-            }))
+            // Create a synthetic `datetime` for compatibility with other components using Date parsing
+            const enriched = (records || []).map((r: any) => {
+                const dayNum = typeof r.day === 'number' ? r.day : parseInt(r.day);
+                const timeStr = r.time || '10:00';
+                const [hours, minutes] = timeStr.split(':').map((s: string) => parseInt(s, 10) || 0);
 
-            setTemplateSlots(enriched)
+                // Build a date in the next week that matches the dayOfWeek
+                const now = new Date();
+                const diff = (dayNum - now.getDay() + 7) % 7 || 7; // ensure a positive diff (1..7)
+                const dt = new Date(now);
+                dt.setDate(now.getDate() + diff);
+                dt.setHours(hours, minutes, 0, 0);
+
+                return {
+                    ...r,
+                    datetime: dt.toISOString(),
+                    expand: {
+                        client: (Array.isArray(r.client) ? r.client : r.client ? [r.client] : [])
+                            .map((id: string) => profileMap[id] || null)
+                            .filter(Boolean),
+                        professional: (Array.isArray(r.professional)
+                            ? r.professional
+                            : r.professional
+                                ? [r.professional]
+                                : []
+                        )
+                            .map((id: string) => profileMap[id] || null)
+                            .filter(Boolean),
+                    },
+                };
+            });
+
+            setTemplateSlots(enriched);
         } catch (err) {
-            logError('Error cargando slots:', err)
+            logError('Error cargando slots:', err);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const handleDelete = (slot: Event) => {
-        setSlotToDelete(slot)
-        setDeleteDialogOpen(true)
-    }
+        setSlotToDelete(slot);
+        setDeleteDialogOpen(true);
+    };
 
     const handleEdit = (slot: Event) => {
-        setSelectedSlot(slot)
-        setSelectedDay(getDayOfWeek(slot.datetime))
-        setDialogOpen(true)
-    }
+        setSelectedSlot(slot);
+        setSelectedDay(getDayOfWeek(slot.datetime));
+        setDialogOpen(true);
+    };
 
     const handleDuplicate = async (slot: Event) => {
         try {
-            const { error } = await supabase.from('classes_template').insert({
-                datetime: slot.datetime,
+            // Prefer explicit day/time if present in slot, otherwise derive from datetime
+            const day = (slot as any).day ?? getDayOfWeek(slot.datetime);
+            const time = (slot as any).time ?? getTime(slot.datetime);
+
+            const { error } = await supabase.from('classes_templates').insert({
+                day,
+                time,
                 duration: slot.duration,
                 client: slot.client || [],
                 professional: slot.professional || [],
                 company: slot.company,
                 notes: slot.notes || '',
-            })
-            if (error) throw error
-            await loadTemplateSlots()
+            });
+            if (error) throw error;
+            await loadTemplateSlots();
         } catch (err) {
-            logError('Error duplicando clase:', err)
-            alert('Error al duplicar la clase')
+            logError('Error duplicando clase:', err);
+            alert('Error al duplicar la clase');
         }
-    }
+    };
 
     const handleCreate = (dayValue: number) => {
-        setSelectedSlot(null)
-        setSelectedDay(dayValue)
-        setDialogOpen(true)
-    }
+        setSelectedSlot(null);
+        setSelectedDay(dayValue);
+        setDialogOpen(true);
+    };
 
     const handleDeleteConfirm = async () => {
-        if (!slotToDelete?.id) return
+        if (!slotToDelete?.id) return;
 
         try {
-            const { error } = await supabase.from('classes_template').delete().eq('id', slotToDelete.id)
-            if (error) throw error
-            await loadTemplateSlots()
+            const { error } = await supabase.from('classes_templates').delete().eq('id', slotToDelete.id);
+            if (error) throw error;
+            await loadTemplateSlots();
             // Close class dialog if it's open and clear selection
-            setDialogOpen(false)
-            setSelectedSlot(null)
-            setDeleteDialogOpen(false)
-            setSlotToDelete(null)
+            setDialogOpen(false);
+            setSelectedSlot(null);
+            setDeleteDialogOpen(false);
+            setSlotToDelete(null);
         } catch (err) {
-            logError('Error eliminando slot:', err)
-            alert('Error al eliminar la clase')
+            logError('Error eliminando slot:', err);
+            alert('Error al eliminar la clase');
         }
-    }
+    };
 
     const getDayOfWeek = (datetime: string) => {
-        const date = new Date(datetime)
-        return date.getDay() // 0=Sunday, 1=Monday, etc.
-    }
+        const date = new Date(datetime);
+        return date.getDay(); // 0=Sunday, 1=Monday, etc.
+    };
 
     const getTime = (datetime: string) => {
-        const date = new Date(datetime)
-        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-    }
+        const date = new Date(datetime);
+        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    };
 
     const getProfessionalNames = (slot: any) => {
-        if (!slot.expand?.professional) return '-'
+        // If there is no professional assigned, show the placeholder 'Sin asignar'
+        if (!slot.expand?.professional) return 'Sin asignar';
         if (Array.isArray(slot.expand.professional)) {
-            return slot.expand.professional.map((p: any) => `${p.name} ${p.last_name}`).join(', ')
+            if (slot.expand.professional.length === 0) return 'Sin asignar';
+            return slot.expand.professional.map((p: any) => `${p.name} ${p.last_name}`).join(', ');
         }
-        return `${slot.expand.professional.name} ${slot.expand.professional.last_name}`
-    }
+        return `${slot.expand.professional.name} ${slot.expand.professional.last_name}`;
+    };
 
     const getClientCount = (slot: Event) => {
-        if (!slot.client) return 0
-        return Array.isArray(slot.client) ? slot.client.length : 1
-    }
+        if (!slot.client) return 0;
+        return Array.isArray(slot.client) ? slot.client.length : 1;
+    };
 
     const getSlotsByDay = (dayValue: number) => {
         return templateSlots
-            .filter(slot => getDayOfWeek(slot.datetime) === dayValue)
-            .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime())
-    }
+            .filter((slot) => getDayOfWeek(slot.datetime) === dayValue)
+            .sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+    };
 
     const handleDragStart = (e: React.DragEvent, slot: Event) => {
-        setDraggedSlot(slot)
-        e.dataTransfer.effectAllowed = 'move'
-    }
+        setDraggedSlot(slot);
+        e.dataTransfer.effectAllowed = 'move';
+    };
 
     const handleDragOver = (e: React.DragEvent, dayValue: number) => {
-        e.preventDefault()
-        e.dataTransfer.dropEffect = 'move'
-        setDragOverDay(dayValue)
-    }
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverDay(dayValue);
+    };
 
     const handleDragLeave = () => {
-        setDragOverDay(null)
+        setDragOverDay(null);
         // Don't reset cursor here, wait for drop
-    }
+    };
 
     const handleDrop = async (e: React.DragEvent, targetDay: number) => {
-        e.preventDefault()
-        setDragOverDay(null)
+        e.preventDefault();
+        setDragOverDay(null);
 
         if (!draggedSlot || !draggedSlot.id) {
-            setDraggedSlot(null)
-            return
+            setDraggedSlot(null);
+            return;
         }
 
-        const currentDay = getDayOfWeek(draggedSlot.datetime)
+        const currentDay = getDayOfWeek(draggedSlot.datetime);
         if (currentDay === targetDay) {
-            setDraggedSlot(null)
-            return
+            setDraggedSlot(null);
+            return;
         }
 
         try {
             // Calcular nueva fecha manteniendo la hora
-            const currentDate = new Date(draggedSlot.datetime)
-            const currentDayOfWeek = currentDate.getDay()
-            const diff = targetDay - currentDayOfWeek
-            const newDate = new Date(currentDate)
-            newDate.setDate(currentDate.getDate() + diff)
+            const currentDate = new Date(draggedSlot.datetime);
+            const currentDayOfWeek = currentDate.getDay();
+            const diff = targetDay - currentDayOfWeek;
+            const newDate = new Date(currentDate);
+            newDate.setDate(currentDate.getDate() + diff);
 
-            // Actualizar el slot en la base de datos
-            const { error } = await supabase.from('classes_template').update({ datetime: formatDateAsDbLocalString(newDate) }).eq('id', draggedSlot.id)
-            if (error) throw error
+            // Formatear time como HH:MM y actualizar day/time en la tabla
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const newTime = `${pad(newDate.getHours())}:${pad(newDate.getMinutes())}`;
+
+            const { error } = await supabase
+                .from('classes_templates')
+                .update({ day: targetDay, time: newTime })
+                .eq('id', draggedSlot.id);
+            if (error) throw error;
 
             // Recargar los slots
-            await loadTemplateSlots()
+            await loadTemplateSlots();
         } catch (err) {
-            logError('Error moviendo clase:', err)
-            alert('Error al mover la clase')
+            logError('Error moviendo clase:', err);
+            alert('Error al mover la clase');
         } finally {
-            setDraggedSlot(null)
+            setDraggedSlot(null);
         }
-    }
+    };
 
     return (
         <div className="flex flex-1 flex-col gap-4">
             <div className="flex justify-end">
-                <Button className="btn-propagate" onClick={() => setPropagateDialogOpen(true)} disabled={templateSlots.length === 0}>
+                <Button
+                    variant="secondary"
+                    className="btn-propagate"
+                    onClick={() => setPropagateDialogOpen(true)}
+                    disabled={templateSlots.length === 0}
+                >
                     <CalendarRange className="mr-2 h-4 w-4" />
                     Propagar
                 </Button>
@@ -240,7 +292,7 @@ export function ClasesView() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
                             {WEEKDAYS.map((day) => {
-                                const daySlots = getSlotsByDay(day.value)
+                                const daySlots = getSlotsByDay(day.value);
                                 return (
                                     <Card
                                         key={day.value}
@@ -252,16 +304,17 @@ export function ClasesView() {
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-base font-semibold flex items-center justify-between">
                                                 {day.name}
-                                                <ActionButton tooltip="Crear plantilla" onClick={() => handleCreate(day.value)}>
+                                                <ActionButton
+                                                    tooltip="Crear plantilla"
+                                                    onClick={() => handleCreate(day.value)}
+                                                >
                                                     <Plus className="h-4 w-4" />
                                                 </ActionButton>
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
                                             {daySlots.length === 0 ? (
-                                                <p className="text-sm text-muted-foreground text-center py-4">
-                                                    Sin clases
-                                                </p>
+                                                <p className="text-sm text-muted-foreground text-center py-4">Sin clases</p>
                                             ) : (
                                                 daySlots.map((slot) => (
                                                     <Card
@@ -272,16 +325,32 @@ export function ClasesView() {
                                                         onDragStart={(e) => handleDragStart(e, slot)}
                                                     >
                                                         <div className="space-y-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <p className="font-semibold">{getTime(slot.datetime)}</p>
-                                                                <div className="flex gap-1">
-                                                                    <ActionButton tooltip="Editar" onClick={() => handleEdit(slot)} aria-label="Editar plantilla">
+                                                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-semibold">{getTime(slot.datetime)}</p>
+                                                                </div>
+
+                                                                <div className="w-full sm:w-auto flex justify-end gap-1 flex-wrap mt-2 sm:mt-0">
+                                                                    <ActionButton
+                                                                        tooltip="Editar"
+                                                                        onClick={() => handleEdit(slot)}
+                                                                        aria-label="Editar plantilla"
+                                                                    >
                                                                         <Pencil className="h-4 w-4" />
                                                                     </ActionButton>
-                                                                    <ActionButton tooltip="Duplicar" className="hidden lg:inline-flex" onClick={() => handleDuplicate(slot)} aria-label="Duplicar plantilla">
+                                                                    <ActionButton
+                                                                        tooltip="Duplicar"
+                                                                        className="hidden lg:inline-flex"
+                                                                        onClick={() => handleDuplicate(slot)}
+                                                                        aria-label="Duplicar plantilla"
+                                                                    >
                                                                         <Copy className="h-4 w-4" />
                                                                     </ActionButton>
-                                                                    <ActionButton tooltip="Eliminar" onClick={() => handleDelete(slot)} aria-label="Eliminar plantilla">
+                                                                    <ActionButton
+                                                                        tooltip="Eliminar"
+                                                                        onClick={() => handleDelete(slot)}
+                                                                        aria-label="Eliminar plantilla"
+                                                                    >
                                                                         <Trash className="h-4 w-4" />
                                                                     </ActionButton>
                                                                 </div>
@@ -297,7 +366,7 @@ export function ClasesView() {
                                             )}
                                         </CardContent>
                                     </Card>
-                                )
+                                );
                             })}
                         </div>
                     )}
@@ -308,13 +377,14 @@ export function ClasesView() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Eliminar clase?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Esta acción no se puede deshacer.
-                        </AlertDialogDescription>
+                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
                             Eliminar
                         </AlertDialogAction>
                     </AlertDialogFooter>
@@ -335,8 +405,8 @@ export function ClasesView() {
                 templateSlots={templateSlots}
                 companyId={companyId || ''}
                 onSuccess={() => {
-                    setShowSuccessAlert(true)
-                    setTimeout(() => setShowSuccessAlert(false), 5000)
+                    setShowSuccessAlert(true);
+                    setTimeout(() => setShowSuccessAlert(false), 5000);
                 }}
             />
 
@@ -353,5 +423,5 @@ export function ClasesView() {
                 </div>
             )}
         </div>
-    )
+    );
 }
