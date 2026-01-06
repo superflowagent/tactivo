@@ -1338,12 +1338,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 <TabsTrigger value="historial" disabled={!cliente?.id}>
                                     Citas
                                 </TabsTrigger>
-                                <TabsTrigger value="programas">
-                                    <div className="flex items-center justify-between w-full">
-                                        <span>Programas</span>
-                                        <Button size="sm" variant="destructive" onClick={() => { if (activeProgramId) { setProgramToDeleteId(activeProgramId); setShowDeleteProgramDialog(true); } }} disabled={!activeProgramId}>Eliminar</Button>
-                                    </div>
-                                </TabsTrigger>
+                                <TabsTrigger value="programas">Programas</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4">
@@ -1637,34 +1632,39 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     return (
                                                         <div key={idKey} className="flex items-center gap-2">
                                                             <TabsTrigger value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
-                                                                {editingProgramId === idKey ? (
-                                                                    <input
-                                                                        autoFocus
-                                                                        className="text-sm rounded px-2 py-0.5 w-40"
-                                                                        value={editingProgramName}
-                                                                        onChange={(e) => setEditingProgramName(e.target.value)}
-                                                                        onBlur={async () => {
-                                                                            const newName = editingProgramName.trim();
-                                                                            setEditingProgramId(null);
-                                                                            setEditingProgramName('');
-                                                                            if (newName && newName !== p.name) {
-                                                                                await saveProgramName(idKey, newName);
-                                                                            } else if (!newName) {
-                                                                                alert('El nombre no puede estar vacío');
-                                                                            }
-                                                                        }}
-                                                                        onKeyDown={async (e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                (e.target as HTMLInputElement).blur();
-                                                                            } else if (e.key === 'Escape') {
+                                                                <div className="flex items-center gap-2">
+                                                                    {editingProgramId === idKey ? (
+                                                                        <input
+                                                                            autoFocus
+                                                                            className="text-sm rounded px-2 py-0.5 w-40"
+                                                                            value={editingProgramName}
+                                                                            onChange={(e) => setEditingProgramName(e.target.value)}
+                                                                            onBlur={async () => {
+                                                                                const newName = editingProgramName.trim();
                                                                                 setEditingProgramId(null);
                                                                                 setEditingProgramName('');
-                                                                            }
-                                                                        }}
-                                                                    />
-                                                                ) : (
-                                                                    <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
-                                                                )}
+                                                                                if (newName && newName !== p.name) {
+                                                                                    await saveProgramName(idKey, newName);
+                                                                                } else if (!newName) {
+                                                                                    alert('El nombre no puede estar vacío');
+                                                                                }
+                                                                            }}
+                                                                            onKeyDown={async (e) => {
+                                                                                if (e.key === 'Enter') {
+                                                                                    (e.target as HTMLInputElement).blur();
+                                                                                } else if (e.key === 'Escape') {
+                                                                                    setEditingProgramId(null);
+                                                                                    setEditingProgramName('');
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
+                                                                    )}
+                                                                    <ActionButton aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                                                                        <Trash className="h-4 w-4" />
+                                                                    </ActionButton>
+                                                                </div>
                                                             </TabsTrigger>
                                                         </div>
                                                     );
@@ -1753,10 +1753,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                                 console.error('Error handling drop', err);
                                                                             }
                                                                         }}>
-                                                                            <div className="flex items-center justify-end mb-2">
-                                                                                <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
-                                                                                    <Trash className="h-4 w-4" />
-                                                                                </ActionButton>
+                                                                            <div className="flex items-center justify-between mb-2">
+                                                                                <div className="text-sm font-medium">{`Día ${day}`}</div>
+                                                                                <div>
+                                                                                    <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
+                                                                                        <Trash className="h-4 w-4" />
+                                                                                    </ActionButton>
+                                                                                </div>
                                                                             </div>
                                                                             <div className="space-y-2 min-h-[40px]">
                                                                                 {(() => {
