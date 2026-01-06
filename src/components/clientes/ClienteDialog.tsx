@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { debug, error as logError } from '@/lib/logger';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -1643,7 +1642,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                         {exercisesLoading ? (
                             <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
                         ) : (
-                            <ScrollArea className="h-64">
+                            <div className="h-64 overflow-y-auto">
                                 <div className="grid gap-2">
                                     {exercisesForCompany.map((ex) => (
                                         <label key={ex.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
@@ -1655,7 +1654,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         </label>
                                     ))}
                                 </div>
-                            </ScrollArea>
+                            </div>
                         )}
                     </div>
 
@@ -1667,3 +1666,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+        </>
+    );
+}
