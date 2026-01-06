@@ -1679,7 +1679,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     return (
                                                         <div key={idKey} className="flex items-center gap-2">
                                                             <TabsTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0" value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
-                                                                <div className="flex items-center gap-2">
                                                                     {editingProgramId === idKey ? (
                                                                         <input
                                                                             autoFocus
@@ -1708,11 +1707,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                     ) : (
                                                                         <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
                                                                     )}
-                                                                    <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
-                                                                        <Trash className="h-3 w-3" />
-                                                                    </ActionButton>
-                                                                </div>
                                                             </TabsTrigger>
+                                                            <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                                                                <Trash className="h-3 w-3" />
+                                                            </ActionButton>
                                                         </div>
                                                     );
                                                 })}
@@ -2052,7 +2050,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
                 {/* Add exercises dialog */}
                 <Dialog open={showAddExercisesDialog} onOpenChange={setShowAddExercisesDialog}>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-6xl w-[95vw] h-[85vh]">
                         <DialogHeader>
                             <DialogTitle>Añadir ejercicios al programa</DialogTitle>
                         </DialogHeader>
@@ -2065,8 +2063,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             {exercisesLoading ? (
                                 <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
                             ) : (
-                                <div className="h-64 overflow-y-auto">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="h-[70vh] overflow-y-auto">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                         {exercisesForCompany.map((ex) => {
                                             const exerciseAnatomy = anatomyForPicker.filter((a:any) => (ex.anatomy || []).includes(a.id));
                                             const exerciseEquipment = equipmentForPicker.filter((eq:any) => (ex.equipment || []).includes(eq.id));
@@ -2075,7 +2073,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                             const mediaUrl = file ? (getFilePublicUrl('exercise_videos', ex.id, file) || null) : null;
 
                                             return (
-                                            <Card key={ex.id} className={cn('overflow-hidden transition-shadow hover:shadow-lg cursor-pointer', selectedExerciseIds.has(ex.id) ? 'border-primary' : '')} onClick={() => toggleSelectExercise(ex.id)}>
+                                            <Card key={ex.id} className={cn('overflow-hidden transition-shadow hover:shadow-lg', selectedExerciseIds.has(ex.id) ? 'border-primary' : '')}>
                                                 <CardHeader className="py-2 px-3">
                                                     <div className="flex items-start gap-2">
                                                         <div className="flex-1">
@@ -2093,7 +2091,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                 <div className="relative bg-slate-100 overflow-hidden aspect-video">
                                                     {mediaUrl ? (
                                                         isVideo(file) ? (
-                                                            <video src={mediaUrl} className="w-full h-full object-cover" muted />
+                                                            <video src={mediaUrl} className="w-full h-full object-cover" controls playsInline />
                                                         ) : (
                                                             <img src={mediaUrl} alt={ex.name} className="w-full h-full object-cover" />
                                                         )
