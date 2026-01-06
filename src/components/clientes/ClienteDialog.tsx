@@ -114,7 +114,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     const [editingProgramName, setEditingProgramName] = useState<string>('');
 
     // Exercises / program-exercises picker state
-    interface ExerciseItem { id: string; name: string; description?: string; }
+    interface ExerciseItem { id: string; name: string; description?: string; anatomy?: string[]; equipment?: string[]; file?: string; }
     const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
     const [exercisesForCompany, setExercisesForCompany] = useState<ExerciseItem[]>([]);
     const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
@@ -1257,24 +1257,37 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             });
         };
 
-    // Auto-load company exercises when dialog opens (covers all entry points)
+    // Auto-load company exercises, anatomy and equipment when dialog opens (covers all entry points)
+    const [anatomyForPicker, setAnatomyForPicker] = useState<any[]>([]);
+    const [equipmentForPicker, setEquipmentForPicker] = useState<any[]>([]);
+
     useEffect(() => {
-        const fetchExercises = async () => {
+        const fetchData = async () => {
             if (!companyId) return;
             try {
                 setExercisesLoading(true);
-                const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
-                if (error) throw error;
-                setExercisesForCompany((data as any) || []);
+                const [{ data: exData, error: exErr }, { data: anData, error: anErr }, { data: eqData, error: eqErr }] = await Promise.all([
+                    supabase.from('exercises').select('*').eq('company', companyId).order('name'),
+                    supabase.from('anatomy').select('*').eq('company', companyId).order('name'),
+                    supabase.from('equipment').select('*').eq('company', companyId).order('name'),
+                ]);
+                if (exErr) throw exErr;
+                if (anErr) console.error('Error loading anatomy for picker', anErr);
+                if (eqErr) console.error('Error loading equipment for picker', eqErr);
+                setExercisesForCompany((exData as any) || []);
+                setAnatomyForPicker((anData as any) || []);
+                setEquipmentForPicker((eqData as any) || []);
             } catch (err) {
                 console.error('Error fetching exercises for picker', err);
                 setExercisesForCompany([]);
+                setAnatomyForPicker([]);
+                setEquipmentForPicker([]);
             } finally {
                 setExercisesLoading(false);
             }
         };
         if (showAddExercisesDialog && (!exercisesForCompany || exercisesForCompany.length === 0)) {
-            fetchExercises();
+            fetchData();
         }
     }, [showAddExercisesDialog, companyId]);
 
@@ -1654,7 +1667,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     const idKey = p.id ?? p.tempId;
                                                     return (
                                                         <div key={idKey} className="flex items-center gap-2">
-                                                            <TabsTrigger value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                                                            <TabsTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0" value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
                                                                 <div className="flex items-center gap-2">
                                                                     {editingProgramId === idKey ? (
                                                                         <input
@@ -2053,22 +2066,45 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             ) : (
                                 <div className="h-64 overflow-y-auto">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        {exercisesForCompany.map((ex) => (
-                                            <Card key={ex.id} className={cn('p-3 cursor-pointer transition-shadow hover:shadow-md', selectedExerciseIds.has(ex.id) ? 'border-primary' : '')} onClick={() => toggleSelectExercise(ex.id)}>
-                                                <div className="flex items-start gap-3">
-                                                    <div className="flex-shrink-0">
-                                                        <div className="h-10 w-10 rounded bg-muted/40 flex items-center justify-center text-sm text-muted-foreground">🏋️</div>
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="font-medium text-sm">{ex.name}</div>
-                                                            <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
+                                        {exercisesForCompany.map((ex) => {
+                                            const exerciseAnatomy = anatomyForPicker.filter((a:any) => (ex.anatomy || []).includes(a.id));
+                                            const exerciseEquipment = equipmentForPicker.filter((eq:any) => (ex.equipment || []).includes(eq.id));
+                                            const file = (ex.file as string | undefined) || undefined;
+                                            const isVideo = (file?: string) => { if (!file) return false; const lower = file.toLowerCase(); return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm'); };
+                                            const mediaUrl = file ? (getFilePublicUrl('exercise_videos', ex.id, file) || null) : null;
+
+                                            return (
+                                            <Card key={ex.id} className={cn('overflow-hidden transition-shadow hover:shadow-lg cursor-pointer', selectedExerciseIds.has(ex.id) ? 'border-primary' : '')} onClick={() => toggleSelectExercise(ex.id)}>
+                                                <CardHeader className="py-2 px-3">
+                                                    <div className="flex items-start gap-2">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div className="font-medium text-sm line-clamp-2">{ex.name}</div>
+                                                                <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
+                                                            </div>
+                                                            <div className="mt-2">
+                                                                {exerciseEquipment.length > 0 && (<ExerciseBadgeGroup items={exerciseEquipment} color="blue" maxVisible={2} />)}
+                                                                {exerciseAnatomy.length > 0 && (<ExerciseBadgeGroup items={exerciseAnatomy} color="orange" maxVisible={2} />)}
+                                                            </div>
                                                         </div>
-                                                        {ex.description && <div className="text-xs text-muted-foreground mt-1">{ex.description}</div>}
                                                     </div>
+                                                </CardHeader>
+                                                <div className="relative bg-slate-100 overflow-hidden aspect-video">
+                                                    {mediaUrl ? (
+                                                        isVideo(file) ? (
+                                                            <video src={mediaUrl} className="w-full h-full object-cover" muted />
+                                                        ) : (
+                                                            <img src={mediaUrl} alt={ex.name} className="w-full h-full object-cover" />
+                                                        )
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                                            <p className="text-sm text-slate-400">Sin video</p>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </Card>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
