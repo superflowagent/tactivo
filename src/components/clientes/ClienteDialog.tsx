@@ -11,6 +11,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { debug, error as logError } from '@/lib/logger';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -91,6 +93,15 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     // Inline edit state for program names
     const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
     const [editingProgramName, setEditingProgramName] = useState<string>('');
+
+    // Exercises / program-exercises picker state
+    interface ExerciseItem { id: string; name: string; description?: string; }
+    const [showAddExercisesDialog, setShowAddExercisesDialog] = useState(false);
+    const [exercisesForCompany, setExercisesForCompany] = useState<ExerciseItem[]>([]);
+    const [selectedExerciseIds, setSelectedExerciseIds] = useState<Set<string>>(new Set());
+    const [exercisesLoading, setExercisesLoading] = useState(false);
+    const [addingExercisesLoading, setAddingExercisesLoading] = useState(false);
+    const [currentProgramForPicker, setCurrentProgramForPicker] = useState<string | null>(null);
     useEffect(() => {
         if (programs.length > 0 && !programs.find((p) => (p.id ?? p.tempId) === activeProgramId)) {
             const first = programs[0];
@@ -770,8 +781,25 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             const items = (data || []).map((r: any) => ({ id: r.id, name: r.name, persisted: true, description: r.description || '' }));
 
             if (items.length) {
-                setPrograms(items);
-                setActiveProgramId(items[0].id);
+                // Attach exercises for each program
+                try {
+                    const progIds = items.map((it: any) => it.id);
+                    const { data: peData, error: peErr } = await supabase.from('program_exercises').select('*, exercise:exercises(*)').in('program', progIds);
+                    if (peErr) throw peErr;
+                    const map = new Map<string, any[]>();
+                    (peData || []).forEach((r: any) => {
+                        const arr = map.get(r.program) || [];
+                        if (r.exercise) arr.push(r.exercise);
+                        map.set(r.program, arr);
+                    });
+                    const withExercises = items.map((it: any) => ({ ...it, exercises: map.get(it.id) || [] }));
+                    setPrograms(withExercises);
+                    setActiveProgramId(withExercises[0].id);
+                } catch (err) {
+                    console.error('Error loading program_exercises', err);
+                    setPrograms(items);
+                    setActiveProgramId(items[0].id);
+                }
             } else {
                 // No programs for existing client: show a default local program so UI isn't empty
                 const tempId = `t-${Date.now()}`;
@@ -804,7 +832,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             }
         } else {
             const tempId = `t-${Date.now()}`;
-            const t = { tempId, name, persisted: false, description: '' };
+            const t = { tempId, name, persisted: false, description: '', exercises: [] };
             setPrograms((prev) => [...prev, t]);
             setActiveProgramId(tempId);
         }
@@ -830,6 +858,19 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             if ((program.tempId && activeProgramId === program.tempId) || activeProgramId === program.id) {
                 setActiveProgramId(data.id);
             }
+
+            // persist any locally attached exercises
+            const localProgram: any = program;
+            if (localProgram?.exercises && localProgram.exercises.length && data.id) {
+                try {
+                    const inserts = localProgram.exercises.map((ex: any, i: number) => ({ program: data.id, exercise: ex.id, company: companyId, position: i }));
+                    const { error: insErr } = await supabase.from('program_exercises').insert(inserts);
+                    if (insErr) console.error('Error inserting program_exercises', insErr);
+                } catch (inner) {
+                    console.error('Error inserting program_exercises', inner);
+                }
+            }
+
             return data.id;
         } catch (e) {
             console.error('Error persisting single program', e);
@@ -902,12 +943,100 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             const { data, error } = await supabase.from('programs').insert(inserts).select();
             if (error) throw error;
             const persisted = data.map((d: any) => ({ id: d.id, name: d.name, persisted: true, description: d.description || '' }));
+
+            // If any pending items had local exercises attached, persist them against the new program ids
+            try {
+                for (let i = 0; i < persisted.length; i++) {
+                    const newProg = persisted[i];
+                    const originalPending = pending[i];
+                    if (originalPending?.exercises && originalPending.exercises.length) {
+                        const insertsPE = originalPending.exercises.map((ex: any, idx: number) => ({ program: newProg.id, exercise: ex.id, company: companyId, position: idx }));
+                        const { error: insErr } = await supabase.from('program_exercises').insert(insertsPE);
+                        if (insErr) console.error('Error inserting program_exercises', insErr);
+                    }
+                }
+            } catch (inner) {
+                console.error('Error persisting program_exercises for pending programs', inner);
+            }
+
             const kept = programs.filter((t) => t.persisted);
             setPrograms([...kept, ...persisted]);
             if (persisted.length && !kept.length) setActiveProgramId(persisted[0].id);
         } catch (e) {
             console.error('Error persisting programs', e);
             alert('Error guardando programas: ' + String(e));
+        }
+    };
+
+    // Add exercises to an existing program in DB
+    const addExercisesToProgramDB = async (programId: string, exerciseIds: string[]) => {
+        if (!companyId) return;
+        if (!exerciseIds.length) return;
+        const inserts = exerciseIds.map((exId, idx) => ({ program: programId, exercise: exId, company: companyId, position: idx }));
+        const { data, error } = await supabase.from('program_exercises').insert(inserts);
+        if (error) throw error;
+        return data;
+    };
+
+    const openAddExercises = async (programId: string) => {
+        setCurrentProgramForPicker(programId);
+        setSelectedExerciseIds(new Set());
+        setShowAddExercisesDialog(true);
+        try {
+            if (!companyId) return;
+            setExercisesLoading(true);
+            const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+            if (error) throw error;
+            setExercisesForCompany((data as any) || []);
+        } catch (e) {
+            console.error('Error loading exercises for picker', e);
+            alert('Error cargando ejercicios: ' + String(e));
+        } finally {
+            setExercisesLoading(false);
+        }
+    };
+
+    const toggleSelectExercise = (id: string) => {
+        setSelectedExerciseIds((prev) => {
+            const s = new Set(prev);
+            if (s.has(id)) s.delete(id);
+            else s.add(id);
+            return s;
+        });
+    };
+
+    const confirmAddExercises = async () => {
+        if (!currentProgramForPicker) return;
+        const selected = Array.from(selectedExerciseIds);
+        if (!selected.length) {
+            setShowAddExercisesDialog(false);
+            setCurrentProgramForPicker(null);
+            return;
+        }
+
+        // If program is temporary, just attach locally
+        if (currentProgramForPicker.startsWith('t-')) {
+            setPrograms((prev) => prev.map((p) => (p.tempId === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...exercisesForCompany.filter((e) => selected.includes(e.id))] } : p)));
+            setShowAddExercisesDialog(false);
+            setCurrentProgramForPicker(null);
+            setSelectedExerciseIds(new Set());
+            return;
+        }
+
+        // Persist to DB and attach locally
+        setAddingExercisesLoading(true);
+        try {
+            await addExercisesToProgramDB(currentProgramForPicker, selected);
+            const added = exercisesForCompany.filter((e) => selected.includes(e.id));
+            setPrograms((prev) => prev.map((p) => (p.id === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...added] } : p)));
+            setShowAddExercisesDialog(false);
+            setCurrentProgramForPicker(null);
+            setSelectedExerciseIds(new Set());
+        } catch (e) {
+            console.error('Error adding exercises to program', e);
+            alert('Error añadiendo ejercicios: ' + String(e));
+        } finally {
+            setAddingExercisesLoading(false);
         }
     };
 
@@ -1311,6 +1440,31 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         />
                                                     </div>
 
+                                                    {/* Program exercises */}
+                                                    <div>
+                                                        <Label>Ejercicios</Label>
+                                                        <div className="flex gap-2 mt-2 items-center flex-wrap">
+                                                            {p.exercises && p.exercises.length > 0 ? (
+                                                                p.exercises.map((ex: any) => (
+                                                                    <span key={ex.id} className="inline-flex items-center gap-2 rounded-full bg-muted px-2 py-1 text-sm">
+                                                                        {ex.name}
+                                                                    </span>
+                                                                ))
+                                                            ) : (
+                                                                <span className="text-sm text-muted-foreground">Sin ejercicios</span>
+                                                            )}
+
+                                                            <Button
+                                                                variant="ghost"
+                                                                className="h-8 w-8 rounded-full border border-dashed border-border flex items-center justify-center"
+                                                                onClick={() => openAddExercises(idKey)}
+                                                                aria-label="Agregar ejercicios"
+                                                            >
+                                                                <Plus className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
                                                     <div className="flex justify-end">
                                                         <Button
                                                             variant="destructive"
@@ -1478,23 +1632,38 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 </AlertDialogContent>
             </AlertDialog>
 
-            {showInviteToast && (
-                <InviteToast
-                    title={inviteToastTitle ?? 'Invitación enviada'}
-                    durationMs={4000}
-                    onClose={() => {
-                        setShowInviteToast(false);
-                        setInviteToastTitle(null);
-                    }}
-                />
-            )}
+            {/* Add exercises dialog */}
+            <Dialog open={showAddExercisesDialog} onOpenChange={setShowAddExercisesDialog}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Añadir ejercicios al programa</DialogTitle>
+                    </DialogHeader>
 
-            <EventDialog
-                open={eventDialogOpen}
-                onOpenChange={setEventDialogOpen}
-                event={selectedEvent}
-                onSave={handleEventSaved}
-            />
-        </>
-    );
-}
+                    <div className="p-2">
+                        {exercisesLoading ? (
+                            <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
+                        ) : (
+                            <ScrollArea className="h-64">
+                                <div className="grid gap-2">
+                                    {exercisesForCompany.map((ex) => (
+                                        <label key={ex.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                                            <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
+                                            <div className="flex-1">
+                                                <div className="font-medium text-sm">{ex.name}</div>
+                                                {ex.description && <div className="text-xs text-muted-foreground">{ex.description}</div>}
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowAddExercisesDialog(false)}>Cancelar</Button>
+                        <Button onClick={confirmAddExercises} disabled={selectedExerciseIds.size === 0 || addingExercisesLoading}>
+                            {addingExercisesLoading ? 'Añadiendo...' : 'Añadir'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
