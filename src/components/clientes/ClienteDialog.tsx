@@ -989,45 +989,45 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         return data;
     };
 
-    const openAddExercises = async (programId: string) => {
-        const saveCurrentProgram = async () => {
-            if (!activeProgramId) return;
-            const idKey = activeProgramId;
-            const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
-            if (idx === -1) return;
-            const p = programs[idx];
-            setSavingProgram(true);
-            try {
-                // If program is temporary, persist it (this will also persist attached exercises if any)
-                if ((p.tempId && idKey === p.tempId) || !p.persisted) {
-                    await persistSingleProgram(idKey);
-                    setSavingProgram(false);
-                    return;
-                }
-
-                // Persist description/name updates
-                const updates: any = { description: p.description || '' };
-                if (p.name) updates.name = p.name;
-                const { data, error } = await supabase.from('programs').update(updates).eq('id', p.id).select().single();
-                if (error) throw error;
-                setPrograms((prev) => prev.map((x) => (x.id === p.id ? { ...x, name: data.name, description: data.description } : x)));
-
-                // Ensure exercises are persisted (only add missing ones)
-                const { data: existing, error: exErr } = await supabase.from('program_exercises').select('exercise').eq('program', p.id);
-                if (exErr) throw exErr;
-                const existingIds = (existing || []).map((r: any) => r.exercise);
-                const toAdd = (p.exercises || []).map((ex: any) => ex.id).filter((id: string) => !existingIds.includes(id));
-                if (toAdd.length) {
-                    await addExercisesToProgramDB(p.id, toAdd);
-                }
-            } catch (e) {
-                console.error('Error saving program', e);
-                alert('Error guardando programa: ' + String(e));
-            } finally {
+    const saveCurrentProgram = async () => {
+        if (!activeProgramId) return;
+        const idKey = activeProgramId;
+        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+        if (idx === -1) return;
+        const p = programs[idx];
+        setSavingProgram(true);
+        try {
+            // If program is temporary, persist it (this will also persist attached exercises if any)
+            if ((p.tempId && idKey === p.tempId) || !p.persisted) {
+                await persistSingleProgram(idKey);
                 setSavingProgram(false);
+                return;
             }
-        };
 
+            // Persist description/name updates
+            const updates: any = { description: p.description || '' };
+            if (p.name) updates.name = p.name;
+            const { data, error } = await supabase.from('programs').update(updates).eq('id', p.id).select().single();
+            if (error) throw error;
+            setPrograms((prev) => prev.map((x) => (x.id === p.id ? { ...x, name: data.name, description: data.description } : x)));
+
+            // Ensure exercises are persisted (only add missing ones)
+            const { data: existing, error: exErr } = await supabase.from('program_exercises').select('exercise').eq('program', p.id);
+            if (exErr) throw exErr;
+            const existingIds = (existing || []).map((r: any) => r.exercise);
+            const toAdd = (p.exercises || []).map((ex: any) => ex.id).filter((id: string) => !existingIds.includes(id));
+            if (toAdd.length) {
+                await addExercisesToProgramDB(p.id, toAdd);
+            }
+        } catch (e) {
+            console.error('Error saving program', e);
+            alert('Error guardando programa: ' + String(e));
+        } finally {
+            setSavingProgram(false);
+        }
+    };
+
+    const openAddExercises = async (programId: string) => {
         setCurrentProgramForPicker(programId);
         setSelectedExerciseIds(new Set());
         setShowAddExercisesDialog(true);
