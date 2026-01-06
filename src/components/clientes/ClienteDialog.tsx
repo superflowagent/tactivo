@@ -27,7 +27,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import {
     CalendarIcon,
@@ -47,6 +47,10 @@ import { getFilePublicUrl, supabase } from '@/lib/supabase';
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
 import { getProfilesByIds } from '@/lib/profiles';
 import InviteToast from '@/components/InviteToast';
+import ActionButton from '@/components/ui/ActionButton';
+import ExerciseDialog from '@/components/ejercicios/ExerciseDialog';
+import { ExerciseBadgeGroup } from '@/components/ejercicios/ExerciseBadgeGroup';
+import { Trash } from 'lucide-react';
 import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1037,6 +1041,23 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         }
     };
 
+    const removeExerciseFromProgram = async (programId: string, exerciseId: string) => {
+        // If program is temporary, remove locally
+        if ((programId as string).startsWith('t-')) {
+            setPrograms((prev) => prev.map((p) => (p.tempId === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
+            return;
+        }
+
+        try {
+            const { error } = await supabase.from('program_exercises').delete().match({ program: programId, exercise: exerciseId });
+            if (error) throw error;
+            setPrograms((prev) => prev.map((p) => (p.id === programId ? { ...p, exercises: (p.exercises || []).filter((ex: any) => ex.id !== exerciseId) } : p)));
+        } catch (e) {
+            console.error('Error removing exercise from program', e);
+            alert('Error eliminando ejercicio del programa: ' + String(e));
+        }
+    };
+
     const toggleSelectExercise = (id: string) => {
         setSelectedExerciseIds((prev) => {
             const s = new Set(prev);
@@ -1486,11 +1507,25 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         <Label>Ejercicios</Label>
                                                         <div className="flex gap-2 mt-2 items-center flex-wrap">
                                                             {p.exercises && p.exercises.length > 0 ? (
-                                                                p.exercises.map((ex: any) => (
-                                                                    <span key={ex.id} className="inline-flex items-center gap-2 rounded-full bg-muted px-2 py-1 text-sm">
-                                                                        {ex.name}
-                                                                    </span>
-                                                                ))
+                                                                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                                                                    {p.exercises.map((ex: any) => (
+                                                                        <Card key={ex.id} className="p-2 flex flex-col">
+                                                                            <CardHeader className="py-1 px-2">
+                                                                                <div className="flex items-center justify-between gap-2">
+                                                                                    <CardTitle className="text-sm font-medium line-clamp-2">{ex.name}</CardTitle>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <ActionButton tooltip="Eliminar del programa" onClick={async () => await removeExerciseFromProgram(idKey, ex.id)} aria-label="Eliminar ejercicio">
+                                                                                            <Trash className="h-4 w-4" />
+                                                                                        </ActionButton>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </CardHeader>
+                                                                            <div className="px-2 pb-2 text-xs text-muted-foreground">
+                                                                                {ex.description}
+                                                                            </div>
+                                                                        </Card>
+                                                                    ))}
+                                                                </div>
                                                             ) : (
                                                                 <span className="text-sm text-muted-foreground">Sin ejercicios</span>
                                                             )}
