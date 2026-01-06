@@ -1230,6 +1230,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         setCurrentDayForPicker(day ?? null);
         setSelectedExerciseIds(new Set());
         setShowAddExercisesDialog(true);
+        // prefer fetching in effect, but still fetch immediately for snappy UX
         try {
             if (!companyId) return;
             setExercisesLoading(true);
@@ -1238,7 +1239,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             setExercisesForCompany((data as any) || []);
         } catch (e) {
             console.error('Error loading exercises for picker', e);
-            alert('Error cargando ejercicios: ' + String(e));
+            // don't alert noisily in modal open; show toast instead
+            setExercisesForCompany([]);
         } finally {
             setExercisesLoading(false);
         }
@@ -1254,6 +1256,27 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 return s;
             });
         };
+
+    // Auto-load company exercises when dialog opens (covers all entry points)
+    useEffect(() => {
+        const fetchExercises = async () => {
+            if (!companyId) return;
+            try {
+                setExercisesLoading(true);
+                const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+                if (error) throw error;
+                setExercisesForCompany((data as any) || []);
+            } catch (err) {
+                console.error('Error fetching exercises for picker', err);
+                setExercisesForCompany([]);
+            } finally {
+                setExercisesLoading(false);
+            }
+        };
+        if (showAddExercisesDialog && (!exercisesForCompany || exercisesForCompany.length === 0)) {
+            fetchExercises();
+        }
+    }, [showAddExercisesDialog, companyId]);
 
         const confirmAddExercises = async () => {
             if (!currentProgramForPicker) return;
@@ -2029,15 +2052,22 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 <div className="py-6 flex items-center justify-center">Cargando ejercicios...</div>
                             ) : (
                                 <div className="h-64 overflow-y-auto">
-                                    <div className="grid gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         {exercisesForCompany.map((ex) => (
-                                            <label key={ex.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
-                                                <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-sm">{ex.name}</div>
-                                                    {ex.description && <div className="text-xs text-muted-foreground">{ex.description}</div>}
+                                            <Card key={ex.id} className={cn('p-3 cursor-pointer transition-shadow hover:shadow-md', selectedExerciseIds.has(ex.id) ? 'border-primary' : '')} onClick={() => toggleSelectExercise(ex.id)}>
+                                                <div className="flex items-start gap-3">
+                                                    <div className="flex-shrink-0">
+                                                        <div className="h-10 w-10 rounded bg-muted/40 flex items-center justify-center text-sm text-muted-foreground">🏋️</div>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="font-medium text-sm">{ex.name}</div>
+                                                            <Checkbox checked={selectedExerciseIds.has(ex.id)} onCheckedChange={() => toggleSelectExercise(ex.id)} />
+                                                        </div>
+                                                        {ex.description && <div className="text-xs text-muted-foreground mt-1">{ex.description}</div>}
+                                                    </div>
                                                 </div>
-                                            </label>
+                                            </Card>
                                         ))}
                                     </div>
                                 </div>
@@ -2045,7 +2075,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         </div>
 
                         <DialogFooter>
-                            <Button variant="ghost" onClick={() => setShowAddExercisesDialog(false)}>Cancelar</Button>
+                            <Button variant="outline" onClick={() => setShowAddExercisesDialog(false)}>Cancelar</Button>
                             <Button onClick={confirmAddExercises} disabled={selectedExerciseIds.size === 0 || addingExercisesLoading}>
                                 {addingExercisesLoading ? 'Añadiendo...' : 'Añadir'}
                             </Button>
