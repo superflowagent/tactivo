@@ -213,10 +213,13 @@ export function ProgramasView() {
                                                                     console.error('Error handling drop', err);
                                                                 }
                                                             }}>
-                                                                    <div className="flex items-center justify-end mb-2">
-                                                                    <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
-                                                                        <Trash className="h-4 w-4" />
-                                                                    </ActionButton>
+                                                                    <div className="flex items-center justify-between mb-2">
+                                                                    <div className="text-sm font-medium">{`Día ${day}`}</div>
+                                                                    <div>
+                                                                        <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
+                                                                            <Trash className="h-4 w-4" />
+                                                                        </ActionButton>
+                                                                    </div>
                                                                 </div>
                                                                 <div className="space-y-2 min-h-[40px]">
                                                                     {(() => {
