@@ -1417,8 +1417,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                 </form>
                             </TabsContent>
 
-                            <TabsContent value="programas" className="flex-1 overflow-y-auto mt-4">
-                                <div className="px-1">
+                            <TabsContent value="programas" className="flex-1 flex flex-col overflow-hidden mt-4">
+                                <div className="px-1 flex-1 flex flex-col">
                                     <div className="flex items-center gap-2">
                                         <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
                                             <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
@@ -1485,8 +1485,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         {programs.map((p) => {
                                             const idKey = p.id ?? p.tempId;
                                             return (
-                                                <TabsContent key={idKey} value={idKey} className="p-0">
-                                                    <Card className="p-4 space-y-4">
+                                                <TabsContent key={idKey} value={idKey} className="p-0 flex-1 overflow-hidden">
+                                                    <div className="h-full overflow-y-auto">
+                                                        <Card className="p-4 space-y-4 h-full">
                                                         <div className="mt-2">
                                                             <Input
                                                                 value={p.description || ''}
@@ -1547,13 +1548,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
 
 
                                                     </Card>
+                                                    </div>
                                                 </TabsContent>
                                             );
                                         })}
                                     </Tabs>
-                                </div>
 
-                                <div className="border-t mt-2 pt-3 flex items-center justify-between px-1">
+                                <div className="border-t mt-2 pt-3 flex items-center justify-between px-1 mt-4">
                                     <div>
                                         <Button
                                             variant="destructive"
@@ -1577,8 +1578,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         </Button>
                                     </div>
                                 </div>
-                            </TabsContent>
-
+                            </div>
+                        </TabsContent>
                             <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
                                 <div className="space-y-4 px-1">
                                     {loadingEventos ? (
