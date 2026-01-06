@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { debug, error as logError } from '@/lib/logger';
+import { error as logError } from '@/lib/logger';
 import { Calendar } from '@/components/ui/calendar';
 import {
     AlertDialog,
@@ -69,10 +69,7 @@ interface ClienteDialogProps {
 }
 
 export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab }: ClienteDialogProps) {
-    // Debug: ensure open prop flows from parent (use logger)
-    if (typeof window !== 'undefined') {
-        debug('[ClienteDialog] render', { open, clienteId: cliente?.id });
-    }
+
     const { companyId } = useAuth();
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
@@ -208,37 +205,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             }
 
             // Cargar events y asegurar email actualizado
-            // Try to load authoritative email from profiles table if missing (use helper to avoid malformed OR queries)
-            (async () => {
-                try {
-                    if (!cliente.email) {
-                        const api = await import('@/lib/supabase');
-                        const profile = await api.fetchProfileByUserId(cliente.id!);
-                        if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
-                    }
-                } catch {
-                    /* ignore */
-                }
-            })();
+            ensureAuthoritativeEmail(cliente.id!);
 
             loadEventos(cliente.id!);
         } else {
-            setFormData({
-                name: '',
-                last_name: '',
-                dni: '',
-                email: '',
-                phone: '',
-                company: '',
-                session_credits: 0,
-                class_credits: 0,
-            });
-            setFechaNacimiento(undefined);
-            setEdad(null);
-            setPhotoFile(null);
-            setPhotoPreview(null);
-            setRemovePhoto(false);
-            setEventos([]);
+            resetFormData();
         }
         setPhoneError('');
 
@@ -262,6 +233,38 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             edad--;
         }
         setEdad(edad);
+    };
+
+    const ensureAuthoritativeEmail = async (clienteId?: string) => {
+        if (!clienteId) return;
+        try {
+            if (!cliente?.email) {
+                const api = await import('@/lib/supabase');
+                const profile = await api.fetchProfileByUserId(clienteId);
+                if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
+            }
+        } catch (err) {
+            logError('Error fetching authoritative email for client', err);
+        }
+    };
+
+    const resetFormData = () => {
+        setFormData({
+            name: '',
+            last_name: '',
+            dni: '',
+            email: '',
+            phone: '',
+            company: '',
+            session_credits: 0,
+            class_credits: 0,
+        });
+        setFechaNacimiento(undefined);
+        setEdad(null);
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        setRemovePhoto(false);
+        setEventos([]);
     };
 
     const loadEventos = async (clienteId: string) => {
@@ -513,7 +516,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             });
                             throw uploadErr;
                         }
-                        debug('Upload success for cliente', {
+                        console.debug('Upload success for cliente', {
                             bucket: 'profile_photos',
                             path: storagePath,
                             data: uploadData,
@@ -585,7 +588,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             .from('profile_photos')
                             .upload(storagePath, photoFile);
                         if (uploadErr) throw uploadErr;
-                        debug('Upload success for cliente', {
+                        console.debug('Upload success for cliente', {
                             bucket: 'profile_photos',
                             path: storagePath,
                             data: uploadData,
@@ -718,13 +721,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         debug
                                     );
                                 }
-                            } catch (e: any) {
+                            } catch (e) {
                                 console.warn('Error calling send-invite helper', e);
-                                alert('Error llamando a la función de envío: ' + (e?.message || String(e)));
+                                alert('Error llamando a la función de envío: ' + (((e as any)?.message) || String(e)));
                             }
                         }
                     }
-                } catch (e: any) {
+                } catch (e) {
                     console.warn('Error calling send-invite function', e);
                 }
             }
@@ -745,25 +748,25 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     }
                 }
             } catch (e) {
-                console.error('Error saving programs after client save', e);
+                    logError('Error saving programs after client save', e);
             }
 
             onSave();
             onOpenChange(false);
             setRemovePhoto(false);
-        } catch (err: any) {
+        } catch (err) {
             logError('Error al guardar cliente:', err);
             logError('Error completo:', JSON.stringify(err, null, 2));
-            if (err?.response) {
-                logError('Response data:', err.response);
+            if ((err as any)?.response) {
+                logError('Response data:', (err as any).response);
             }
-            const msg = String(err?.message || err || '');
+            const msg = String(((err as any)?.message) || err || '');
             if (msg.includes('PGRST204') || msg.includes("Could not find the 'email' column")) {
                 alert(
                     'Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.'
                 );
             } else {
-                alert(`Error al guardar el cliente: ${err?.message || 'Error desconocido'}`);
+                alert(`Error al guardar el cliente: ${(err as any)?.message || 'Error desconocido'}`);
             }
         } finally {
             setLoading(false);
@@ -854,7 +857,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     setPrograms(withProgramExercises);
                     setActiveProgramId(withProgramExercises[0].id);
                 } catch (err) {
-                    console.error('Error loading program_exercises', err);
+                    logError('Error loading program_exercises', err);
                     setPrograms(items);
                     setActiveProgramId(items[0].id);
                 }
@@ -865,7 +868,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 setActiveProgramId(tempId);
             }
         } catch (e) {
-            console.error('Error loading programs', e);
+            logError('Error loading programs', e);
         } finally {
             setLoadingProgramsList(false);
         }
@@ -885,7 +888,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 setPrograms((prev) => [...prev, { id: data.id, name: data.name, persisted: true, description: '' }]);
                 setActiveProgramId(data.id);
             } catch (e) {
-                console.error('Error creando programa', e);
+                logError('Error creando programa', e);
                 alert('Error creando programa: ' + String(e));
             }
         } else {
@@ -938,20 +941,20 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         }));
                     if (inserts.length) {
                         const { data: insData, error: insErr } = await supabase.from('program_exercises').insert(inserts).select('*, exercise:exercises(*)');
-                        if (insErr) console.error('Error inserting program_exercises', insErr);
+                        if (insErr) logError('Error inserting program_exercises', insErr);
                         // attach inserted rows to program state
                         if (insData && insData.length) {
                             setPrograms((prev) => prev.map((t) => (t.id === data.id ? { ...t, programExercises: [...(t.programExercises || []), ...insData] } : t)));
                         }
                     }
                 } catch (inner) {
-                    console.error('Error inserting program_exercises for pending program', inner);
+                    logError('Error inserting program_exercises for pending program', inner);
                 }
             }
 
             return data.id;
         } catch (e) {
-            console.error('Error persisting single program', e);
+            logError('Error persisting single program', e);
             alert('Error guardando programa: ' + String(e));
             return null;
         }
@@ -971,7 +974,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 if (error) throw error;
                 setPrograms((prev) => prev.map((t, i) => (i === idx ? { ...t, name: data.name } : t)));
             } catch (e) {
-                console.error('Error renombrando programa', e);
+                logError('Error renombrando programa', e);
                 alert('Error al renombrar programa: ' + String(e));
             }
         } else {
@@ -999,7 +1002,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     else setActiveProgramId('');
                 }
             } catch (e) {
-                console.error('Error eliminando programa', e);
+                logError('Error eliminando programa', e);
                 alert('Error al eliminar programa: ' + String(e));
             }
         } else {
@@ -1042,21 +1045,21 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     }));
                     if (insertsPE.length) {
                         const { data: insData, error: insErr } = await supabase.from('program_exercises').insert(insertsPE).select('*, exercise:exercises(*)');
-                        if (insErr) console.error('Error inserting program_exercises', insErr);
+                        if (insErr) logError('Error inserting program_exercises', insErr);
                         if (insData && insData.length) {
                             setPrograms((prev) => prev.map((t) => (t.id === newProg.id ? { ...t, programExercises: [...(t.programExercises || []), ...insData] } : t)));
                         }
                     }
                 }
             } catch (inner) {
-                console.error('Error persisting program_exercises for pending programs', inner);
+                        logError('Error persisting program_exercises for pending programs', inner);
             }
 
             const kept = programs.filter((t) => t.persisted);
             setPrograms([...kept, ...persisted]);
             if (persisted.length && !kept.length) setActiveProgramId(persisted[0].id);
         } catch (e) {
-            console.error('Error persisting programs', e);
+            logError('Error persisting programs', e);
             alert('Error guardando programas: ' + String(e));
         }
     };
@@ -1103,7 +1106,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         if (pe.id) {
                             updates.push((async () => {
                                 const { error } = await supabase.from('program_exercises').update({ position: newPos, day }).eq('id', pe.id);
-                                if (error) console.error('Error updating program_exercise position', error);
+                                if (error) logError('Error updating program_exercise position', error);
                             })());
                         }
                     }
@@ -1115,7 +1118,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             setSavedToastTitle('Orden guardado');
             setShowSavedToast(true);
         } catch (err) {
-            console.error('Error updating program_exercises positions', err);
+            logError('Error updating program_exercises positions', err);
             setSavedToastTitle('Error guardando el orden');
             setShowSavedToast(true);
         } finally {
@@ -1144,7 +1147,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             }
             return p;
         }));
-        try { await updateProgramExercisesPositions(programId); } catch (err) { console.error('Error normalizing after move up', err); }
+        try { await updateProgramExercisesPositions(programId); } catch (err) { logError('Error normalizing after move up', err); }
     };
 
     const moveAssignmentDown = async (programId: string, day: string, peId: string) => {
@@ -1163,7 +1166,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             }
             return p;
         }));
-        try { await updateProgramExercisesPositions(programId); } catch (err) { console.error('Error normalizing after move down', err); }
+        try { await updateProgramExercisesPositions(programId); } catch (err) { logError('Error normalizing after move down', err); }
     };
 
     const saveCurrentProgram = async () => {
@@ -1197,7 +1200,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 await addExercisesToProgramDB(p.id, toAdd);
             }
         } catch (e) {
-            console.error('Error saving program', e);
+            logError('Error saving program', e);
             alert('Error guardando programa: ' + String(e));
         } finally {
             setSavingProgram(false);
@@ -1226,10 +1229,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             try {
                 await updateProgramExercisesPositions(p.id);
             } catch (err) {
-                console.error('Error normalizing after save', err);
+                logError('Error normalizing after save', err);
             }
         } catch (e) {
-            console.error('Error saving program', e);
+            logError('Error saving program', e);
             alert('Error guardando programa: ' + String(e));
         } finally {
             setSavingProgram(false);
@@ -1249,7 +1252,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             if (error) throw error;
             setExercisesForCompany((data as any) || []);
         } catch (e) {
-            console.error('Error loading exercises for picker', e);
+            logError('Error loading exercises for picker', e);
             // don't alert noisily in modal open; show toast instead
             setExercisesForCompany([]);
         } finally {
@@ -1283,13 +1286,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     supabase.from('equipment').select('*').eq('company', companyId).order('name'),
                 ]);
                 if (exErr) throw exErr;
-                if (anErr) console.error('Error loading anatomy for picker', anErr);
-                if (eqErr) console.error('Error loading equipment for picker', eqErr);
+                if (anErr) logError('Error loading anatomy for picker', anErr);
+                if (eqErr) logError('Error loading equipment for picker', eqErr);
                 setExercisesForCompany((exData as any) || []);
                 setAnatomyForPicker((anData as any) || []);
                 setEquipmentForPicker((eqData as any) || []);
             } catch (err) {
-                console.error('Error fetching exercises for picker', err);
+                logError('Error fetching exercises for picker', err);
                 setExercisesForCompany([]);
                 setAnatomyForPicker([]);
                 setEquipmentForPicker([]);
@@ -1345,7 +1348,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 try {
                     await updateProgramExercisesPositions(currentProgramForPicker);
                 } catch (err) {
-                    console.error('Error normalizing positions after add', err);
+                    logError('Error normalizing positions after add', err);
                 }
 
                 setShowAddExercisesDialog(false);
@@ -1353,7 +1356,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 setCurrentDayForPicker(null);
                 setSelectedExerciseIds(new Set());
             } catch (e) {
-                console.error('Error adding exercises to program', e);
+                logError('Error adding exercises to program', e);
                 alert('Error añadiendo ejercicios: ' + String(e));
             } finally {
                 setAddingExercisesLoading(false);
@@ -1375,7 +1378,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         </DialogHeader>
 
                         <Tabs
-                            defaultValue="datos"
                             value={activeTab}
                             onValueChange={setActiveTab}
                             className="flex-1 flex flex-col overflow-hidden"
@@ -1388,8 +1390,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 <TabsTrigger value="programas">Programas</TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4 flex flex-col">
-                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1 flex-1">
+                            <TabsContent value="datos" className="flex-1 flex flex-col mt-4">
+                                <div className="flex-1 overflow-y-auto">
+                                    <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                     {/* Campos Obligatorios */}
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
@@ -1667,9 +1670,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         </Collapsible>
                                     </div>
                                 </form>
+                                </div>
                             </TabsContent>
-
-                            <TabsContent value="programas" className="flex-1 flex flex-col overflow-hidden mt-4">
+                            <TabsContent value="programas" className="flex-1 flex flex-col mt-4">
+                                <div className="flex-1 overflow-y-auto">
                                 <div className="px-1 flex-1 flex flex-col">
                                     <div className="flex items-center gap-2">
                                         <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
@@ -1773,19 +1777,19 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                                 }));
                                                                                 if (peId && !String(peId).startsWith('tpe-')) {
                                                                                     const { error } = await supabase.from('program_exercises').update({ day }).eq('id', peId);
-                                                                                    if (error) console.error('Error updating day for program_exercise', error);
+                                                                                    if (error) logError('Error updating day for program_exercise', error);
                                                                                     // normalize positions for this program/day then persist
                                                                                     const items = ((p.programExercises || []).filter((pe: any) => String(pe.day) === day));
                                                                                     for (let i = 0; i < items.length; i++) {
                                                                                         const pe = items[i];
                                                                                         if (pe.id) {
                                                                                             const { error } = await supabase.from('program_exercises').update({ position: i }).eq('id', pe.id);
-                                                                                            if (error) console.error('Error updating position', error);
+                                                                                            if (error) logError('Error updating position', error);
                                                                                         }
                                                                                     }
                                                                                 }
                                                                             } catch (err) {
-                                                                                console.error('Error handling drop', err);
+                                                                                logError('Error handling drop', err);
                                                                             }
                                                                         }}>
                                                                             <div className="flex items-center justify-between mb-2">
@@ -1810,7 +1814,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                                                         setExercisesForCompany((data as any) || []);
                                                                                                         setShowAddExercisesDialog(true);
                                                                                                     } catch (err) {
-                                                                                                        console.error('Error loading exercises', err);
+                                                                                                        logError('Error loading exercises', err);
                                                                                                     }
                                                                                                 }} className="px-4 py-2">+ Ejercicio</Button>
                                                                                             </div>
@@ -1844,7 +1848,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                                                             setPrograms((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
                                                                                                             await updateProgramExercisesPositions(p.id);
                                                                                                         } catch (err) {
-                                                                                                            console.error('Error deleting program_exercise', err);
+                                                                                                            logError('Error deleting program_exercise', err);
                                                                                                             alert('Error eliminando asignación: ' + String(err));
                                                                                                         }
                                                                                                     }} aria-label="Eliminar asignación">
@@ -1880,12 +1884,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                             );
                                         })}
                                     </Tabs>
-
-
+                                </div>
                             </div>
                         </TabsContent>
-                            <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4 flex flex-col">
-                                <div className="space-y-4 px-1 flex-1">
+                            <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
+                                <div className="flex-1 overflow-y-auto px-1 space-y-4">
                                     {loadingEventos ? (
                                         <div className="flex items-center justify-center py-8">
                                             <p className="text-muted-foreground">Cargando historial...</p>
@@ -2043,7 +2046,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         try {
                             updateProgramExercisesPositions(updated.program);
                         } catch (err) {
-                            console.error('Error normalizing after save', err);
+                            logError('Error normalizing after save', err);
                         }
                     }}
                 />
