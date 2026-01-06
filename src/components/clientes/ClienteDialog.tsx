@@ -51,6 +51,7 @@ import ActionButton from '@/components/ui/ActionButton';
 import ExerciseDialog from '@/components/ejercicios/ExerciseDialog';
 import { ExerciseBadgeGroup } from '@/components/ejercicios/ExerciseBadgeGroup';
 import { Trash } from 'lucide-react';
+import ProgramExerciseDialog from '@/components/programs/ProgramExerciseDialog';
 import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,9 +62,10 @@ interface ClienteDialogProps {
     onOpenChange: (open: boolean) => void;
     cliente?: Cliente | null;
     onSave: () => void;
+    initialTab?: 'datos' | 'programas';
 }
 
-export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps) {
+export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab }: ClienteDialogProps) {
     // Debug: ensure open prop flows from parent
     if (typeof window !== 'undefined') {
         // eslint-disable-next-line no-console
@@ -94,6 +96,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [activeTab, setActiveTab] = useState('datos');
 
+    // If the parent requests a specific tab when opening, apply it when the dialog is shown
+    useEffect(() => {
+        if (open) {
+            setActiveTab(initialTab ?? 'datos');
+        }
+    }, [open, initialTab]);
+
     // Programs state (persisted and temporary)
     const [programs, setPrograms] = useState<Array<any>>([]);
     const [activeProgramId, setActiveProgramId] = useState<string>('');
@@ -110,6 +119,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [exercisesLoading, setExercisesLoading] = useState(false);
     const [addingExercisesLoading, setAddingExercisesLoading] = useState(false);
     const [currentProgramForPicker, setCurrentProgramForPicker] = useState<string | null>(null);
+    const [currentDayForPicker, setCurrentDayForPicker] = useState<string | null>(null);
+    const [editingProgramExercise, setEditingProgramExercise] = useState<any | null>(null);
+    const [showEditProgramExerciseDialog, setShowEditProgramExerciseDialog] = useState(false);
 
     // Save state for current program
     const [savingProgram, setSavingProgram] = useState(false);
@@ -129,7 +141,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 // For new clients, ensure a default program exists locally
                 if (programs.length === 0) {
                     const tempId = `t-${Date.now()}`;
-                    setPrograms([{ tempId, name: 'Programa 1', persisted: false }]);
+                    setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '', exercises: [], programExercises: [], days: ['A'] }]);
                     setActiveProgramId(tempId);
                 }
             }
@@ -781,7 +793,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 // New client: ensure default local program
                 if (programs.length === 0) {
                     const tempId = `t-${Date.now()}`;
-                    setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '' }]);
+                    setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '', exercises: [], programExercises: [], days: ['A'] }]);
                     setActiveProgramId(tempId);
                 }
                 return;
@@ -814,7 +826,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             } else {
                 // No programs for existing client: show a default local program so UI isn't empty
                 const tempId = `t-${Date.now()}`;
-                setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '' }]);
+                setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '', exercises: [], programExercises: [], days: ['A'] }]);
                 setActiveProgramId(tempId);
             }
         } catch (e) {
@@ -843,7 +855,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             }
         } else {
             const tempId = `t-${Date.now()}`;
-            const t = { tempId, name, persisted: false, description: '', exercises: [] };
+            const t = { tempId, name, persisted: false, description: '', exercises: [], programExercises: [], days: ['A'] };
             setPrograms((prev) => [...prev, t]);
             setActiveProgramId(tempId);
         }
@@ -870,7 +882,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 setActiveProgramId(data.id);
             }
 
-            // persist any locally attached exercises
+            // persist any locally attached exercises (legacy 'exercises' list)
             const localProgram: any = program;
             if (localProgram?.exercises && localProgram.exercises.length && data.id) {
                 try {
@@ -879,6 +891,36 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                     if (insErr) console.error('Error inserting program_exercises', insErr);
                 } catch (inner) {
                     console.error('Error inserting program_exercises', inner);
+                }
+            }
+
+            // persist any locally attached programExercises (new model)
+            if (localProgram?.programExercises && localProgram.programExercises.length && data.id) {
+                try {
+                    const inserts = localProgram.programExercises
+                        .filter((pe: any) => !pe.id)
+                        .map((pe: any, i: number) => ({
+                            program: data.id,
+                            exercise: pe.exercise?.id || pe.exercise,
+                            company: companyId,
+                            position: pe.position ?? i,
+                            day: pe.day ?? 'A',
+                            notes: pe.notes ?? null,
+                            reps: pe.reps ?? null,
+                            sets: pe.sets ?? null,
+                            weight: pe.weight ?? null,
+                            secs: pe.secs ?? null,
+                        }));
+                    if (inserts.length) {
+                        const { data: insData, error: insErr } = await supabase.from('program_exercises').insert(inserts).select('*, exercise:exercises(*)');
+                        if (insErr) console.error('Error inserting program_exercises', insErr);
+                        // attach inserted rows to program state
+                        if (insData && insData.length) {
+                            setPrograms((prev) => prev.map((t) => (t.id === data.id ? { ...t, programExercises: [...(t.programExercises || []), ...insData], exercises: [...(t.exercises || []), ...insData.map((r: any) => r.exercise)] } : t)));
+                        }
+                    }
+                } catch (inner) {
+                    console.error('Error inserting program_exercises for pending program', inner);
                 }
             }
 
@@ -980,13 +1022,53 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     };
 
     // Add exercises to an existing program in DB
-    const addExercisesToProgramDB = async (programId: string, exerciseIds: string[]) => {
+    const addExercisesToProgramDB = async (programId: string, exerciseIds: string[], day?: string) => {
         if (!companyId) return;
         if (!exerciseIds.length) return;
-        const inserts = exerciseIds.map((exId, idx) => ({ program: programId, exercise: exId, company: companyId, position: idx }));
-        const { data, error } = await supabase.from('program_exercises').insert(inserts);
+        // Insert with a high temporary position (append) and specified day
+        const inserts = exerciseIds.map((exId) => ({ program: programId, exercise: exId, company: companyId, position: 999999, day: day ?? 'A' }));
+        const { data, error } = await supabase.from('program_exercises').insert(inserts).select('*, exercise:exercises(*)');
         if (error) throw error;
         return data;
+    };
+
+    const updateProgramExercisesPositions = async (programId: string, programExercises?: any[]) => {
+        let peList: any[];
+        let daysForProgram: string[] = [];
+        if (Array.isArray(programExercises)) {
+            peList = programExercises;
+        } else {
+            const idx = programs.findIndex((t) => (t.id ?? t.tempId) === programId);
+            if (idx === -1) return;
+            peList = programs[idx].programExercises || [];
+            daysForProgram = programs[idx].days || ['A'];
+        }
+
+        try {
+            const updates: Array<Promise<any>> = [];
+            const daysList = daysForProgram.length ? daysForProgram : Array.from(new Set(peList.map((pe: any) => String(pe.day)))).sort();
+            for (let di = 0; di < daysList.length; di++) {
+                const day = daysList[di];
+                const items = peList.filter((pe: any) => String(pe.day) === day);
+                for (let i = 0; i < items.length; i++) {
+                    const pe = items[i];
+                    const newPos = i;
+                    if (pe.position !== newPos) {
+                        pe.position = newPos;
+                        if (pe.id) {
+                            updates.push((async () => {
+                                const { error } = await supabase.from('program_exercises').update({ position: newPos, day }).eq('id', pe.id);
+                                if (error) console.error('Error updating program_exercise position', error);
+                            })());
+                        }
+                    }
+                }
+            }
+            if (updates.length) await Promise.all(updates);
+            setPrograms((prev) => prev.map((p) => ((p.id === programId || p.tempId === programId) ? { ...p, programExercises: peList } : p)));
+        } catch (err) {
+            console.error('Error updating program_exercises positions', err);
+        }
     };
 
     const saveCurrentProgram = async () => {
@@ -1027,23 +1109,24 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         }
     };
 
-    const openAddExercises = async (programId: string) => {
+    const openAddExercises = async (programId: string, day?: string) => {
         setCurrentProgramForPicker(programId);
+        setCurrentDayForPicker(day ?? null);
         setSelectedExerciseIds(new Set());
         setShowAddExercisesDialog(true);
         try {
             if (!companyId) return;
             setExercisesLoading(true);
             const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
-                if (error) throw error;
-                setExercisesForCompany((data as any) || []);
-            } catch (e) {
-                console.error('Error loading exercises for picker', e);
-                alert('Error cargando ejercicios: ' + String(e));
-            } finally {
-                setExercisesLoading(false);
-            }
-        };
+            if (error) throw error;
+            setExercisesForCompany((data as any) || []);
+        } catch (e) {
+            console.error('Error loading exercises for picker', e);
+            alert('Error cargando ejercicios: ' + String(e));
+        } finally {
+            setExercisesLoading(false);
+        }
+    };
 
         const removeExerciseFromProgram = async (programId: string, exerciseId: string) => {
             // If program is temporary, remove locally
@@ -1077,14 +1160,24 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             if (!selected.length) {
                 setShowAddExercisesDialog(false);
                 setCurrentProgramForPicker(null);
+                setCurrentDayForPicker(null);
                 return;
             }
 
-            // If program is temporary, just attach locally
+            const targetDay = currentDayForPicker ?? 'A';
+
+            // If program is temporary, attach locally as programExercises (temp)
             if (currentProgramForPicker.startsWith('t-')) {
-                setPrograms((prev) => prev.map((p) => (p.tempId === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...exercisesForCompany.filter((e) => selected.includes(e.id))] } : p)));
+                setPrograms((prev) => prev.map((p) => {
+                    if (p.tempId !== currentProgramForPicker) return p;
+                    const existingPE = p.programExercises || [];
+                    const startIndex = existingPE.filter((pe: any) => String(pe.day) === targetDay).length;
+                    const newPEs = exercisesForCompany.filter((e) => selected.includes(e.id)).map((e, i) => ({ tempId: `tpe-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, program: currentProgramForPicker, exercise: e, position: startIndex + i, day: targetDay }));
+                    return { ...p, exercises: [...(p.exercises || []), ...exercisesForCompany.filter((e) => selected.includes(e.id))], programExercises: [...existingPE, ...newPEs] };
+                }));
                 setShowAddExercisesDialog(false);
                 setCurrentProgramForPicker(null);
+                setCurrentDayForPicker(null);
                 setSelectedExerciseIds(new Set());
                 return;
             }
@@ -1092,11 +1185,24 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             // Persist to DB and attach locally
             setAddingExercisesLoading(true);
             try {
-                await addExercisesToProgramDB(currentProgramForPicker, selected);
-                const added = exercisesForCompany.filter((e) => selected.includes(e.id));
-                setPrograms((prev) => prev.map((p) => (p.id === currentProgramForPicker ? { ...p, exercises: [...(p.exercises || []), ...added] } : p)));
+                const inserted = await addExercisesToProgramDB(currentProgramForPicker, selected, targetDay);
+                // inserted includes exercise expansion
+                setPrograms((prev) => prev.map((p) => {
+                    if (p.id !== currentProgramForPicker) return p;
+                    const existingPE = p.programExercises || [];
+                    const addedPE = (inserted || []).map((r: any) => ({ id: r.id, program: r.program, exercise: r.exercise, position: r.position, notes: r.notes, day: r.day, reps: r.reps, sets: r.sets, weight: r.weight, secs: r.secs, created_at: r.created_at }));
+                    return { ...p, exercises: [...(p.exercises || []), ...addedPE.map((a: any) => a.exercise)], programExercises: [...existingPE, ...addedPE] };
+                }));
+                // Normalize positions for the program
+                try {
+                    await updateProgramExercisesPositions(currentProgramForPicker);
+                } catch (err) {
+                    console.error('Error normalizing positions after add', err);
+                }
+
                 setShowAddExercisesDialog(false);
                 setCurrentProgramForPicker(null);
+                setCurrentDayForPicker(null);
                 setSelectedExerciseIds(new Set());
             } catch (e) {
                 console.error('Error adding exercises to program', e);
@@ -1510,39 +1616,103 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         {/* Program exercises */}
                                                         <div>
                                                             <Label>Ejercicios</Label>
-                                                            <div className="flex gap-2 mt-2 items-center flex-wrap">
-                                                                {p.exercises && p.exercises.length > 0 ? (
-                                                                    <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
-                                                                        {p.exercises.map((ex: any) => (
-                                                                            <Card key={ex.id} className="p-2 flex flex-col">
-                                                                                <CardHeader className="py-1 px-2">
-                                                                                    <div className="flex items-center justify-between gap-2">
-                                                                                        <CardTitle className="text-sm font-medium line-clamp-2">{ex.name}</CardTitle>
+                                                            <div className="mt-2">
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <div className="flex gap-2">
+                                                                        {(p.days || ['A']).map((d: string) => (
+                                                                            <div key={d} className="px-2 py-1 bg-muted rounded text-sm">{`Día ${d}`}</div>
+                                                                        ))}
+                                                                    </div>
+                                                                    <div>
+                                                                        <Button size="sm" onClick={() => setPrograms((prev) => prev.map((pr) => (pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr)))}>+ Día</Button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                                                                    {(p.days || ['A']).map((day: string) => (
+                                                                        <div key={day} className="border rounded p-2 bg-muted/10" onDragOver={(e) => e.preventDefault()} onDrop={async (e) => {
+                                                                            e.preventDefault();
+                                                                            try {
+                                                                                const payload = e.dataTransfer?.getData('text') || e.dataTransfer?.getData('application/json');
+                                                                                if (!payload) return;
+                                                                                const parsed = JSON.parse(payload);
+                                                                                const peId = parsed.peId;
+                                                                                setPrograms((prev) => prev.map((prog) => {
+                                                                                    if ((prog.id || prog.tempId) !== (p.id || p.tempId)) return prog;
+                                                                                    const items = (prog.programExercises || []).map((it: any) => it.id === peId || it.tempId === peId ? { ...it, day } : it);
+                                                                                    return { ...prog, programExercises: items };
+                                                                                }));
+                                                                                if (peId && !String(peId).startsWith('tpe-')) {
+                                                                                    const { error } = await supabase.from('program_exercises').update({ day }).eq('id', peId);
+                                                                                    if (error) console.error('Error updating day for program_exercise', error);
+                                                                                    // normalize positions for this program/day then persist
+                                                                                    const items = ((p.programExercises || []).filter((pe: any) => String(pe.day) === day));
+                                                                                    for (let i = 0; i < items.length; i++) {
+                                                                                        const pe = items[i];
+                                                                                        if (pe.id) {
+                                                                                            const { error } = await supabase.from('program_exercises').update({ position: i }).eq('id', pe.id);
+                                                                                            if (error) console.error('Error updating position', error);
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            } catch (err) {
+                                                                                console.error('Error handling drop', err);
+                                                                            }
+                                                                        }}>
+                                                                            <div className="flex items-center justify-between mb-2">
+                                                                                <div className="text-sm font-medium">{`Día ${day}`}</div>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <Button size="sm" variant="ghost" onClick={async () => {
+                                                                                        // open small add dialog for this day
+                                                                                        setCurrentProgramForPicker(p.id ?? p.tempId);
+                                                                                        setCurrentDayForPicker(day);
+                                                                                        try {
+                                                                                            const { data } = await supabase.from('exercises').select('*').eq('company', p.company).order('name');
+                                                                                            setExercisesForCompany((data as any) || []);
+                                                                                            setShowAddExercisesDialog(true);
+                                                                                        } catch (err) {
+                                                                                            console.error('Error loading exercises', err);
+                                                                                        }
+                                                                                    }}>+</Button>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="space-y-2 min-h-[40px]">
+                                                                                {(p.programExercises || []).filter((pe: any) => String(pe.day) === day).sort((a: any, b: any) => (a.position || 0) - (b.position || 0)).map((pe: any) => (
+                                                                                    <div key={pe.id || pe.tempId} draggable onDragStart={(ev) => ev.dataTransfer?.setData('text', JSON.stringify({ programId: p.id ?? p.tempId, peId: pe.id ?? pe.tempId }))} onDragOver={(e) => e.preventDefault()} className="p-2 bg-white rounded border flex items-center justify-between gap-2">
+                                                                                        <div>
+                                                                                            <div className="text-sm font-medium">{pe.exercise?.name}</div>
+                                                                                            <div className="text-xs text-muted-foreground">{pe.exercise?.description}</div>
+                                                                                        </div>
                                                                                         <div className="flex items-center gap-2">
-                                                                                            <ActionButton tooltip="Eliminar del programa" onClick={async () => await removeExerciseFromProgram(idKey, ex.id)} aria-label="Eliminar ejercicio">
+                                                                                            <ActionButton tooltip="Editar asignación" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar asignación">
+                                                                                                <PencilLine className="h-4 w-4" />
+                                                                                            </ActionButton>
+                                                                                            <ActionButton tooltip="Eliminar asignación" onClick={async () => {
+                                                                                                try {
+                                                                                                    // If temp, remove locally
+                                                                                                    if (String(pe.tempId || '').startsWith('tpe-')) {
+                                                                                                        setPrograms((prev) => prev.map((pr) => (pr.tempId === p.tempId ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.tempId !== pe.tempId) } : pr)));
+                                                                                                        return;
+                                                                                                    }
+                                                                                                    const { error } = await supabase.from('program_exercises').delete().eq('id', pe.id);
+                                                                                                    if (error) throw error;
+                                                                                                    setPrograms((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
+                                                                                                    await updateProgramExercisesPositions(p.id);
+                                                                                                } catch (err) {
+                                                                                                    console.error('Error deleting program_exercise', err);
+                                                                                                    alert('Error eliminando asignación: ' + String(err));
+                                                                                                }
+                                                                                            }} aria-label="Eliminar asignación">
                                                                                                 <Trash className="h-4 w-4" />
                                                                                             </ActionButton>
                                                                                         </div>
                                                                                     </div>
-                                                                                </CardHeader>
-                                                                                <div className="px-2 pb-2 text-xs text-muted-foreground">
-                                                                                    {ex.description}
-                                                                                </div>
-                                                                            </Card>
-                                                                        ))}
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-sm text-muted-foreground">Sin ejercicios</span>
-                                                                )}
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
 
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    className="h-8 w-8 rounded-full border border-dashed border-border flex items-center justify-center"
-                                                                    onClick={() => openAddExercises(idKey)}
-                                                                    aria-label="Agregar ejercicios"
-                                                                >
-                                                                    <Plus className="h-4 w-4" />
-                                                                </Button>
                                                             </div>
                                                         </div>
 
@@ -1727,6 +1897,22 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+
+                {/* Edit program exercise dialog */}
+                <ProgramExerciseDialog
+                    open={showEditProgramExerciseDialog}
+                    onOpenChange={setShowEditProgramExerciseDialog}
+                    programExercise={editingProgramExercise}
+                    onSaved={(updated) => {
+                        if (!updated) return;
+                        setPrograms((prev) => prev.map((pr) => (pr.id === updated.program ? { ...pr, programExercises: (pr.programExercises || []).map((pe: any) => (pe.id === updated.id ? updated : pe)) } : pr)));
+                        try {
+                            updateProgramExercisesPositions(updated.program);
+                        } catch (err) {
+                            console.error('Error normalizing after save', err);
+                        }
+                    }}
+                />
 
                 {/* Add exercises dialog */}
                 <Dialog open={showAddExercisesDialog} onOpenChange={setShowAddExercisesDialog}>
