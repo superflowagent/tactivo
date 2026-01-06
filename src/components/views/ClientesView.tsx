@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ClienteDialog } from '@/components/clientes/ClienteDialog';
 import { getFilePublicUrl } from '@/lib/supabase';
-import { error as logError } from '@/lib/logger';
+import { debug, error as logError } from '@/lib/logger';
 import { normalizeForSearch } from '@/lib/stringUtils';
 import type { Cliente } from '@/types/cliente';
 import { useAuth } from '@/contexts/AuthContext';
@@ -130,9 +130,8 @@ export function ClientesView() {
   };
 
   const handleEdit = async (cliente: Cliente) => {
-    // Debug
-    // eslint-disable-next-line no-console
-    console.debug('[ClientesView] handleEdit called', { clienteId: cliente.id });
+    // Debug (use logger)
+    debug('[ClientesView] handleEdit called', { clienteId: cliente.id });
 
     // Ensure the dialog opens on the 'Datos' tab
     setDialogInitialTab('datos');
