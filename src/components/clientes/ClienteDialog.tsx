@@ -1028,14 +1028,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
             }
         };
 
-        const openAddExercises = async (programId: string) => {
-            setCurrentProgramForPicker(programId);
-            setSelectedExerciseIds(new Set());
-            setShowAddExercisesDialog(true);
-            try {
-                if (!companyId) return;
-                setExercisesLoading(true);
-                const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+        setCurrentProgramForPicker(programId);
+        setSelectedExerciseIds(new Set());
+        setShowAddExercisesDialog(true);
+        try {
+            if (!companyId) return;
+            setExercisesLoading(true);
+            const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
                 if (error) throw error;
                 setExercisesForCompany((data as any) || []);
             } catch (e) {
