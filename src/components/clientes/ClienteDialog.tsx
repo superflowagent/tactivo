@@ -1764,5 +1764,4 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 </Dialog>
             </>
         );
-    }
 }
