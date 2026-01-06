@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpDown, UserPlus, Pencil, Trash } from 'lucide-react';
+import { ArrowUpDown, UserPlus, Pencil, Trash, Dumbbell } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -38,6 +38,7 @@ export function ClientesView() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [dialogInitialTab, setDialogInitialTab] = useState<'datos' | 'programas'>('datos');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<string | null>(null);
 
@@ -124,6 +125,7 @@ export function ClientesView() {
 
   const handleAdd = () => {
     setSelectedCliente(null);
+    setDialogInitialTab('datos');
     setDialogOpen(true);
   };
 
@@ -131,6 +133,9 @@ export function ClientesView() {
     // Debug
     // eslint-disable-next-line no-console
     console.debug('[ClientesView] handleEdit called', { clienteId: cliente.id });
+
+    // Ensure the dialog opens on the 'Datos' tab
+    setDialogInitialTab('datos');
 
     // Recargar los datos más recientes del cliente desde `profiles` (Supabase)
     if (!cliente.id) return;
@@ -288,6 +293,17 @@ export function ClientesView() {
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
                     <ActionButton
+                      tooltip="Programas"
+                      onClick={() => {
+                        setSelectedCliente(cliente);
+                        setDialogInitialTab('programas');
+                        setDialogOpen(true);
+                      }}
+                      aria-label="Ver programas"
+                    >
+                      <Dumbbell className="h-4 w-4" />
+                    </ActionButton>
+                    <ActionButton
                       tooltip="Editar"
                       onClick={() => handleEdit(cliente)}
                       aria-label="Editar cliente"
@@ -317,6 +333,7 @@ export function ClientesView() {
         onOpenChange={setDialogOpen}
         cliente={selectedCliente}
         onSave={handleSave}
+        initialTab={dialogInitialTab}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
