@@ -63,7 +63,12 @@ interface ClienteDialogProps {
     onSave: () => void;
 }
 
-export const ClienteDialog: any = (props: ClienteDialogProps) => { const { open, onOpenChange, cliente, onSave } = props;
+export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDialogProps): JSX.Element {
+    // Debug: ensure open prop flows from parent
+    if (typeof window !== 'undefined') {
+        // eslint-disable-next-line no-console
+        console.debug('[ClienteDialog] render', { open, clienteId: cliente?.id });
+    }
     const { companyId } = useAuth();
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
