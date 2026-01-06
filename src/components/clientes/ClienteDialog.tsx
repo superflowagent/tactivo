@@ -101,6 +101,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [exercisesLoading, setExercisesLoading] = useState(false);
     const [addingExercisesLoading, setAddingExercisesLoading] = useState(false);
     const [currentProgramForPicker, setCurrentProgramForPicker] = useState<string | null>(null);
+
+    // Save state for current program
+    const [savingProgram, setSavingProgram] = useState(false);
     useEffect(() => {
         if (programs.length > 0 && !programs.find((p) => (p.id ?? p.tempId) === activeProgramId)) {
             const first = programs[0];
@@ -978,6 +981,45 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     };
 
     const openAddExercises = async (programId: string) => {
+    const saveCurrentProgram = async () => {
+        if (!activeProgramId) return;
+        const idKey = activeProgramId;
+        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+        if (idx === -1) return;
+        const p = programs[idx];
+        setSavingProgram(true);
+        try {
+            // If program is temporary, persist it (this will also persist attached exercises if any)
+            if ((p.tempId && idKey === p.tempId) || !p.persisted) {
+                await persistSingleProgram(idKey);
+                setSavingProgram(false);
+                return;
+            }
+
+            // Persist description/name updates
+            const updates: any = { description: p.description || '' };
+            if (p.name) updates.name = p.name;
+            const { data, error } = await supabase.from('programs').update(updates).eq('id', p.id).select().single();
+            if (error) throw error;
+            setPrograms((prev) => prev.map((x) => (x.id === p.id ? { ...x, name: data.name, description: data.description } : x)));
+
+            // Ensure exercises are persisted (only add missing ones)
+            const { data: existing, error: exErr } = await supabase.from('program_exercises').select('exercise').eq('program', p.id);
+            if (exErr) throw exErr;
+            const existingIds = (existing || []).map((r: any) => r.exercise);
+            const toAdd = (p.exercises || []).map((ex: any) => ex.id).filter((id: string) => !existingIds.includes(id));
+            if (toAdd.length) {
+                await addExercisesToProgramDB(p.id, toAdd);
+            }
+        } catch (e) {
+            console.error('Error saving program', e);
+            alert('Error guardando programa: ' + String(e));
+        } finally {
+            setSavingProgram(false);
+        }
+    };
+
+    const openAddExercises = async (programId: string) => {
         setCurrentProgramForPicker(programId);
         setSelectedExerciseIds(new Set());
         setShowAddExercisesDialog(true);
@@ -1464,24 +1506,38 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                                         </div>
                                                     </div>
 
-                                                    <div className="flex justify-end">
-                                                        <Button
-                                                            variant="destructive"
-                                                            onClick={() => {
-                                                                setProgramToDeleteId(idKey);
-                                                                setShowDeleteProgramDialog(true);
-                                                            }}
-                                                        >
-                                                            Eliminar
-                                                        </Button>
-                                                    </div>
+
                                                 </Card>
                                             </TabsContent>
                                         );
                                     })}
                                 </Tabs>
                             </div>
-                        </TabsContent>
+
+                                <div className="border-t mt-2 pt-3 flex items-center justify-between px-1">
+                                    <div>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={() => {
+                                                if (!activeProgramId) return;
+                                                setProgramToDeleteId(activeProgramId);
+                                                setShowDeleteProgramDialog(true);
+                                            }}
+                                            disabled={!activeProgramId}
+                                        >
+                                            Eliminar
+                                        </Button>
+                                    </div>
+
+                                    <div>
+                                        <Button
+                                            onClick={async () => await saveCurrentProgram()}
+                                            disabled={!activeProgramId || savingProgram}
+                                        >
+                                            {savingProgram ? 'Guardando...' : 'Guardar'}
+                                        </Button>
+                                    </div>
+                                </div>
 
                         <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
                             <div className="space-y-4 px-1">
