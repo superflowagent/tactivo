@@ -737,6 +737,17 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 }
             }
 
+            // Persist any updates to existing programs (description/name)
+            try {
+                for (const prog of programs) {
+                    if (prog.id) {
+                        await saveProgramById(prog.id);
+                    }
+                }
+            } catch (e) {
+                console.error('Error saving programs after client save', e);
+            }
+
             onSave();
             onOpenChange(false);
             setRemovePhoto(false);
@@ -1377,8 +1388,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 <TabsTrigger value="programas">Programas</TabsTrigger>
                             </TabsList>
 
-                            <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4">
-                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
+                            <TabsContent value="datos" className="flex-1 overflow-y-auto mt-4 flex flex-col">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1 flex-1">
                                     {/* Campos Obligatorios */}
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
@@ -1735,22 +1746,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     <div className="h-full overflow-y-auto">
                                                         <Card className="p-4 space-y-4 h-full">
                                                         <div className="mt-2">
-                                                            <Input
-                                                                value={p.description || ''}
-                                                                onChange={(e) => {
-                                                                    const val = e.target.value;
-                                                                    setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)));
-                                                                }}
-                                                                onBlur={async () => {
-                                                                    // If user added description and this program isn't persisted yet, persist it
-                                                                    const current = programs.find((x) => (x.id === p.id || x.tempId === p.tempId));
-                                                                    if ((current?.description || '').trim() !== '' && !current?.persisted) {
-                                                                        await persistSingleProgram(idKey);
-                                                                    }
-                                                                }}
-                                                                placeholder="Descripción del programa"
-                                                                className="w-full"
-                                                            />
+                                <LazyRichTextEditor
+                                    value={p.description || ''}
+                                    onChange={(val) => setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)))}
+                                    placeholder="Descripción del programa"
+                                    className="min-h-[120px]"
+                                />
                                                         </div>
 
                                                         {/* Program exercises */}
@@ -1885,8 +1886,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
                             </div>
                         </TabsContent>
-                            <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
-                                <div className="space-y-4 px-1">
+                            <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4 flex flex-col">
+                                <div className="space-y-4 px-1 flex-1">
                                     {loadingEventos ? (
                                         <div className="flex items-center justify-center py-8">
                                             <p className="text-muted-foreground">Cargando historial...</p>
