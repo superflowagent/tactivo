@@ -1,7 +1,7 @@
 
 [functions.hello-world]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/hello-world/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
@@ -27,3 +27,72 @@ entrypoint = "./functions/send-invite/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/delete-user/index.ts"
+
+# Disable platform-level JWT verification for create-client as we perform our own
+# authentication and validate tokens against /auth/v1/user; platform-level
+# verification may reject valid bearer tokens before our code runs.
+[functions."create-client"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-client/index.ts"
+
+# Disable platform-level JWT verification for update-client as well for the
+# same reasons (the function validates tokens itself and performs fine-grained checks).
+[functions."update-client"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-client/index.ts"
+
+[functions."create-professional"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-professional/index.ts"
+
+[functions."update-professional"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-professional/index.ts"
+
+# Disable platform-level JWT verification for update-company as the function performs
+# its own authentication checks (verifies bearer tokens against auth/v1/user or admin secret).
+[functions."update-company"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/update-company/index.ts"
+
+# Disable platform-level JWT verification for password-reset (function validates token or uses email flow)
+[functions."password-reset"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/password-reset/index.ts"
+
+# Disable platform-level JWT verification for send-invite-test
+[functions."send-invite-test"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-invite-test/index.ts"
+
+# Disable platform-level JWT verification for upload-company-logo (we perform token validation in the function)
+[functions."upload-company-logo"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/upload-company-logo/index.ts"
+
+
+# Propagate classes - creates events and updates profiles.class_credits
+[functions."propagate-classes"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/propagate-classes/index.ts"
+
+# Added by scripts/new-edge-function.js
+[functions."test-fn"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/test-fn/index.ts"
+
+# Register-user function: create company + professional profile + send reset
+[functions."register-user"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/register-user/index.ts"

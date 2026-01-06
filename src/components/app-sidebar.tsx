@@ -1,10 +1,20 @@
-import * as React from "react"
-import { Calendar, Users, UserStar, Settings, ChevronLeft, ChevronRight, ArrowLeftFromLine, Dumbbell, ListChecks } from "lucide-react"
-import type { ViewType } from "@/App"
-import { useAuth } from "@/contexts/AuthContext"
-import useResolvedFileUrl from '@/hooks/useResolvedFileUrl'
+import * as React from 'react';
+import {
+  Calendar,
+  Users,
+  UserStar,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeftFromLine,
+  Dumbbell,
+  ListChecks,
+} from 'lucide-react';
+import type { ViewType } from '@/App';
+import { useAuth } from '@/contexts/AuthContext';
+import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
 
-import { NavMain } from "@/components/nav-main"
+import { NavMain } from '@/components/nav-main';
 import {
   Sidebar,
   SidebarContent,
@@ -14,72 +24,84 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
-import ActionButton from "@/components/ui/ActionButton";
+} from '@/components/ui/sidebar';
+import ActionButton from '@/components/ui/ActionButton';
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  currentView: ViewType
-  onViewChange: (view: ViewType) => void
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
 }
 
 export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarProps) {
-  const { state, toggleSidebar, isMobile } = useSidebar()
-  const { user, logout } = useAuth()
-  const isCollapsed = state === "collapsed"
+  const { state, toggleSidebar, isMobile } = useSidebar();
+  const { user, logout } = useAuth();
+  const isCollapsed = state === 'collapsed';
 
   // Tooltip text for the sidebar toggle. On mobile we always show "Expandir menú" to avoid confusion.
-  const toggleTooltip = isMobile ? "Expandir menú" : (isCollapsed ? "Expandir menú" : "Colapsar menú")
+  const toggleTooltip = isMobile
+    ? 'Expandir menú'
+    : isCollapsed
+      ? 'Expandir menú'
+      : 'Colapsar menú';
 
   // Generar avatar con iniciales del usuario
   const getUserInitials = () => {
-    if (!user) return "?"
-    const firstInitial = user.name?.charAt(0).toUpperCase() || ""
-    const lastInitial = user.last_name?.charAt(0).toUpperCase() || ""
-    return firstInitial + lastInitial
-  }
+    if (!user) return '?';
+    const firstInitial = user.name?.charAt(0).toUpperCase() || '';
+    const lastInitial = user.last_name?.charAt(0).toUpperCase() || '';
+    return firstInitial + lastInitial;
+  };
 
   const getFullName = () => {
-    if (!user) return "Usuario"
-    return `${user.name} ${user.last_name}`.trim()
-  }
+    if (!user) return 'Usuario';
+    return `${user.name} ${user.last_name}`.trim();
+  };
 
   // Resolve user photo (public or signed) using storage helpers
-  const photoUrl = useResolvedFileUrl('profile_photos', user?.id, user?.photo)
+  const photoUrl = useResolvedFileUrl('profile_photos', user?.id, user?.photo);
 
   // Show full navigation for professionals, restricted navigation for clients
-  const mainNavItems = user?.role === 'client' ? [
-    {
-      title: "Calendario",
-      view: "calendario" as ViewType,
-      icon: Calendar,
-    },
-  ] : [
-    {
-      title: "Calendario",
-      view: "calendario" as ViewType,
-      icon: Calendar,
-    },
-    {
-      title: "Clientes",
-      view: "clientes" as ViewType,
-      icon: Users,
-    },
-    {
-      title: "Clases",
-      view: "clases" as ViewType,
-      icon: ListChecks,
-    },
-    {
-      title: "Ejercicios",
-      view: "ejercicios" as ViewType,
-      icon: Dumbbell,
-    },
-    {
-      title: "Profesionales",
-      view: "profesionales" as ViewType,
-      icon: UserStar,
-    },
-  ]
+  const mainNavItems =
+    user?.role === 'client'
+      ? [
+          {
+            title: 'Calendario',
+            view: 'calendario' as ViewType,
+            icon: Calendar,
+          },
+          {
+            title: 'Programas',
+            view: 'programas' as ViewType,
+            icon: Dumbbell,
+          },
+        ]
+      : [
+          {
+            title: 'Calendario',
+            view: 'calendario' as ViewType,
+            icon: Calendar,
+          },
+          {
+            title: 'Clientes',
+            view: 'clientes' as ViewType,
+            icon: Users,
+          },
+          {
+            title: 'Clases',
+            view: 'clases' as ViewType,
+            icon: ListChecks,
+          },
+          {
+            title: 'Ejercicios',
+            view: 'ejercicios' as ViewType,
+            icon: Dumbbell,
+          },
+          {
+            title: 'Profesionales',
+            view: 'profesionales' as ViewType,
+            icon: UserStar,
+          },
+        ];
 
   return (
     <Sidebar {...props} collapsible="icon">
@@ -90,8 +112,8 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
               <div
                 className="group/avatar relative flex aspect-square size-12 md:size-14 items-center justify-center rounded-lg bg-sidebar text-sidebar-foreground cursor-pointer overflow-hidden flex-shrink-0"
                 onClick={(e) => {
-                  e.preventDefault()
-                  logout()
+                  e.preventDefault();
+                  logout();
                 }}
               >
                 {photoUrl ? (
@@ -142,12 +164,12 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive={currentView === "ajustes"}
+                isActive={currentView === 'ajustes'}
                 onClick={() => {
-                  onViewChange("ajustes")
+                  onViewChange('ajustes');
                   if (isMobile) {
                     // Cerrar sidebar en móvil
-                    toggleSidebar()
+                    toggleSidebar();
                   }
                 }}
               >
@@ -159,5 +181,5 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
         </SidebarFooter>
       )}
     </Sidebar>
-  )
+  );
 }

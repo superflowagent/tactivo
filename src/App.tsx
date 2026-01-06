@@ -1,13 +1,20 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from '@/contexts/AuthContext'
-import { ProtectedRoute } from '@/components/ProtectedRoute'
-import { LoginView } from '@/components/views/LoginView'
-import { Panel } from '@/components/Panel'
-import PasswordResetView from '@/components/views/PasswordResetView'
-import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect'
-import AcceptInviteView from '@/components/views/AcceptInviteView'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { LoginView } from '@/components/views/LoginView';
+import { Panel } from '@/components/Panel';
+import PasswordResetView from '@/components/views/PasswordResetView';
+import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect';
+import AcceptInviteView from '@/components/views/AcceptInviteView';
 
-export type ViewType = "calendario" | "clientes" | "clases" | "ejercicios" | "profesionales" | "ajustes"
+export type ViewType =
+  | 'calendario'
+  | 'clientes'
+  | 'clases'
+  | 'ejercicios'
+  | 'profesionales'
+  | 'programas'
+  | 'ajustes';
 
 function App() {
   return (
@@ -34,7 +41,7 @@ function App() {
         </Routes>
       </AuthProvider>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

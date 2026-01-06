@@ -38,7 +38,9 @@ import {
     CheckCircle,
     XCircle,
     Pencil,
+    Plus,
 } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getFilePublicUrl, supabase } from '@/lib/supabase';
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
@@ -81,7 +83,39 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
     const [eventDialogOpen, setEventDialogOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [activeTab, setActiveTab] = useState('datos');
+
+    // Programs state (persisted and temporary)
+    const [programs, setPrograms] = useState<Array<any>>([]);
+    const [activeProgramId, setActiveProgramId] = useState<string>('');
+    const [loadingProgramsList, setLoadingProgramsList] = useState(false);
+    // Inline edit state for program names
+    const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
+    const [editingProgramName, setEditingProgramName] = useState<string>('');
+    useEffect(() => {
+        if (programs.length > 0 && !programs.find((p) => (p.id ?? p.tempId) === activeProgramId)) {
+            const first = programs[0];
+            setActiveProgramId(first.id ?? first.tempId);
+        }
+    }, [programs, activeProgramId]);
+
+    useEffect(() => {
+        // Initialize programs when dialog opens
+        if (open) {
+            if (cliente?.id) {
+                loadPrograms();
+            } else {
+                // For new clients, ensure a default program exists locally
+                if (programs.length === 0) {
+                    const tempId = `t-${Date.now()}`;
+                    setPrograms([{ tempId, name: 'Programa 1', persisted: false }]);
+                    setActiveProgramId(tempId);
+                }
+            }
+        }
+    }, [open, cliente?.id]);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [showDeleteProgramDialog, setShowDeleteProgramDialog] = useState(false);
+    const [programToDeleteId, setProgramToDeleteId] = useState<string | null>(null);
     const [showInviteToast, setShowInviteToast] = useState(false);
     const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
 
@@ -421,7 +455,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                             .from('profile_photos')
                             .upload(storagePath, photoFile);
                         if (uploadErr) {
-                            console.error('Upload error for cliente', {
+                            logError('Upload error for cliente', {
                                 bucket: 'profile_photos',
                                 path: storagePath,
                                 error: uploadErr,
@@ -644,6 +678,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                 }
             }
 
+            if (savedUserId) {
+                try {
+                    await persistPendingPrograms(savedUserId);
+                } catch (e) {
+                    /* ignore */
+                }
+            }
+
             onSave();
             onOpenChange(false);
             setRemovePhoto(false);
@@ -710,10 +752,169 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
         }
     };
 
+    const loadPrograms = async () => {
+        setLoadingProgramsList(true);
+        try {
+            if (!cliente?.id) {
+                // New client: ensure default local program
+                if (programs.length === 0) {
+                    const tempId = `t-${Date.now()}`;
+                    setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '' }]);
+                    setActiveProgramId(tempId);
+                }
+                return;
+            }
+
+            const { data, error } = await supabase.from('programs').select('*').eq('profile', cliente.id);
+            if (error) throw error;
+            const items = (data || []).map((r: any) => ({ id: r.id, name: r.name, persisted: true, description: r.description || '' }));
+
+            if (items.length) {
+                setPrograms(items);
+                setActiveProgramId(items[0].id);
+            } else {
+                // No programs for existing client: show a default local program so UI isn't empty
+                const tempId = `t-${Date.now()}`;
+                setPrograms([{ tempId, name: 'Programa 1', persisted: false, description: '' }]);
+                setActiveProgramId(tempId);
+            }
+        } catch (e) {
+            console.error('Error loading programs', e);
+        } finally {
+            setLoadingProgramsList(false);
+        }
+    };
+
+    const addProgram = async () => {
+        const nextIndex = programs.length + 1;
+        const name = `Programa ${nextIndex}`;
+        if (cliente?.id) {
+            try {
+                const { data, error } = await supabase
+                    .from('programs')
+                    .insert([{ name, profile: cliente.id, company: companyId }])
+                    .select()
+                    .single();
+                if (error) throw error;
+                setPrograms((prev) => [...prev, { id: data.id, name: data.name, persisted: true, description: '' }]);
+                setActiveProgramId(data.id);
+            } catch (e) {
+                console.error('Error creando programa', e);
+                alert('Error creando programa: ' + String(e));
+            }
+        } else {
+            const tempId = `t-${Date.now()}`;
+            const t = { tempId, name, persisted: false, description: '' };
+            setPrograms((prev) => [...prev, t]);
+            setActiveProgramId(tempId);
+        }
+    };
+
+    const persistSingleProgram = async (idKey: string) => {
+        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+        if (idx === -1) return null;
+        const program = programs[idx];
+        if (program.persisted && program.id) return program.id;
+        if (!cliente?.id) return null; // will be persisted when profile is created
+
+        try {
+            const { data, error } = await supabase
+                .from('programs')
+                .insert([{ name: program.name, profile: cliente.id, company: companyId, description: program.description || '' }])
+                .select()
+                .single();
+            if (error) throw error;
+            const persisted = { id: data.id, name: data.name, persisted: true, description: program.description || data.description || '' };
+            setPrograms((prev) => prev.map((t, i) => (i === idx ? persisted : t)));
+            // if active was tempId, switch to real id
+            if ((program.tempId && activeProgramId === program.tempId) || activeProgramId === program.id) {
+                setActiveProgramId(data.id);
+            }
+            return data.id;
+        } catch (e) {
+            console.error('Error persisting single program', e);
+            alert('Error guardando programa: ' + String(e));
+            return null;
+        }
+    };
+
+    const saveProgramName = async (idKey: string, newName: string) => {
+        if (!newName || newName.trim() === '') {
+            alert('El nombre no puede estar vacío');
+            return;
+        }
+        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+        if (idx === -1) return;
+        const program = programs[idx];
+        if (program.persisted && program.id) {
+            try {
+                const { data, error } = await supabase.from('programs').update({ name: newName }).eq('id', program.id).select().single();
+                if (error) throw error;
+                setPrograms((prev) => prev.map((t, i) => (i === idx ? { ...t, name: data.name } : t)));
+            } catch (e) {
+                console.error('Error renombrando programa', e);
+                alert('Error al renombrar programa: ' + String(e));
+            }
+        } else {
+            // local update
+            setPrograms((prev) => prev.map((t, i) => (i === idx ? { ...t, name: newName } : t)));
+            // try to persist immediately if client exists
+            if (cliente?.id) {
+                await persistSingleProgram(idKey);
+            }
+        }
+    };
+
+    const deleteProgram = async (idKey: string) => {
+        const idx = programs.findIndex((t) => (t.id ?? t.tempId) === idKey);
+        if (idx === -1) return;
+        const program = programs[idx];
+        if (program.persisted && program.id) {
+            try {
+                const { error } = await supabase.from('programs').delete().eq('id', program.id);
+                if (error) throw error;
+                setPrograms((prev) => prev.filter((t, i) => i !== idx));
+                if (activeProgramId === idKey) {
+                    const remaining = programs.filter((_, i) => i !== idx);
+                    if (remaining.length) setActiveProgramId(remaining[0].id ?? remaining[0].tempId);
+                    else setActiveProgramId('');
+                }
+            } catch (e) {
+                console.error('Error eliminando programa', e);
+                alert('Error al eliminar programa: ' + String(e));
+            }
+        } else {
+            setPrograms((prev) => prev.filter((t, i) => i !== idx));
+            if (activeProgramId === idKey) {
+                const remaining = programs.filter((_, i) => i !== idx);
+                if (remaining.length) setActiveProgramId(remaining[0].id ?? remaining[0].tempId);
+                else setActiveProgramId('');
+            }
+        }
+    };
+
+    const persistPendingPrograms = async (profileId: string | null) => {
+        if (!profileId) return;
+        const pending = programs.filter((t) => !t.persisted);
+        if (pending.length === 0) return;
+        try {
+            const inserts = pending.map((t) => ({ name: t.name, profile: profileId, company: companyId, description: t.description || '' }));
+            const { data, error } = await supabase.from('programs').insert(inserts).select();
+            if (error) throw error;
+            const persisted = data.map((d: any) => ({ id: d.id, name: d.name, persisted: true, description: d.description || '' }));
+            const kept = programs.filter((t) => t.persisted);
+            setPrograms([...kept, ...persisted]);
+            if (persisted.length && !kept.length) setActiveProgramId(persisted[0].id);
+        } catch (e) {
+            console.error('Error persisting programs', e);
+            alert('Error guardando programas: ' + String(e));
+        }
+    };
+
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="max-w-3xl h-[90vh] flex flex-col overflow-hidden">
+                <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
                     <DialogHeader>
                         <div className="flex items-center gap-2">
                             {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
@@ -730,10 +931,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                         onValueChange={setActiveTab}
                         className="flex-1 flex flex-col overflow-hidden"
                     >
-                        <TabsList className="grid w-full grid-cols-2">
+                        <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="datos">Datos</TabsTrigger>
                             <TabsTrigger value="historial" disabled={!cliente?.id}>
                                 Citas
+                            </TabsTrigger>
+                            <TabsTrigger value="programas">
+                                Programas
                             </TabsTrigger>
                         </TabsList>
 
@@ -1018,6 +1222,114 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                             </form>
                         </TabsContent>
 
+                        <TabsContent value="programas" className="flex-1 overflow-y-auto mt-4">
+                            <div className="px-1">
+                                <div className="flex items-center gap-2">
+                                    <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
+                                        <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
+                                            {programs.map((p) => {
+                                                const idKey = p.id ?? p.tempId;
+                                                return (
+                                                    <div key={idKey} className="flex items-center gap-2">
+                                                        <TabsTrigger value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                                                            {editingProgramId === idKey ? (
+                                                                <input
+                                                                    autoFocus
+                                                                    className="text-sm rounded px-2 py-0.5 w-40"
+                                                                    value={editingProgramName}
+                                                                    onChange={(e) => setEditingProgramName(e.target.value)}
+                                                                    onBlur={async () => {
+                                                                        const newName = editingProgramName.trim();
+                                                                        setEditingProgramId(null);
+                                                                        setEditingProgramName('');
+                                                                        if (newName && newName !== p.name) {
+                                                                            await saveProgramName(idKey, newName);
+                                                                        } else if (!newName) {
+                                                                            alert('El nombre no puede estar vacío');
+                                                                        }
+                                                                    }}
+                                                                    onKeyDown={async (e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            (e.target as HTMLInputElement).blur();
+                                                                        } else if (e.key === 'Escape') {
+                                                                            setEditingProgramId(null);
+                                                                            setEditingProgramName('');
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
+                                                            )}
+                                                        </TabsTrigger>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            <div className="pl-1">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 transition-colors hover:text-foreground hover:bg-[hsl(var(--background))]"
+                                                                onClick={addProgram}
+                                                            >
+                                                                <Plus className="h-3 w-3" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">Crear programa</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                        </TabsList>
+                                    </Tabs>
+
+
+                                </div>
+
+                                <Tabs value={activeProgramId} onValueChange={setActiveProgramId} className="mt-4">
+                                    {programs.map((p) => {
+                                        const idKey = p.id ?? p.tempId;
+                                        return (
+                                            <TabsContent key={idKey} value={idKey} className="p-0">
+                                                <Card className="p-4 space-y-4">
+                                                    <div className="mt-2">
+                                                        <Input
+                                                            value={p.description || ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)));
+                                                            }}
+                                                            onBlur={async () => {
+                                                                // If user added description and this program isn't persisted yet, persist it
+                                                                const current = programs.find((x) => (x.id === p.id || x.tempId === p.tempId));
+                                                                if ((current?.description || '').trim() !== '' && !current?.persisted) {
+                                                                    await persistSingleProgram(idKey);
+                                                                }
+                                                            }}
+                                                            placeholder="Descripción del programa"
+                                                            className="w-full"
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex justify-end">
+                                                        <Button
+                                                            variant="destructive"
+                                                            onClick={() => {
+                                                                setProgramToDeleteId(idKey);
+                                                                setShowDeleteProgramDialog(true);
+                                                            }}
+                                                        >
+                                                            Eliminar
+                                                        </Button>
+                                                    </div>
+                                                </Card>
+                                            </TabsContent>
+                                        );
+                                    })}
+                                </Tabs>
+                            </div>
+                        </TabsContent>
+
                         <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
                             <div className="space-y-4 px-1">
                                 {loadingEventos ? (
@@ -1129,6 +1441,35 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showDeleteProgramDialog} onOpenChange={setShowDeleteProgramDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar programa?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => {
+                                setProgramToDeleteId(null);
+                            }}
+                        >
+                            Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                if (!programToDeleteId) return;
+                                await deleteProgram(programToDeleteId);
+                                setShowDeleteProgramDialog(false);
+                                setProgramToDeleteId(null);
+                            }}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             Eliminar

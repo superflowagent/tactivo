@@ -97,6 +97,8 @@ export default function ExerciseDialog({
     // Autofocus removed per UX decision
     const [anatomySearch, setAnatomySearch] = useState('');
     const [equipmentSearch, setEquipmentSearch] = useState('');
+    const [creatingAnatomy, setCreatingAnatomy] = useState(false);
+    const [creatingEquipment, setCreatingEquipment] = useState(false);
 
     const [dragOver, setDragOver] = useState(false);
     const [localAnatomy, setLocalAnatomy] = useState<AnatomyRecord[]>(anatomy);
@@ -311,38 +313,54 @@ export default function ExerciseDialog({
                     (async () => {
                         try {
                             // Notify UI that upload started
-                            try { window.dispatchEvent(new CustomEvent('exercise-upload-start', { detail: { exerciseId } })); } catch {}
+                            try { window.dispatchEvent(new CustomEvent('exercise-upload-start', { detail: { exerciseId } })); } catch { }
                             // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
                             const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
-                            const { error: upErr } = await uploadVideoWithCompression(
-                                'exercise_videos',
-                                uploadPath,
-                                imageFile,
-                                { upsert: true },
-                                { company: user.company ?? undefined, exerciseId }
-                            );
+
+                            // Add a total upload timeout so we never wait indefinitely (4 minutes)
+                            let uploadResult: any;
+                            try {
+                                uploadResult = await Promise.race([
+                                    uploadVideoWithCompression(
+                                        'exercise_videos',
+                                        uploadPath,
+                                        imageFile,
+                                        { upsert: true },
+                                        { company: user.company ?? undefined, exerciseId }
+                                    ),
+                                    new Promise((_, rej) => setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)),
+                                ]);
+                            } catch (err) {
+                                logError('backgroundUploadEdit: upload failed or timed out', err);
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String((err as any)?.message ?? err) } })); } catch { }
+                                setError('El archivo no se pudo subir. El ejercicio fue actualizado sin nuevo video.');
+                                return;
+                            }
+
+                            const { data: uploadData, error: upErr } = uploadResult || {};
                             if (upErr) {
                                 logError('backgroundUploadEdit: upload failed', upErr);
                                 setError('El archivo no se pudo subir. El ejercicio fue actualizado sin nuevo video.');
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(upErr) } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(upErr) } })); } catch { }
                                 return;
                             }
-                            const filename = uploadPath;
+                            // Use returned path if provided (edge function may store at root)
+                            const returnedPath = (uploadData && (uploadData.path || uploadData.uploaded?.path)) || uploadPath;
                             const { error: updateFileErr } = await supabase
                                 .from('exercises')
-                                .update({ file: filename })
+                                .update({ file: returnedPath })
                                 .eq('id', exerciseId);
                             if (updateFileErr) {
                                 logError('backgroundUploadEdit: failed to update record with file path', updateFileErr);
                                 setError('El archivo se subió, pero no se pudo actualizar la referencia en la base de datos.');
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(updateFileErr) } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(updateFileErr) } })); } catch { }
                             } else {
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: true, filename } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: true, filename: returnedPath } })); } catch { }
                             }
                         } catch (bgErr) {
                             logError('backgroundUploadEdit: unexpected error', bgErr);
                             setError('Error al subir el archivo en segundo plano.');
-                            try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String((bgErr as any)?.message ?? bgErr) } })); } catch {}
+                            try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String((bgErr as any)?.message ?? bgErr) } })); } catch { }
                         }
                     })();
                 }
@@ -368,40 +386,56 @@ export default function ExerciseDialog({
                     (async () => {
                         try {
                             // Notify UI that upload started
-                            try { window.dispatchEvent(new CustomEvent('exercise-upload-start', { detail: { exerciseId } })); } catch {}
+                            try { window.dispatchEvent(new CustomEvent('exercise-upload-start', { detail: { exerciseId } })); } catch { }
                             // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
                             const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
-                            const { error: upErr } = await uploadVideoWithCompression(
-                                'exercise_videos',
-                                uploadPath,
-                                imageFile,
-                                undefined,
-                                { company: user.company ?? undefined, exerciseId }
-                            );
+
+                            // Add a total upload timeout so we never wait indefinitely (4 minutes)
+                            let uploadResult: any;
+                            try {
+                                uploadResult = await Promise.race([
+                                    uploadVideoWithCompression(
+                                        'exercise_videos',
+                                        uploadPath,
+                                        imageFile,
+                                        undefined,
+                                        { company: user.company ?? undefined, exerciseId }
+                                    ),
+                                    new Promise((_, rej) => setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)),
+                                ]);
+                            } catch (err) {
+                                logError('backgroundUpload: upload failed or timed out', err);
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String((err as any)?.message ?? err) } })); } catch { }
+                                setError('El archivo no se pudo subir. El ejercicio fue creado sin video.');
+                                return;
+                            }
+
+                            const { data: uploadData, error: upErr } = uploadResult || {};
                             if (upErr) {
                                 // If RLS or other error, attempt edge function fallback already handled inside uploadVideoWithCompression
                                 logError('backgroundUpload: upload failed', upErr);
                                 // Notify user in a non-blocking way
                                 setError('El archivo no se pudo subir. El ejercicio fue creado sin video.');
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(upErr) } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(upErr) } })); } catch { }
                                 return;
                             }
                             const filename = uploadPath; // store filename at bucket root
+                            const resolvedPath = (uploadData && (uploadData.path || uploadData.uploaded?.path)) || filename;
                             const { error: updateErr } = await supabase
                                 .from('exercises')
-                                .update({ file: filename })
+                                .update({ file: resolvedPath })
                                 .eq('id', exerciseId);
                             if (updateErr) {
                                 logError('backgroundUpload: failed to update record with file path', updateErr);
                                 setError('El archivo se subió, pero no se pudo actualizar la referencia en la base de datos.');
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(updateErr?.message ?? updateErr) } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(updateErr?.message ?? updateErr) } })); } catch { }
                             } else {
-                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: true, filename } })); } catch {}
+                                try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: true, filename: resolvedPath } })); } catch { }
                             }
                         } catch (bgErr) {
                             logError('backgroundUpload: unexpected error', bgErr);
                             setError('Error al subir el archivo en segundo plano.');
-                            try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(bgErr) } })); } catch {}
+                            try { window.dispatchEvent(new CustomEvent('exercise-upload-end', { detail: { exerciseId, success: false, error: String(bgErr) } })); } catch { }
                         }
                     })();
                 }

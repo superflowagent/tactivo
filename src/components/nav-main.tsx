@@ -1,5 +1,5 @@
-import { type LucideIcon } from "lucide-react"
-import type { ViewType } from "@/App"
+import { type LucideIcon } from 'lucide-react';
+import type { ViewType } from '@/App';
 
 import {
   SidebarGroup,
@@ -7,7 +7,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/sidebar';
 
 export function NavMain({
   items,
@@ -16,26 +16,26 @@ export function NavMain({
   isFooter,
 }: {
   items: {
-    title: string
-    view: ViewType
-    icon?: LucideIcon
-  }[]
-  currentView: ViewType
-  onViewChange: (view: ViewType) => void
-  isFooter?: boolean
+    title: string;
+    view: ViewType;
+    icon?: LucideIcon;
+  }[];
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
+  isFooter?: boolean;
 }) {
-  const { isMobile, setOpenMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const handleViewChange = (view: ViewType) => {
-    onViewChange(view)
+    onViewChange(view);
     // Cerrar sidebar en móvil después de seleccionar
     if (isMobile) {
-      setOpenMobile(false)
+      setOpenMobile(false);
     }
-  }
+  };
 
   return (
-    <SidebarGroup className={isFooter ? "" : ""}>
+    <SidebarGroup className={isFooter ? '' : ''}>
       <SidebarMenu>
         {items.map((item) => (
           <SidebarMenuItem key={item.title}>
@@ -50,5 +50,5 @@ export function NavMain({
         ))}
       </SidebarMenu>
     </SidebarGroup>
-  )
+  );
 }
