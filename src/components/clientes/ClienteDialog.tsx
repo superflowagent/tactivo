@@ -1661,8 +1661,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                     ) : (
                                                                         <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
                                                                     )}
-                                                                    <ActionButton aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
-                                                                        <Trash className="h-4 w-4" />
+                                                                    <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                                                                        <Trash className="h-3 w-3" />
                                                                     </ActionButton>
                                                                 </div>
                                                             </TabsTrigger>
@@ -1828,9 +1828,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                         </div>
                                                                     ))}
                                                                     {((p.days || []).length < 7) && (
-                                                                        <div className="border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px] flex items-center justify-center cursor-pointer" onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
+                                                                        <Card className="border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px] flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
                                                                             <div className="text-2xl font-bold">+</div>
-                                                                        </div>
+                                                                        </Card>
                                                                     )}
                                                                 </div>
 
