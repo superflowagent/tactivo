@@ -1573,6 +1573,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave }: ClienteDi
                                         </Button>
                                     </div>
                                 </div>
+                            </TabsContent>
 
                         <TabsContent value="historial" className="flex-1 overflow-y-auto mt-4">
                             <div className="space-y-4 px-1">
