@@ -63,7 +63,7 @@ interface ClienteDialogProps {
     onSave: () => void;
 }
 
-export const ClienteDialog: React.FC<ClienteDialogProps> = ({ open, onOpenChange, cliente, onSave }) => {
+export const ClienteDialog: any = ({ open, onOpenChange, cliente, onSave }) => {
     const { companyId } = useAuth();
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
