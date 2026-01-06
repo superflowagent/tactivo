@@ -128,6 +128,10 @@ export function ClientesView() {
   };
 
   const handleEdit = async (cliente: Cliente) => {
+    // Debug
+    // eslint-disable-next-line no-console
+    console.debug('[ClientesView] handleEdit called', { clienteId: cliente.id });
+
     // Recargar los datos más recientes del cliente desde `profiles` (Supabase)
     if (!cliente.id) return;
 
