@@ -301,11 +301,11 @@ export const uploadVideoWithCompression = async (
                         compressVideoFile(file),
                         new Promise<File>((_res, rej) => setTimeout(() => rej(new Error('compression attempt timed out')), compressAttemptTimeoutMs)),
                     ]);
-                } catch (err: any) {
+                } catch {
                     // compression failed within timeout; proceed with original file
                     toUpload = file;
                 }
-            } catch (err) {
+            } catch {
                 // fallback to original on unexpected errors
                 toUpload = file;
             }
@@ -472,7 +472,7 @@ export const uploadVideoWithCompression = async (
                     }
                 }
             }
-        } catch (e) {
+        } catch {
             // ignore errors here and proceed with the regular upload attempt
         }
 
@@ -499,7 +499,7 @@ export const uploadVideoWithCompression = async (
                         // Fall through to edge-function fallback
                         throw retryErr;
                     }
-                } catch (refreshErr) {
+                } catch {
                     // Attempt server-side upload via Edge Function (with timeout)
                     try {
                         const token = await getAuthToken();

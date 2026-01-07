@@ -105,7 +105,7 @@ export async function compressVideoFile(
         const drawFrame = () => {
             try {
                 ctx.drawImage(video, 0, 0, ow, oh);
-            } catch (_err) {
+            } catch {
                 // sometimes drawImage fails briefly — ignore
             }
             rafHandle = requestAnimationFrame(drawFrame);
@@ -116,7 +116,7 @@ export async function compressVideoFile(
             if (rafHandle) cancelAnimationFrame(rafHandle);
             try {
                 if (recorder.state === 'recording') recorder.stop();
-            } catch (e) {
+            } catch {
                 /* ignore */
             }
         });
@@ -127,7 +127,7 @@ export async function compressVideoFile(
             if (!settled) {
                 try {
                     if (recorder.state === 'recording') recorder.stop();
-                } catch (_err) {
+                } catch {
                     // ignore
                 }
             }

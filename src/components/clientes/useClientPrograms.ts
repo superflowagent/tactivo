@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { error as logError } from '@/lib/logger';
-import { getFilePublicUrl, supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import type { Cliente } from '@/types/cliente';
 
 export type Program = any;
@@ -16,11 +16,11 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   const [loadingProgramsList, setLoadingProgramsList] = useState(false);
   const [exercisesForCompany, setExercisesForCompany] = useState<any[]>([]);
   const [exercisesLoading, setExercisesLoading] = useState(false);
-  const [savingProgram, setSavingProgram] = useState(false);
+  const [savingProgram] = useState(false);
   const [savingPositions, setSavingPositions] = useState<Set<string>>(new Set());
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [savedToastTitle, setSavedToastTitle] = useState<string | null>(null);
-  const dragContext = useRef<{ programId?: string; day?: string } | null>(null);
+
 
   useEffect(() => {
     // auto-load programs when cliente changes
@@ -302,7 +302,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     try { await updateProgramExercisesPositions(programId); } catch (err) { logError('Error normalizing after move down', err); }
   };
 
-  const openAddExercises = async (programId: string, day?: string) => {
+  const openAddExercises = async (_programId: string, _day?: string) => {
     try {
       if (!companyId) return;
       setExercisesLoading(true);

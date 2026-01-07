@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Building2, Save, CheckCircle2, HelpCircle, Loader2 } from 'lucide-react';
-import { getFilePublicUrl, supabase, getAuthToken, ensureValidSession, fetchProfileByUserId } from '@/lib/supabase';
+import { getFilePublicUrl, supabase, getAuthToken, ensureValidSession } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Company } from '@/types/company';
@@ -27,9 +27,9 @@ export function AjustesView() {
     if (companyId) {
       loadCompany();
     }
-  }, [companyId]);
+  }, [companyId, loadCompany]);
 
-  const loadCompany = async () => {
+  const loadCompany = useCallback(async () => {
     if (!companyId) return;
 
     try {
@@ -77,7 +77,7 @@ export function AjustesView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
 
   const handleChange = (field: keyof Company, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -128,7 +128,7 @@ export function AjustesView() {
         try {
           const okSess = await ensureValidSession();
           if (!okSess) throw new Error('session_invalid');
-        } catch (e) {
+        } catch {
           throw new Error('Debe iniciar sesión para subir un logo');
         }
 
@@ -166,7 +166,7 @@ export function AjustesView() {
           // Uploaded successfully via function -> stored at bucket root
           uploadData = { path: `${filename}` };
           uploadErr = null;
-        } catch (eFn) {
+        } catch {
           // Fallback: try uploading to root directly (may fail due to RLS); if it fails, surface an actionable error
           try {
             const res2 = await supabase.storage.from(UPLOAD_BUCKET).upload(`${filename}`, logoFile, { upsert: true });
@@ -213,7 +213,7 @@ export function AjustesView() {
               // Uploaded successfully via function -> use returned upload path (extract basename)
               uploadData = fnJson?.uploaded || { path: `${filename}` };
               uploadErr = null;
-            } catch (eFn) {
+            } catch {
               // Fallback: try uploading at root path as before
               try {
                 const res2 = await supabase.storage.from(UPLOAD_BUCKET).upload(`${filename}`, logoFile, { upsert: true });

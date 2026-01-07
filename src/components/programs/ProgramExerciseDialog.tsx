@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     open: boolean;
@@ -24,7 +24,6 @@ const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes
 export default function ProgramExerciseDialog({ open, onOpenChange, programExercise, onSaved }: Props) {
     const [local, setLocal] = useState<any>({});
     const [saving, setSaving] = useState(false);
-    const { companyId } = useAuth();
 
     useEffect(() => {
         setLocal(programExercise ? { ...programExercise, day: programExercise.day ?? 1 } : { day: 1 });

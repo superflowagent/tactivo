@@ -97,8 +97,8 @@ export default function ExerciseDialog({
     // Autofocus removed per UX decision
     const [anatomySearch, setAnatomySearch] = useState('');
     const [equipmentSearch, setEquipmentSearch] = useState('');
-    const [creatingAnatomy, setCreatingAnatomy] = useState(false);
-    const [creatingEquipment, setCreatingEquipment] = useState(false);
+    const [creatingAnatomy] = useState(false);
+    const [creatingEquipment] = useState(false);
 
     const [dragOver, setDragOver] = useState(false);
     const [localAnatomy, setLocalAnatomy] = useState<AnatomyRecord[]>(anatomy);
