@@ -235,32 +235,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             if (error) throw error;
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
 
-            // Debug: show resolved profile/user ids and a sample of returned events to inspect shape
-            try {
-                console.debug('[ClienteDialog] resolved ids', { resolvedProfileId, resolvedUserId });
-                console.debug('[ClienteDialog] sample events', (recordsAll || []).slice(0, 3).map((r: any) => ({
-                    id: r.id,
-                    type: r.type,
-                    client: r.client,
-                    client_user_ids: r.client_user_ids,
-                    clientUserIds: r.clientUserIds,
-                    clients: r.clients,
-                    clientIds: r.clientIds,
-                    clientUserIdsAlt: r.client_userids || null,
-                    professional: r.professional,
-                })));
-
-                const matchesByField = (recordsAll || []).map((r: any) => {
-                    const candidates = [r.client, r.client_user_ids, r.clientUserIds, r.clients, r.clientIds, r.client_userids];
-                    const matched = candidates.some((c: any) => {
-                        if (!c) return false;
-                        const arr = Array.isArray(c) ? c : [c];
-                        return arr.map((x: any) => String(x)).includes(String(clienteId));
-                    });
-                    return { id: r.id, matched, candidatesPreview: candidates.map((c: any) => (c ? (Array.isArray(c) ? c.slice(0, 3) : [c]) : null)) };
-                });
-                console.debug('[ClienteDialog] matchesByField (clientId present?)', matchesByField.filter((m: any) => m.matched));
-            } catch (e) { /* ignore */ }
+            // (removed debug logging)
 
             // helper to check client membership supporting either profile id or user id stored in event.client
             // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
@@ -280,7 +255,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 const clientsField = r.client ?? r.client_user_ids ?? r.clientUserIds ?? r.clients ?? r.clientIds ?? null;
                 return clientMatches(clientsField, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment';
             });
-            try { console.debug('[ClienteDialog] events for client', clienteId, records.length, 'total events in company', (recordsAll || []).length); } catch (e) { /* ignore */ }
+
             // Enrich professional field
             const profIds = new Set<string>();
             (records || []).forEach((r: any) => {
@@ -310,7 +285,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         .filter(Boolean),
                 },
             }));
-            setEventos(enriched);
+            const sorted = (enriched || []).slice().sort((a:any, b:any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
+            setEventos(sorted);
         } catch (err) {
             logError('Error al cargar eventos:', err);
         } finally {
@@ -324,7 +300,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 p_company: companyId,
             });
             if (error) throw error;
-            try { console.debug('[ClienteDialog] get_events_for_company (edit) returned', Array.isArray(rpcRecords) ? rpcRecords.length : (rpcRecords ? 1 : 0)); } catch (e) { /* ignore */ }
+
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
             const eventData = (recordsAll || []).find((r: any) => r.id === eventId);
             if (!eventData) throw new Error('event not found');
@@ -803,16 +779,16 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         <TabsList className="grid w-full grid-cols-3">
                             <TabsTrigger value="datos">Datos</TabsTrigger>
                             <TabsTrigger value="historial" disabled={!cliente?.id}>
-                                Citas
+                                Citas{cliente?.id ? ` (${eventos.length})` : ''}
                             </TabsTrigger>
                             <TabsTrigger value="programas">Programas</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="datos" className="flex-1 flex flex-col min-h-0">
+                        <TabsContent value="datos" className="flex-1 flex flex-col min-h-0 mt-0">
                             <div className="flex-1 overflow-y-auto min-h-0 h-full pr-2">
-                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1 h-full flex flex-col min-h-full">
                                     {/* Campos Obligatorios */}
-                                    <div className="space-y-4">
+                                    <div className="space-y-4 flex-1">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="name">Nombre *</Label>
@@ -1090,12 +1066,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </form>
                             </div>
                         </TabsContent>
-                        <TabsContent value="programas" className="flex-1 flex flex-col">
+                        <TabsContent value="programas" className="flex-1 flex flex-col mt-0">
                             <div className="flex-1 overflow-y-auto">
                                 <ClientPrograms cliente={cliente} companyId={companyId || ''} />
                             </div>
                         </TabsContent>
-                        <TabsContent value="historial" className="flex-1 flex flex-col">
+                        <TabsContent value="historial" className="flex-1 flex flex-col mt-0">
                             <div className="flex-1 overflow-y-auto px-1 space-y-4">
                                 {loadingEventos ? (
                                     <div className="flex items-center justify-center py-8">
