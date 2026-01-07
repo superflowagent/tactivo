@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -63,6 +63,8 @@ export function EventDialog({
 }: EventDialogProps) {
     const { companyId, user } = useAuth();
     const isClientView = user?.role === 'client';
+    
+    // State declarations - ALL at top
     const [formData, setFormData] = useState<Partial<Event>>({
         type: 'appointment',
         duration: 60,
@@ -82,15 +84,54 @@ export function EventDialog({
     const [clientSearch, setClientSearch] = useState('');
     const [profilesMap, setProfilesMap] = useState<Record<string, any>>({});
     const [profilesLoading, setProfilesLoading] = useState(false);
-    const profilesLoadIdRef = useRef(0);
-    // Synchronous in-memory lock to avoid race where state updates (profilesLoading)
-    // are not yet applied when an effect runs and cause duplicate fetches.
-    const profilesLoadingRef = useRef(false);
     const [clientCredits, setClientCredits] = useState<number | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [company, setCompany] = useState<any>(null);
+    const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false);
+    
+    // Refs
+    const profilesLoadIdRef = useRef(0);
+    const profilesLoadingRef = useRef(false);
+    const clientSearchRef = useRef<HTMLInputElement | null>(null);
 
+    // Callback functions - BEFORE useEffect
+    const loadCompany = useCallback(async () => {
+        if (!companyId) return;
+        try {
+            const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', {
+                p_company: companyId,
+            });
+            if (compErr) throw compErr;
+            const record = Array.isArray(comp) ? comp[0] : comp;
+            setCompany(record);
+        } catch (err) {
+            logError('Error cargando company:', err);
+        }
+    }, [companyId]);
+
+    const loadClientes = useCallback(async () => {
+        if (!companyId) return;
+        try {
+            const records = await getProfilesByRole(companyId, 'client');
+            setClientes(records);
+        } catch (err) {
+            logError('Error cargando clientes desde profiles:', err);
+        }
+    }, [companyId]);
+
+    const loadProfesionales = useCallback(async () => {
+        if (!companyId) return;
+        try {
+            const records = await getProfilesByRole(companyId, 'professional');
+            setProfesionales(records);
+        } catch (err) {
+            logError('Error cargando profesionales desde profiles:', err);
+        }
+    }, [companyId]);
+
+    // Profile loading effect - NOW using company from state
     useEffect(() => {
-        // When selectedClients/selectedProfessionals changes or event changes, trigger load of profiles with cancellation
-        // Prefer explicit selections (selectedClients + selectedProfessionals), otherwise fall back to event client+professional arrays
         const explicitSelected = [...(selectedClients || []), ...(selectedProfessionals || [])];
         const eventClients = Array.isArray(event?.client)
             ? event!.client
@@ -112,14 +153,11 @@ export function EventDialog({
             return;
         }
 
-        // Use a synchronous ref lock to avoid races where `profilesLoading` state is not yet
-        // applied when this effect runs (React may batch updates). If lock is set, skip.
         if (profilesLoadingRef.current) {
             return;
         }
 
         const loadId = ++profilesLoadIdRef.current;
-        // Acquire lock immediately (synchronous) so other effects don't start a second fetch
         profilesLoadingRef.current = true;
         setProfilesLoading(true);
         (async () => {
@@ -127,7 +165,6 @@ export function EventDialog({
                 let results: any[] = [];
 
                 if (event?.id) {
-                    // Fetch attendee profiles by event id (clients) and, if present, fetch professionals by ids
                     const { data: rpcData, error: rpcErr } = await supabase.rpc(
                         'get_event_attendee_profiles',
                         { p_event: event.id }
@@ -135,7 +172,6 @@ export function EventDialog({
                     if (rpcErr) throw rpcErr;
                     const clientResults = rpcData || [];
 
-                    // Fetch professional profiles for this event (if any)
                     let profResults: any[] = [];
                     const eventProfessionals = Array.isArray(event.professional)
                         ? event.professional
@@ -201,12 +237,7 @@ export function EventDialog({
                 }
             }
         })();
-    }, [selectedClients, event?.id]);
-    const clientSearchRef = useRef<HTMLInputElement | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [company, setCompany] = useState<any>(null);
-    const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false);
+    }, [selectedClients, selectedProfessionals, event, company]);
 
     useEffect(() => {
         if (showMaxAssistantsDialog) {
@@ -219,19 +250,15 @@ export function EventDialog({
 
     useEffect(() => {
         if (open) {
-            // Solo cargar la lista completa de clientes si NO es vista cliente (los clientes no necesitan buscar)
             if (!isClientView) loadClientes();
             loadProfesionales();
             loadCompany();
         }
 
         if (event) {
-            // Merge with defaults to avoid removing controlled fields (prevent controlled -> uncontrolled warnings)
             setFormData((prev) => ({ ...prev, ...event }));
             const eventClients = event.client || [];
 
-            // Mark loading synchronously so the first render shows skeletons instead of
-            // an empty non-loading state (this prevents the first-open flicker).
             const loadId = ++profilesLoadIdRef.current;
             setProfilesLoading(true);
 
@@ -239,15 +266,11 @@ export function EventDialog({
             setSelectedProfessionals(event.professional || []);
             setClientSearch('');
 
-            // Immediately fetch attendee profiles for the event to avoid race where
-            // the selectedClients effect runs slightly later and initial modal shows empty
             (async () => {
                 try {
-                    // Acquire lock synchronously so the other effect sees it
                     profilesLoadingRef.current = true;
                     let results: any[] = [];
                     if (event.id) {
-                        // Fetch attendee profiles by event id (reliable regardless of id type stored in event.client)
                         const { data: rpcData, error: rpcErr } = await supabase.rpc(
                             'get_event_attendee_profiles',
                             { p_event: event.id }
@@ -304,7 +327,6 @@ export function EventDialog({
                 setMinutos(mins);
             }
 
-            // Calcular días y horas para eventos de tipo vacaciones
             if (event.type === 'vacation' && event.duration) {
                 const totalMinutes = event.duration;
                 const days = Math.floor(totalMinutes / (24 * 60));
@@ -315,20 +337,17 @@ export function EventDialog({
                 setHorasVacaciones(hours);
             }
         } else {
-            // Fecha por defecto: hoy o fecha clickeada
             let defaultDate = new Date();
             let defaultHora = '';
             let defaultMinutos = '00';
 
             if (initialDateTime) {
-                // Usar la fecha/hora clickeada del calendario
                 defaultDate = new Date(initialDateTime);
                 defaultHora = defaultDate.getHours().toString().padStart(2, '0');
                 defaultMinutos = defaultDate.getMinutes().toString().padStart(2, '0');
             } else {
-                // Hora por defecto: siguiente hora disponible (hora actual + 1, redondeada)
                 const nextHour = new Date();
-                nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0); // +1 hora, minutos en :00
+                nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
                 defaultHora = nextHour.getHours().toString().padStart(2, '0');
             }
 
@@ -348,16 +367,8 @@ export function EventDialog({
             setDias(1);
             setHorasVacaciones(0);
         }
-    }, [event, open, initialDateTime]);
+    }, [event, open, initialDateTime, loadClientes, loadProfesionales, loadCompany, isClientView]);
 
-    // Removed safety fetch: initial combined fetch provides both client and professional
-    // profiles reliably, and we show skeleton placeholders while loading. Keeping the
-    // logic simpler avoids extra network calls and reduces complexity.
-    useEffect(() => { }, [selectedProfessionals, profilesMap, company?.id]);
-
-    // Client-only: load current user's credits when dialog opens. Separate effect
-    // so we don't early-return from the main effect and accidentally skip setting
-    // selectedClients for events (which caused the first-open empty state).
     useEffect(() => {
         if (!isClientView || !user?.id || !open) return;
         let mounted = true;
@@ -377,48 +388,6 @@ export function EventDialog({
         };
     }, [isClientView, user?.id, open]);
 
-    // Autofocus removed per UX decision
-
-    useEffect(() => {
-        // Avoid noisy logs in dev (React StrictMode double-invokes effects). Only log
-        // when there's useful info: profiles found, loading in progress, or an event id.
-    }, [profilesMap, profilesLoading, event?.id]);
-    const loadCompany = async () => {
-        if (!companyId) return;
-        try {
-            // Use RPC to fetch company row and avoid RLS/permission issues
-            const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', {
-                p_company: companyId,
-            });
-            if (compErr) throw compErr;
-            const record = Array.isArray(comp) ? comp[0] : comp;
-            setCompany(record);
-        } catch (err) {
-            logError('Error cargando company:', err);
-        }
-    };
-    const loadClientes = async () => {
-        if (!companyId) return;
-
-        try {
-            const records = await getProfilesByRole(companyId, 'client');
-            setClientes(records);
-        } catch (err) {
-            logError('Error cargando clientes desde profiles:', err);
-        }
-    };
-
-    const loadProfesionales = async () => {
-        if (!companyId) return;
-
-        try {
-            const records = await getProfilesByRole(companyId, 'professional');
-            setProfesionales(records);
-        } catch (err) {
-            logError('Error cargando profesionales desde profiles:', err);
-        }
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isClientView) return;
@@ -430,11 +399,9 @@ export function EventDialog({
                 return;
             }
 
-            // Combinar fecha y hora
             const datetime = new Date(fecha);
             datetime.setHours(parseInt(hora), parseInt(minutos), 0, 0);
 
-            // Calcular duración según tipo
             let duration = formData.duration || 60;
             if (formData.type === 'vacation') {
                 duration = dias * 24 * 60 + horasVacaciones * 60;
@@ -442,14 +409,12 @@ export function EventDialog({
 
             const data = {
                 ...formData,
-                // Save with explicit timezone offset to preserve wall-clock time across server timezone
                 datetime: formatDateWithOffset(datetime),
                 duration,
                 client: formData.type === 'vacation' ? [] : selectedClients,
                 professional: selectedProfessionals,
             };
 
-            // Only include allowed columns to avoid sending client-only properties like `expand`
             const allowed = [
                 'title',
                 'type',
@@ -467,7 +432,6 @@ export function EventDialog({
                 allowed.forEach((k) => {
                     if (typeof obj[k] !== 'undefined') out[k] = obj[k];
                 });
-                // Ensure arrays are arrays
                 if (out.client && !Array.isArray(out.client))
                     out.client = Array.isArray(out.client) ? out.client : [out.client];
                 if (out.professional && !Array.isArray(out.professional))
@@ -478,20 +442,16 @@ export function EventDialog({
             };
 
             if (event?.id) {
-                // Update via secure RPC to avoid RLS/profile permission issues
                 const payload = sanitize(data);
                 const { error: updateErr } = await supabase.rpc('update_event_json', {
                     p_payload: { id: event.id, changes: payload },
                 });
                 if (updateErr) throw updateErr;
             } else {
-                // Create directly using Supabase client (only allowed fields + company)
                 const dataWithCompany = sanitize({ ...data, company: companyId });
-
                 const rpcPayload: any = { p_payload: dataWithCompany };
                 const { error: insertErr } = await supabase.rpc('insert_event_json', rpcPayload);
                 if (insertErr) throw insertErr;
-                // Optionally, use returned id
             }
 
             onSave();
@@ -509,8 +469,6 @@ export function EventDialog({
 
         try {
             setLoading(true);
-            // Delete via server endpoint which will refund credits if needed
-            // Delete directly using Supabase client
             const { error: delErr } = await supabase.rpc('delete_event_json', {
                 p_payload: { id: event.id },
             });
@@ -527,10 +485,8 @@ export function EventDialog({
         }
     };
 
-    // Cliente: Apuntarme / Borrarme handlers
     const isSignedUp = !!(user && selectedClients.includes(user.id));
 
-    // Tiempo (minutos) hasta el inicio del evento según la fecha/hora del formulario
     const minutesUntilStart = useMemo(() => {
         if (!fecha) return Infinity;
         const dt = new Date(fecha);
@@ -544,7 +500,6 @@ export function EventDialog({
     const signDisabledByTime = selectedClients.length === 0 && minutesUntilStart < classBlockMins;
     const unsignDisabledByTime = minutesUntilStart < classUnenrollMins;
 
-    // Tooltip texts for disabled buttons (clients)
     const signDisabledByCredits = isClientView && (clientCredits ?? 0) <= 0;
     let signTooltip: string | null = null;
     if (isSignedUp) {
@@ -560,10 +515,8 @@ export function EventDialog({
             ? 'Clase inminente'
             : null;
 
-    // Determine if the event datetime has already passed (for existing events)
     const eventHasPassed = event?.datetime ? new Date(event.datetime).getTime() < Date.now() : false;
 
-    // Hide footer for clients when viewing appointments, or when viewing a class that already took place
     const hideFooterForClient =
         isClientView &&
         (formData.type === 'appointment' || (formData.type === 'class' && eventHasPassed));
@@ -571,13 +524,11 @@ export function EventDialog({
     const handleSignUp = async () => {
         if (!user?.id) return;
 
-        // Block if client has insufficient credits
         if (isClientView && (clientCredits ?? 0) <= 0) {
             alert('Créditos insuficientes');
             return;
         }
 
-        // If no event yet (creating new), just add locally
         if (!event?.id) {
             if (!selectedClients.includes(user.id)) {
                 setSelectedClients((prev) => [...prev, user.id]);
@@ -592,23 +543,19 @@ export function EventDialog({
                 ? selectedClients
                 : [...selectedClients, user.id];
 
-            // Persist signup via secure RPC (server will validate credits and timings)
             const { error: updErr } = await supabase.rpc('update_event_json', {
                 p_payload: { id: event.id, changes: { client: newClients } },
             });
             if (updErr) throw updErr;
 
-            // Update local state and notify parent
             setSelectedClients(newClients);
             onSave();
         } catch (err: any) {
             logError('Error apuntando al cliente al evento:', err);
 
-            // Detect insufficient credits error from backend and show user-friendly message
             const msg = (err?.message || err?.error || '').toString().toLowerCase();
             if (msg.includes('insufficient')) {
                 alert('Créditos insuficientes');
-                // Refresh local credits in case of race
                 try {
                     if (user?.id) {
                         const fetcher = await import('@/lib/supabase');
@@ -629,7 +576,6 @@ export function EventDialog({
     const handleUnsign = async () => {
         if (!user?.id) return;
 
-        // If no event yet (creating new), just remove locally
         if (!event?.id) {
             setSelectedClients((prev) => prev.filter((id) => id !== user.id));
             return;
@@ -640,18 +586,15 @@ export function EventDialog({
 
             const newClients = selectedClients.filter((id) => id !== user.id);
 
-            // Persist unsign via secure RPC (server will validate timing rules)
             const { error: updErr } = await supabase.rpc('update_event_json', {
                 p_payload: { id: event.id, changes: { client: newClients } },
             });
             if (updErr) throw updErr;
 
-            // Update local state and notify parent
             setSelectedClients(newClients);
             onSave();
         } catch (err: any) {
             logError('Error borrando cliente del evento:', err);
-
             alert('Error al borrarme del evento');
         } finally {
             setLoading(false);
@@ -662,14 +605,12 @@ export function EventDialog({
         setFormData((prev) => {
             const newData = { ...prev, [field]: value };
 
-            // Auto-ajustar duración según tipo
             if (field === 'type') {
                 if (value === 'appointment') {
                     newData.duration = 60;
                 } else if (value === 'class') {
                     newData.duration = 90;
                 } else if (value === 'vacation') {
-                    // Vacaciones no deben tener clientes asociados
                     newData.client = [];
                 }
             }
@@ -677,7 +618,6 @@ export function EventDialog({
             return newData;
         });
 
-        // Limpia selectedClients si el tipo cambia a vacaciones
         if (field === 'type' && value === 'vacation') {
             setSelectedClients([]);
         }
@@ -945,7 +885,6 @@ export function EventDialog({
                                                     );
                                                 }
 
-                                                // Try to find cliente from preloaded `clientes` to avoid flicker
                                                 const cliente = clientes.find((c) => c.user === clientId);
                                                 if (cliente) {
                                                     const photoUrl =
@@ -989,7 +928,6 @@ export function EventDialog({
                                                     );
                                                 }
 
-                                                // If still not found, show nothing (we removed the 'Tarjeta no encontrada' UI)
                                                 return null;
                                             })}
                                         </div>
@@ -1035,7 +973,6 @@ export function EventDialog({
                                                                     type="button"
                                                                     onClick={() => {
                                                                         if (isClientView) return;
-                                                                        // Validar límite de asistentes para clases
                                                                         if (
                                                                             formData.type === 'class' &&
                                                                             company?.max_class_assistants &&
@@ -1050,7 +987,7 @@ export function EventDialog({
                                                                     className={
                                                                         isClientView
                                                                             ? 'w-full text-left px-2 py-1.5 rounded text-sm opacity-80'
-                                                                            : 'w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2'
+                                                                            : 'w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2'
                                                                     }
                                                                 >
                                                                     {photoUrl ? (
@@ -1092,8 +1029,6 @@ export function EventDialog({
                                 {(selectedProfessionals.length > 0 || profilesLoading) && (
                                     <div className="flex flex-wrap gap-2">
                                         {selectedProfessionals.map((profId) => {
-                                            // Prefer profiles from profilesMap (loaded via RPC) to avoid waiting for
-                                            // the full professionals list; fallback to `profesionales` array.
                                             const prof =
                                                 profilesMap[profId] ||
                                                 Object.values(profilesMap).find(
@@ -1140,7 +1075,6 @@ export function EventDialog({
                                                 );
                                             }
 
-                                            // If we're still loading profiles, show a skeleton placeholder to avoid empty area
                                             if (profilesLoading) {
                                                 return (
                                                     <div
@@ -1153,7 +1087,6 @@ export function EventDialog({
                                                 );
                                             }
 
-                                            // Fallback: show nothing if no data available
                                             return null;
                                         })}
                                     </div>
@@ -1308,7 +1241,6 @@ export function EventDialog({
                                             </Button>
                                         )}
 
-                                        {/* Mostrar mensaje visible bajo el botón si está deshabilitado por tiempo */}
                                         {unsignDisabledByTime && isSignedUp && (
                                             <div className="text-xs text-destructive mt-1">Clase inminente</div>
                                         )}
@@ -1359,12 +1291,10 @@ export function EventDialog({
                                             )}
                                         </div>
 
-                                        {/* Mostrar mensaje visible bajo el botón si está deshabilitado por tiempo */}
                                         {signDisabledByTime && (
                                             <div className="text-xs text-destructive mt-1">Clase cerrada</div>
                                         )}
 
-                                        {/* Mostrar mensaje si el cliente no tiene créditos suficientes */}
                                         {signDisabledByCredits && (
                                             <div className="text-xs text-destructive mt-1">Créditos insuficientes</div>
                                         )}

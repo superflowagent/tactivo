@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import {
     Dialog,
@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { error as logError } from '@/lib/logger';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -27,7 +26,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
     CalendarIcon,
     ChevronDown,
@@ -39,13 +38,11 @@ import {
     XCircle,
     Pencil,
 } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getFilePublicUrl, supabase } from '@/lib/supabase';
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
 import { getProfilesByIds } from '@/lib/profiles';
 import InviteToast from '@/components/InviteToast';
-import ActionButton from '@/components/ui/ActionButton';
 import ClientPrograms from '@/components/clientes/ClientPrograms';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import type { Cliente } from '@/types/cliente';
@@ -106,58 +103,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         cliente?.photo_path || null
     );
 
-    useEffect(() => {
-        if (cliente) {
-            setFormData((prev) => ({
-                ...prev,
-                id: cliente.id,
-                name: cliente.name || '',
-                last_name: cliente.last_name || '',
-                dni: cliente.dni || '',
-                email: cliente.email || '',
-                phone: cliente.phone || '',
-                company: cliente.company || '',
-                session_credits: cliente.session_credits ?? 0,
-                class_credits: cliente.class_credits ?? 0,
-                photo: cliente.photo || '',
-                photo_path: cliente.photo_path ?? null,
-                birth_date: cliente.birth_date ?? undefined,
-                address: cliente.address || '',
-                occupation: cliente.occupation || '',
-                sport: cliente.sport || '',
-                history: cliente.history || '',
-                diagnosis: cliente.diagnosis || '',
-                allergies: cliente.allergies || '',
-                notes: cliente.notes || '',
-            }));
-            if (cliente.birth_date) {
-                const date = new Date(cliente.birth_date);
-                setFechaNacimiento(date);
-                calcularEdad(date);
-            }
-
-            // Cargar events y asegurar email actualizado
-            ensureAuthoritativeEmail(cliente.id!);
-
-            loadEventos(cliente.id!);
-        } else {
-            resetFormData();
-        }
-        setPhoneError('');
-
-        // Autofocus removed per UX decision
-    }, [cliente, open]);
-
-    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
-    useEffect(() => {
-        if (cliente?.photo_path) {
-            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
-        } else {
-            setPhotoPreview(null);
-        }
-    }, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
-
-    const calcularEdad = (fecha: Date) => {
+    // Helper function to calculate age
+    const calcularEdad = useCallback((fecha: Date) => {
         const hoy = new Date();
         let edad = hoy.getFullYear() - fecha.getFullYear();
         const mes = hoy.getMonth() - fecha.getMonth();
@@ -165,41 +112,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             edad--;
         }
         setEdad(edad);
-    };
+    }, []);
 
-    const ensureAuthoritativeEmail = async (clienteId?: string) => {
-        if (!clienteId) return;
-        try {
-            if (!cliente?.email) {
-                const api = await import('@/lib/supabase');
-                const profile = await api.fetchProfileByUserId(clienteId);
-                if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
-            }
-        } catch (err) {
-            logError('Error fetching authoritative email for client', err);
-        }
-    };
-
-    const resetFormData = () => {
-        setFormData({
-            name: '',
-            last_name: '',
-            dni: '',
-            email: '',
-            phone: '',
-            company: '',
-            session_credits: 0,
-            class_credits: 0,
-        });
-        setFechaNacimiento(undefined);
-        setEdad(null);
-        setPhotoFile(null);
-        setPhotoPreview(null);
-        setRemovePhoto(false);
-        setEventos([]);
-    };
-
-    const loadEventos = async (clienteId: string) => {
+    // Load events for the client
+    const loadEventos = useCallback(async (clienteId: string) => {
         if (!clienteId) return;
 
         setLoadingEventos(true);
@@ -221,7 +137,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             resolvedProfileId = profileRow.id ?? null;
                             resolvedUserId = profileRow.user ?? null;
                         }
-                    } catch (e) {
+                    } catch {
                         // ignore
                     }
                 }
@@ -292,6 +208,89 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         } finally {
             setLoadingEventos(false);
         }
+    }, [companyId]);
+
+    const ensureAuthoritativeEmail = useCallback(async (clienteId?: string) => {
+        if (!clienteId) return;
+        try {
+            if (!cliente?.email) {
+                const api = await import('@/lib/supabase');
+                const profile = await api.fetchProfileByUserId(clienteId);
+                if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
+            }
+        } catch (err) {
+            logError('Error fetching authoritative email for client', err);
+        }
+    }, [cliente]);
+
+    useEffect(() => {
+        if (cliente) {
+            setFormData((prev) => ({
+                ...prev,
+                id: cliente.id,
+                name: cliente.name || '',
+                last_name: cliente.last_name || '',
+                dni: cliente.dni || '',
+                email: cliente.email || '',
+                phone: cliente.phone || '',
+                company: cliente.company || '',
+                session_credits: cliente.session_credits ?? 0,
+                class_credits: cliente.class_credits ?? 0,
+                photo: cliente.photo || '',
+                photo_path: cliente.photo_path ?? null,
+                birth_date: cliente.birth_date ?? undefined,
+                address: cliente.address || '',
+                occupation: cliente.occupation || '',
+                sport: cliente.sport || '',
+                history: cliente.history || '',
+                diagnosis: cliente.diagnosis || '',
+                allergies: cliente.allergies || '',
+                notes: cliente.notes || '',
+            }));
+            if (cliente.birth_date) {
+                const date = new Date(cliente.birth_date);
+                setFechaNacimiento(date);
+                calcularEdad(date);
+            }
+
+            // Cargar events y asegurar email actualizado
+            ensureAuthoritativeEmail(cliente.id!);
+
+            loadEventos(cliente.id!);
+        } else {
+            resetFormData();
+        }
+        setPhoneError('');
+
+        // Autofocus removed per UX decision
+    }, [cliente, open, ensureAuthoritativeEmail, loadEventos]);
+
+    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
+    useEffect(() => {
+        if (cliente?.photo_path) {
+            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
+        } else {
+            setPhotoPreview(null);
+        }
+    }, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
+
+    const resetFormData = () => {
+        setFormData({
+            name: '',
+            last_name: '',
+            dni: '',
+            email: '',
+            phone: '',
+            company: '',
+            session_credits: 0,
+            class_credits: 0,
+        });
+        setFechaNacimiento(undefined);
+        setEdad(null);
+        setPhotoFile(null);
+        setPhotoPreview(null);
+        setRemovePhoto(false);
+        setEventos([]);
     };
 
     const handleEditEvent = async (eventId: string) => {
@@ -784,11 +783,11 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             <TabsTrigger value="programas">Programas</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="datos" className="flex-1 flex flex-col min-h-0 mt-0">
-                            <div className="flex-1 overflow-y-auto min-h-0 h-full pr-2">
-                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1 h-full flex flex-col min-h-full">
+                        <TabsContent value="datos" className="flex-1 min-h-0 mt-4 overflow-hidden">
+                            <div className="h-full overflow-y-auto pr-2">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                     {/* Campos Obligatorios */}
-                                    <div className="space-y-4 flex-1">
+                                    <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label htmlFor="name">Nombre *</Label>
@@ -1066,13 +1065,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </form>
                             </div>
                         </TabsContent>
-                        <TabsContent value="programas" className="flex-1 flex flex-col mt-0">
-                            <div className="flex-1 overflow-y-auto">
+                        <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden">
+                            <div className="h-full overflow-y-auto">
                                 <ClientPrograms cliente={cliente} companyId={companyId || ''} />
                             </div>
                         </TabsContent>
-                        <TabsContent value="historial" className="flex-1 flex flex-col mt-0">
-                            <div className="flex-1 overflow-y-auto px-1 space-y-4">
+                        <TabsContent value="historial" className="flex-1 min-h-0 mt-4 overflow-hidden">
+                            <div className="h-full overflow-y-auto px-1">
                                 {loadingEventos ? (
                                     <div className="flex items-center justify-center py-8">
                                         <p className="text-muted-foreground">Cargando historial...</p>
@@ -1082,7 +1081,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         <p className="text-muted-foreground">No hay citas registradas</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
+                                    <div className="space-y-2 py-4">
                                         {eventos.map((evento) => {
                                             const fecha = new Date(evento.datetime);
                                             const profesionalNames = Array.isArray(evento.expand?.professional)
@@ -1197,6 +1196,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 </AlertDialogContent>
             </AlertDialog>
 
+            <InviteToast title={inviteToastTitle} durationMs={2500} onClose={() => setShowInviteToast(false)} open={showInviteToast} />
 
         </>
     );
