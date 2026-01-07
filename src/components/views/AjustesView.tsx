@@ -23,12 +23,6 @@ export function AjustesView() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const UPLOAD_BUCKET = 'company_logos';
 
-  useEffect(() => {
-    if (companyId) {
-      loadCompany();
-    }
-  }, [companyId, loadCompany]);
-
   const loadCompany = useCallback(async () => {
     if (!companyId) return;
 
@@ -78,6 +72,12 @@ export function AjustesView() {
       setLoading(false);
     }
   }, [companyId]);
+
+  useEffect(() => {
+    if (companyId) {
+      loadCompany();
+    }
+  }, [companyId, loadCompany]);
 
   const handleChange = (field: keyof Company, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
