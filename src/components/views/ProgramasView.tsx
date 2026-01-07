@@ -161,7 +161,7 @@ export function ProgramasView() {
                                 <Tabs value={activeProgramId} onValueChange={setActiveProgramId}>
                                     <TabsList className="inline-flex items-center gap-2 overflow-x-auto overflow-y-hidden hide-scrollbar justify-start whitespace-nowrap">
                                         {programs.map((p) => (
-                                            <TabsTrigger key={p.id} value={p.id}>
+                                            <TabsTrigger key={p.id} value={p.id} className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0">
                                                 <span className="text-sm">{p.name}</span>
                                             </TabsTrigger>
                                         ))}
