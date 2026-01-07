@@ -63,7 +63,7 @@ export function EventDialog({
 }: EventDialogProps) {
     const { companyId, user } = useAuth();
     const isClientView = user?.role === 'client';
-    
+
     // State declarations - ALL at top
     const [formData, setFormData] = useState<Partial<Event>>({
         type: 'appointment',
@@ -89,7 +89,7 @@ export function EventDialog({
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [company, setCompany] = useState<any>(null);
     const [showMaxAssistantsDialog, setShowMaxAssistantsDialog] = useState(false);
-    
+
     // Refs
     const profilesLoadIdRef = useRef(0);
     const profilesLoadingRef = useRef(false);

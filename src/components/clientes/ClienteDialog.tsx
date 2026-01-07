@@ -201,7 +201,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         .filter(Boolean),
                 },
             }));
-            const sorted = (enriched || []).slice().sort((a:any, b:any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
+            const sorted = (enriched || []).slice().sort((a: any, b: any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
             setEventos(sorted);
         } catch (err) {
             logError('Error al cargar eventos:', err);
