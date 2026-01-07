@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -37,7 +37,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import LazyRichTextEditor from "@/components/ui/LazyRichTextEditor"
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
 
-import { formatDateWithOffset } from '@/lib/date';
 
 interface ClassSlotDialogProps {
     open: boolean;
@@ -77,6 +76,60 @@ export function ClassSlotDialog({
     const [missingProfiles, setMissingProfiles] = useState<any[]>([]);
     const [profilesLoading, setProfilesLoading] = useState(false);
 
+    const handleInternalDelete = async () => {
+        if (!slot?.id) return;
+        if (!confirm('¿Eliminar plantilla? Esta acción no se puede deshacer.')) return;
+        try {
+            setLoading(true);
+            const { error } = await supabase.from('classes_templates').delete().eq('id', slot.id);
+            if (error) throw error;
+            onSave();
+            onOpenChange(false);
+        } catch (err: any) {
+            logError('Error eliminando plantilla:', err);
+            alert(`Error al eliminar la plantilla: ${err?.message || 'Error desconocido'}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadCompany = useCallback(async () => {
+        if (!companyId) return;
+        try {
+            // Use RPC to fetch company row and avoid RLS/permission issues
+            const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', {
+                p_company: companyId,
+            });
+            if (compErr) throw compErr;
+            const record = Array.isArray(comp) ? comp[0] : comp;
+            setCompany(record);
+        } catch (err) {
+            logError('Error cargando company:', err);
+        }
+    }, [companyId]);
+
+    const loadClientes = useCallback(async () => {
+        if (!companyId) return;
+
+        try {
+            const records = await getProfilesByRole(companyId, 'client');
+            setClientes(records);
+        } catch (err) {
+            logError('Error cargando clientes desde profiles:', err);
+        }
+    }, [companyId]);
+
+    const loadProfesionales = useCallback(async () => {
+        if (!companyId) return;
+
+        try {
+            const records = await getProfilesByRole(companyId, 'professional');
+            setProfesionales(records);
+        } catch (err) {
+            logError('Error cargando profesionales desde profiles:', err);
+        }
+    }, [companyId]);
+
     useEffect(() => {
         let mounted = true;
         if (!selectedClients || selectedClients.length === 0) {
@@ -101,24 +154,7 @@ export function ClassSlotDialog({
         return () => {
             mounted = false;
         };
-    }, [selectedClients]);
-
-    const handleInternalDelete = async () => {
-        if (!slot?.id) return;
-        if (!confirm('¿Eliminar plantilla? Esta acción no se puede deshacer.')) return;
-        try {
-            setLoading(true);
-            const { error } = await supabase.from('classes_templates').delete().eq('id', slot.id);
-            if (error) throw error;
-            onSave();
-            onOpenChange(false);
-        } catch (err: any) {
-            logError('Error eliminando plantilla:', err);
-            alert(`Error al eliminar la plantilla: ${err?.message || 'Error desconocido'}`);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [selectedClients, companyId]);
 
     useEffect(() => {
         if (showMaxAssistantsDialog) {
@@ -152,22 +188,7 @@ export function ClassSlotDialog({
             loadProfesionales();
             loadCompany();
         }
-    }, [open, companyId]);
-
-    const loadCompany = async () => {
-        if (!companyId) return;
-        try {
-            // Use RPC to fetch company row and avoid RLS/permission issues
-            const { data: comp, error: compErr } = await supabase.rpc('get_company_by_id', {
-                p_company: companyId,
-            });
-            if (compErr) throw compErr;
-            const record = Array.isArray(comp) ? comp[0] : comp;
-            setCompany(record);
-        } catch (err) {
-            logError('Error cargando company:', err);
-        }
-    };
+    }, [open, loadClientes, loadProfesionales, loadCompany]);
 
     useEffect(() => {
         if (!open) return;
@@ -214,28 +235,6 @@ export function ClassSlotDialog({
             setSelectedProfessionals([]);
         }
     }, [slot, company, open]);
-
-    const loadClientes = async () => {
-        if (!companyId) return;
-
-        try {
-            const records = await getProfilesByRole(companyId, 'client');
-            setClientes(records);
-        } catch (err) {
-            logError('Error cargando clientes desde profiles:', err);
-        }
-    };
-
-    const loadProfesionales = async () => {
-        if (!companyId) return;
-
-        try {
-            const records = await getProfilesByRole(companyId, 'professional');
-            setProfesionales(records);
-        } catch (err) {
-            logError('Error cargando profesionales desde profiles:', err);
-        }
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -503,7 +502,7 @@ export function ClassSlotDialog({
                                                             setSelectedClients((prev) => [...prev, cliente.user]);
                                                             setClientSearch('');
                                                         }}
-                                                        className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm block flex items-center gap-2"
+                                                        className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2"
                                                     >
                                                         {photoUrl ? (
                                                             <img
