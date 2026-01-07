@@ -808,7 +808,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             <TabsTrigger value="programas">Programas</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="datos" className="flex-1 flex flex-col mt-4 min-h-0">
+                        <TabsContent value="datos" className="flex-1 flex flex-col min-h-0">
                             <div className="flex-1 overflow-y-auto min-h-0 h-full pr-2">
                                 <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                     {/* Campos Obligatorios */}
@@ -1090,12 +1090,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </form>
                             </div>
                         </TabsContent>
-                        <TabsContent value="programas" className="flex-1 flex flex-col mt-4">
+                        <TabsContent value="programas" className="flex-1 flex flex-col">
                             <div className="flex-1 overflow-y-auto">
                                 <ClientPrograms cliente={cliente} companyId={companyId || ''} />
                             </div>
                         </TabsContent>
-                        <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
+                        <TabsContent value="historial" className="flex-1 flex flex-col">
                             <div className="flex-1 overflow-y-auto px-1 space-y-4">
                                 {loadingEventos ? (
                                     <div className="flex items-center justify-center py-8">
@@ -1195,6 +1195,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <EventDialog
+                open={eventDialogOpen}
+                onOpenChange={(open) => setEventDialogOpen(open)}
+                event={selectedEvent}
+                onSave={handleEventSaved}
+            />
 
             <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
                 <AlertDialogContent>
