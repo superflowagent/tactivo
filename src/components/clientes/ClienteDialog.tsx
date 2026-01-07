@@ -225,16 +225,27 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
 
             // helper to check client membership supporting either profile id or user id stored in event.client
+            // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
             const clientMatches = (clientsField: any, pid: string, resolvedProfile: string | null, resolvedUser: string | null) => {
                 const arr = Array.isArray(clientsField) ? clientsField : (clientsField ? [clientsField] : []);
                 if (!arr || arr.length === 0) return false;
-                if (arr.includes(pid)) return true;
-                if (resolvedProfile && arr.includes(resolvedProfile)) return true;
-                if (resolvedUser && arr.includes(resolvedUser)) return true;
+                const normalized = arr.map((x: any) => String(x));
+                const pidStr = String(pid);
+                if (normalized.includes(pidStr)) return true;
+                if (resolvedProfile && normalized.includes(String(resolvedProfile))) return true;
+                if (resolvedUser && normalized.includes(String(resolvedUser))) return true;
                 return false;
             };
 
-            const records = (recordsAll || []).filter((r: any) => clientMatches(r.client, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment');
+            // Debug info: surface counts to console so we can check if RPC returned events at all (possible RLS block)
+            try { console.debug('[ClienteDialog] get_events_for_company returned', Array.isArray(rpcRecords) ? rpcRecords.length : (rpcRecords ? 1 : 0)); } catch (e) { /* ignore */ }
+
+            const records = (recordsAll || []).filter((r: any) => {
+                // Some RPC rows may use different fields/names for client lists (client, client_user_ids, clientUserIds, etc.) — try all common ones
+                const clientsField = r.client ?? r.client_user_ids ?? r.clientUserIds ?? r.clients ?? r.clientIds ?? null;
+                return clientMatches(clientsField, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment';
+            });
+            try { console.debug('[ClienteDialog] events for client', clienteId, records.length, 'total events in company', (recordsAll || []).length); } catch (e) { /* ignore */ }
             // Enrich professional field
             const profIds = new Set<string>();
             (records || []).forEach((r: any) => {
@@ -278,6 +289,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 p_company: companyId,
             });
             if (error) throw error;
+            try { console.debug('[ClienteDialog] get_events_for_company (edit) returned', Array.isArray(rpcRecords) ? rpcRecords.length : (rpcRecords ? 1 : 0)); } catch (e) { /* ignore */ }
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
             const eventData = (recordsAll || []).find((r: any) => r.id === eventId);
             if (!eventData) throw new Error('event not found');

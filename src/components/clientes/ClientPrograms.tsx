@@ -107,6 +107,11 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
     ev.dataTransfer?.setData('application/json', JSON.stringify({ programId, peId }));
   };
 
+  const programTabTriggerClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0";
+  const dayColumnClass = "border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px]";
+  const exerciseCardClass = "p-2 bg-white rounded border flex items-center justify-between gap-2 transition-all duration-150 motion-safe:transform-gpu hover:scale-[1.01]";
+  const iconButtonClass = "h-4 w-4";
+
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="px-1 flex-1 flex flex-col">
@@ -117,7 +122,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                 const idKey = p.id ?? p.tempId;
                 return (
                   <div key={idKey} className="flex items-center gap-2">
-                    <TabsTrigger className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0" value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                    <TabsTrigger className={programTabTriggerClass} value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
                       {editingProgramId === idKey ? (
                         <input
                           autoFocus
@@ -159,7 +164,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 transition-colors hover:text-foreground hover:bg-[hsl(var(--background))]"
+                        className={cn(programTabTriggerClass, "transition-colors hover:text-foreground hover:bg-[hsl(var(--background))]")}
                         onClick={addProgram}
                       >
                         <Plus className="h-3 w-3" />
@@ -194,7 +199,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                       <div className="mt-2">
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1">
                           {(p.days || ['A']).slice(0,7).map((day: string, di: number) => (
-                            <div key={day} className="border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px]" onDragOver={(e) => { e.preventDefault(); }} onDrop={async (e) => {
+                            <div key={day} className={dayColumnClass} onDragOver={(e) => { e.preventDefault(); }} onDrop={async (e) => {
                               e.preventDefault();
                               try {
                                 const payload = e.dataTransfer?.getData('text') || e.dataTransfer?.getData('application/json');
@@ -226,7 +231,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                 <div className="text-sm font-medium">{`Día ${day}`}</div>
                                 <div>
                                   <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
-                                    <Trash className="h-4 w-4" />
+                                    <Trash className={iconButtonClass} />
                                   </ActionButton>
                                 </div>
                               </div>
@@ -241,9 +246,9 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                     );
                                   } else {
                                     return items.map((pe: any) => (
-                                      <div key={pe.id || pe.tempId} draggable role="button" aria-grabbed="false" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }} onDragStart={(ev) => { ev.dataTransfer?.setData('text', JSON.stringify({ peId: pe.id || pe.tempId })); ev.dataTransfer?.setData('application/json', JSON.stringify({ peId: pe.id || pe.tempId })); }} onDragEnd={() => {}} onDragOver={(e) => e.preventDefault()} className={`p-2 bg-white rounded border flex items-center justify-between gap-2 transition-all duration-150 motion-safe:transform-gpu hover:scale-[1.01]`}>
+                                      <div key={pe.id || pe.tempId} draggable role="button" aria-grabbed="false" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }} onDragStart={(ev) => { ev.dataTransfer?.setData('text', JSON.stringify({ peId: pe.id || pe.tempId })); ev.dataTransfer?.setData('application/json', JSON.stringify({ peId: pe.id || pe.tempId })); }} onDragEnd={() => {}} onDragOver={(e) => e.preventDefault()} className={exerciseCardClass}>
                                         <div className="flex items-center gap-2">
-                                          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
+                                          <GripVertical className={cn(iconButtonClass, "text-muted-foreground cursor-grab")} />
                                           <div>
                                             <div className="text-sm font-medium">{pe.exercise?.name}</div>
                                             <div className="text-xs text-muted-foreground">{pe.exercise?.description}</div>
@@ -251,10 +256,10 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          <Button size="sm" variant="ghost" onClick={() => moveAssignmentUp(p.id ?? p.tempId, pe.day ?? 'A', pe.id ?? pe.tempId)} aria-label="Mover arriba"><ArrowUp className="h-4 w-4" /></Button>
-                                          <Button size="sm" variant="ghost" onClick={() => moveAssignmentDown(p.id ?? p.tempId, pe.day ?? 'A', pe.id ?? pe.tempId)} aria-label="Mover abajo"><ArrowDown className="h-4 w-4" /></Button>
+                                          <Button size="sm" variant="ghost" onClick={() => moveAssignmentUp(p.id ?? p.tempId, pe.day ?? 'A', pe.id ?? pe.tempId)} aria-label="Mover arriba"><ArrowUp className={iconButtonClass} /></Button>
+                                          <Button size="sm" variant="ghost" onClick={() => moveAssignmentDown(p.id ?? p.tempId, pe.day ?? 'A', pe.id ?? pe.tempId)} aria-label="Mover abajo"><ArrowDown className={iconButtonClass} /></Button>
                                           <ActionButton tooltip="Editar asignación" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar asignación">
-                                            <PencilLine className="h-4 w-4" />
+                                            <PencilLine className={iconButtonClass} />
                                           </ActionButton>
                                           <ActionButton tooltip="Eliminar asignación" onClick={async () => {
                                             try {
@@ -271,7 +276,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                               alert('Error eliminando asignación: ' + String(err));
                                             }
                                           }} aria-label="Eliminar asignación">
-                                            <Trash className="h-4 w-4" />
+                                            <Trash className={iconButtonClass} />
                                           </ActionButton>
                                         </div>
                                       </div>
@@ -280,7 +285,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                 })()}
 
                                 {((p.days || []).length < 7) && (
-                                  <Card className="border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px] flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
+                                  <Card className={cn(dayColumnClass, "flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors")} onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
                                     <div className="text-2xl font-bold">+</div>
                                   </Card>
                                 )}
