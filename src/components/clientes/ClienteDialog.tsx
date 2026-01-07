@@ -1072,7 +1072,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             </div>
                         </TabsContent>
                         <TabsContent value="historial" className="flex-1 flex flex-col mt-0">
-                            <div className="flex-1 overflow-y-auto px-1 space-y-4">
+                            <div className="flex-1 flex flex-col justify-start overflow-y-auto min-h-0 px-1 space-y-4 pb-4">
                                 {loadingEventos ? (
                                     <div className="flex items-center justify-center py-8">
                                         <p className="text-muted-foreground">Cargando historial...</p>
