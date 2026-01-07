@@ -121,8 +121,8 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
               {programs.map((p) => {
                 const idKey = p.id ?? p.tempId;
                 return (
-                  <div key={idKey} className="flex items-center gap-2">
-                    <TabsTrigger className={programTabTriggerClass} value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                  <TabsTrigger key={idKey} className={programTabTriggerClass} value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                    <div className="flex items-center gap-2">
                       {editingProgramId === idKey ? (
                         <input
                           autoFocus
@@ -151,11 +151,11 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                       ) : (
                         <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
                       )}
-                    </TabsTrigger>
-                    <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
-                      <Trash className="h-3 w-3" />
-                    </ActionButton>
-                  </div>
+                      <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                        <Trash className="h-3 w-3" />
+                      </ActionButton>
+                    </div>
+                  </TabsTrigger>
                 );
               })}
 
