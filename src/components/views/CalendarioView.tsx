@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,39 +44,13 @@ export function CalendarioView() {
   const [clientCredits, setClientCredits] = useState<number | null>(null);
   const isMobile = useIsMobile();
 
-  // Load company, events and professionals when the companyId changes only
-  useEffect(() => {
-    if (!companyId) return;
-    // Ensure the calendar prefetch and initial load happen once when company is known
-    loadCompany();
-    loadProfessionals();
-    loadEvents(true); // force the initial load
-    // keep last load timestamp to avoid noisy reloads on tab visibility changes
-  }, [companyId]);
-
-  // Load client credits only when client state or user id changes
-  useEffect(() => {
-    if (isClient && user?.id) {
-      loadClientCredits();
-    }
-  }, [isClient, user?.id]);
-
   // Avoid frequent reloads (e.g., when returning from another tab)
   // by tracking last load time and ignoring reload attempts that happen
   // within a short interval.
-  const lastEventsLoadRef = (function () {
-    // keep a stable ref via closure - simple alternative to useRef in this module
-    let last = 0;
-    return {
-      get: () => last,
-      set: (v: number) => {
-        last = v;
-      },
-    };
-  })();
+  const lastEventsLoadRef = useRef<number>(0);
 
   // Load the client's `class_credits` from the `users` collection (uses view rules)
-  const loadClientCredits = async () => {
+  const loadClientCredits = useCallback(async () => {
     if (!isClient || !user?.id) return;
 
     try {
@@ -87,13 +61,9 @@ export function CalendarioView() {
       logError('Error cargando créditos del usuario:', err);
       setClientCredits(0);
     }
-  };
+  }, [isClient, user?.id]);
 
-  useEffect(() => {
-    filterEvents();
-  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id]);
-
-  const loadProfessionals = async () => {
+  const loadProfessionals = useCallback(async () => {
     if (!companyId) return;
 
     try {
@@ -114,9 +84,9 @@ export function CalendarioView() {
     } catch (err) {
       logError('Error cargando profesionales desde profiles:', err);
     }
-  };
+  }, [companyId]);
 
-  const loadCompany = async () => {
+  const loadCompany = useCallback(async () => {
     if (!companyId) return;
 
     try {
@@ -129,60 +99,17 @@ export function CalendarioView() {
     } catch (err) {
       logError('Error cargando configuración de company:', err);
     }
-  };
+  }, [companyId]);
 
-  const filterEvents = () => {
-    let filtered = [...events];
-
-    // Filtrar por búsqueda de texto
-    if (searchQuery) {
-      const q = normalizeForSearch(searchQuery);
-      filtered = filtered.filter((event) => {
-        const titleMatch = event.title && normalizeForSearch(event.title).includes(q);
-        const notesMatch =
-          event.extendedProps?.notes && normalizeForSearch(event.extendedProps.notes).includes(q);
-        const clientMatch =
-          event.extendedProps?.clientNames &&
-          normalizeForSearch(event.extendedProps.clientNames).includes(q);
-        const professionalMatch =
-          event.extendedProps?.professionalNames &&
-          normalizeForSearch(event.extendedProps.professionalNames).includes(q);
-        return Boolean(titleMatch || notesMatch || clientMatch || professionalMatch);
-      });
-    }
-
-    // Filtrar por profesional (por id)
-    if (selectedProfessional !== 'all') {
-      filtered = filtered.filter((event) =>
-        event.extendedProps?.professional?.includes(selectedProfessional)
-      );
-    }
-
-    // Si el toggle 'Ver mis eventos' está activo para clientes, filtrar por cliente actual
-    if (showMyEvents && isClient && user?.id) {
-      filtered = filtered.filter((event) => {
-        const clients = event.extendedProps?.client || [];
-        const clientUserIds = event.extendedProps?.clientUserIds || [];
-        // Accept either stored profile ids or normalized user ids
-        return (
-          (Array.isArray(clients) && clients.map(String).includes(String(user.id))) ||
-          (Array.isArray(clientUserIds) && clientUserIds.map(String).includes(String(user.id)))
-        );
-      });
-    }
-
-    setFilteredEvents(filtered);
-  };
-
-  const loadEvents = async (force = false) => {
+  const loadEvents = useCallback(async (force = false) => {
     if (!companyId) return;
 
     try {
       // Avoid reload storm when returning to tab: if last load was less than 10s ago, skip unless forced
-      const last = lastEventsLoadRef.get();
+      const last = lastEventsLoadRef.current;
       const now = Date.now();
       if (!force && last && now - last < 10000) return;
-      lastEventsLoadRef.set(now);
+      lastEventsLoadRef.current = now;
 
       // Cargar eventos de la company actual
       const cid = companyId;
@@ -296,7 +223,59 @@ export function CalendarioView() {
     } catch (err) {
       logError('Error cargando eventos:', err);
     }
-  };
+  }, [companyId, loadClientCredits]);
+
+  const filterEvents = useCallback(() => {
+    let filtered = [...events];
+
+    // Filtrar por búsqueda de texto
+    if (searchQuery) {
+      const q = normalizeForSearch(searchQuery);
+      filtered = filtered.filter((event) => {
+        const title = String(event.title || '');
+        const notes = String(event.extendedProps?.notes || '');
+        const clientNames = String(event.extendedProps?.clientNames || '');
+        const professionalNames = String(event.extendedProps?.professionalNames || '');
+        const combined = `${title} ${notes} ${clientNames} ${professionalNames}`;
+        return normalizeForSearch(combined).includes(q);
+      });
+    }
+
+    // Filtrar por profesional
+    if (selectedProfessional && selectedProfessional !== 'all') {
+      filtered = filtered.filter((event) => {
+        return (event.extendedProps?.professional || []).includes(selectedProfessional);
+      });
+    }
+
+    // Mostrar solo mis eventos si es cliente
+    if (showMyEvents && isClient && user?.id) {
+      filtered = filtered.filter((event) => (event.extendedProps?.clientUserIds || []).includes(user.id));
+    }
+
+    setFilteredEvents(filtered);
+  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id]);
+
+  // Load company, events and professionals when the companyId changes only
+  useEffect(() => {
+    if (!companyId) return;
+    // Ensure the calendar prefetch and initial load happen once when company is known
+    loadCompany();
+    loadProfessionals();
+    loadEvents(true); // force the initial load
+    // keep last load timestamp to avoid noisy reloads on tab visibility changes
+  }, [companyId, loadCompany, loadProfessionals, loadEvents]);
+
+  // Load client credits only when client state or user id changes
+  useEffect(() => {
+    if (isClient && user?.id) {
+      loadClientCredits();
+    }
+  }, [isClient, user?.id, loadClientCredits]);
+
+  useEffect(() => {
+    filterEvents();
+  }, [filterEvents]);
 
   const handleDateClick = (arg: any) => {
     // Clientes no pueden crear eventos desde el calendario (sin funcionalidad por ahora)

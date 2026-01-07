@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import ActionButton from '@/components/ui/ActionButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,7 @@ import { getProfilesByIds } from '@/lib/profiles';
 import type { Event } from '@/types/event';
 import { ClassSlotDialog } from '@/components/clases/ClassSlotDialog';
 import { PropagateDialog } from '@/components/clases/PropagateDialog';
-import { formatDateAsDbLocalString } from '@/lib/utils';
+
 
 const WEEKDAYS = [
     { name: 'Lunes', value: 1 },
@@ -45,11 +45,7 @@ export function ClasesView() {
     const [draggedSlot, setDraggedSlot] = useState<Event | null>(null);
     const [dragOverDay, setDragOverDay] = useState<number | null>(null);
 
-    useEffect(() => {
-        loadTemplateSlots();
-    }, [companyId]);
-
-    const loadTemplateSlots = async () => {
+    const loadTemplateSlots = useCallback(async () => {
         if (!companyId) return;
 
         try {
@@ -122,7 +118,11 @@ export function ClasesView() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [companyId]);
+
+    useEffect(() => {
+        loadTemplateSlots();
+    }, [companyId, loadTemplateSlots]);
 
     const handleDelete = (slot: Event) => {
         setSlotToDelete(slot);

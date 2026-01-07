@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tabs as RadixTabs } from '@radix-ui/react-tabs';
 import { Button } from '@/components/ui/button';
 import { Trash, Plus, GripVertical, ArrowUp, ArrowDown, PencilLine } from 'lucide-react';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader } from '@/components/ui/card';
 import ActionButton from '@/components/ui/ActionButton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,7 +35,6 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
     setPrograms,
     activeProgramId,
     setActiveProgramId,
-    loadingProgramsList,
     addProgram,
     saveProgramName,
     deleteProgram,
@@ -66,8 +64,6 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
   const [currentProgramForPicker, setCurrentProgramForPicker] = useState<string | null>(null);
   const [currentDayForPicker, setCurrentDayForPicker] = useState<string | null>(null);
 
-  const [anatomyForPicker, setAnatomyForPicker] = useState<any[]>([]);
-  const [equipmentForPicker, setEquipmentForPicker] = useState<any[]>([]);
 
   const toggleSelectExercise = (id: string) => {
     setSelectedExerciseIds((prev) => {
@@ -102,10 +98,6 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
     setSelectedExerciseIds(new Set());
   };
 
-  const handleDragStart = (ev: React.DragEvent, programId: string, peId: string) => {
-    ev.dataTransfer?.setData('text', JSON.stringify({ programId, peId }));
-    ev.dataTransfer?.setData('application/json', JSON.stringify({ programId, peId }));
-  };
 
   const programTabTriggerClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0";
   const dayColumnClass = "border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px]";
@@ -152,7 +144,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                         ) : (
                           <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
                         )}
-                        <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                        <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e: any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
                           <Trash className="h-3 w-3" />
                         </ActionButton>
                       </div>
@@ -200,7 +192,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                     <div>
                       <div className="mt-2">
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1">
-                          {(p.days || ['A']).slice(0,7).map((day: string, di: number) => (
+                          {(p.days || ['A']).slice(0, 7).map((day: string, _di: number) => (
                             <div key={day} className={dayColumnClass} onDragOver={(e) => { e.preventDefault(); }} onDrop={async (e) => {
                               e.preventDefault();
                               try {
@@ -232,7 +224,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                               <div className="flex items-center justify-between mb-2">
                                 <div className="text-sm font-medium">{`Día ${day}`}</div>
                                 <div>
-                                  <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: (pr.days || ['A']).filter((dd:string)=> dd !== day) } : pr))} aria-label="Eliminar día">
+                                  <ActionButton tooltip="Eliminar día" onClick={() => setPrograms((prev) => prev.map((pr) => pr.id === p.id || pr.tempId === p.tempId ? { ...pr, days: (pr.days || ['A']).filter((dd: string) => dd !== day) } : pr))} aria-label="Eliminar día">
                                     <Trash className={iconButtonClass} />
                                   </ActionButton>
                                 </div>
@@ -248,7 +240,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                     );
                                   } else {
                                     return items.map((pe: any) => (
-                                      <div key={pe.id || pe.tempId} draggable role="button" aria-grabbed="false" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }} onDragStart={(ev) => { ev.dataTransfer?.setData('text', JSON.stringify({ peId: pe.id || pe.tempId })); ev.dataTransfer?.setData('application/json', JSON.stringify({ peId: pe.id || pe.tempId })); }} onDragEnd={() => {}} onDragOver={(e) => e.preventDefault()} className={exerciseCardClass}>
+                                      <div key={pe.id || pe.tempId} draggable role="button" aria-grabbed="false" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }} onDragStart={(ev) => { ev.dataTransfer?.setData('text', JSON.stringify({ peId: pe.id || pe.tempId })); ev.dataTransfer?.setData('application/json', JSON.stringify({ peId: pe.id || pe.tempId })); }} onDragEnd={() => { }} onDragOver={(e) => e.preventDefault()} className={exerciseCardClass}>
                                         <div className="flex items-center gap-2">
                                           <GripVertical className={cn(iconButtonClass, "text-muted-foreground cursor-grab")} />
                                           <div>
@@ -337,8 +329,8 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                 <div className="h-[70vh] overflow-y-auto">
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {exercisesForCompany.map((ex) => {
-                      const exerciseAnatomy = anatomyForPicker.filter((a:any) => (ex.anatomy || []).includes(a.id));
-                      const exerciseEquipment = equipmentForPicker.filter((eq:any) => (ex.equipment || []).includes(eq.id));
+                      const exerciseAnatomy = anatomyForPicker.filter((a: any) => (ex.anatomy || []).includes(a.id));
+                      const exerciseEquipment = equipmentForPicker.filter((eq: any) => (ex.equipment || []).includes(eq.id));
                       const file = (ex.file as string | undefined) || undefined;
                       const isVideo = (file?: string) => { if (!file) return false; const lower = file.toLowerCase(); return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.webm'); };
                       const mediaUrl = file ? (getFilePublicUrl('exercise_videos', ex.id, file) || null) : null;

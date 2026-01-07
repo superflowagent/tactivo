@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { error } from '@/lib/logger';
@@ -30,50 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const initialAuthChecked = (function () {
-    let v = false;
-    return {
-      get: () => v,
-      set: (val: boolean) => {
-        v = val;
-      },
-    };
-  })();
+  const initialAuthChecked = useRef(false);
 
-  useEffect(() => {
-    // Verificar si hay sesión activa (no silencioso la primera vez)
-    checkAuth();
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
-      // On auth events, run a silent check to update session/profile without triggering global loading UI
-      checkAuth(true);
-    });
-
-    return () => {
-      listener?.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  // Función para normalizar el nombre de la compañía para usar en URL
-
-  // Sanitizar un dominio (ej: https://example.com/path -> example.com)
-  const sanitizeDomain = (domain: string): string => {
-    try {
-      // Quitar protocolo si existe
-      let d = domain.replace(/^https?:\/\//i, '');
-      // Quedarse solo con el hostname
-      d = d.split('/')[0];
-      // Lowercase y eliminar caracteres raros
-      return d.toLowerCase().replace(/[^a-z0-9.-]/g, '');
-    } catch {
-      return domain.toLowerCase().replace(/[^a-z0-9.-]/g, '');
-    }
-  };
-
-  const checkAuth = async (silent = false) => {
+  const checkAuth = useCallback(async (silent = false) => {
     try {
       // Only show the global loading indicator on the first check or when explicitly not silent
-      if (!silent && !initialAuthChecked.get()) setIsLoading(true);
+      if (!silent && !initialAuthChecked.current) setIsLoading(true);
 
       const sessionRes = await supabase.auth.getSession();
       const session = sessionRes.data.session;
@@ -104,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setCompanyId(null);
           setCompanyName(null);
-          initialAuthChecked.set(true);
+          initialAuthChecked.current = true;
           if (!silent) setIsLoading(false);
           return;
         }
@@ -144,10 +106,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setCompanyName(null);
     } finally {
       // Mark we ran initial check
-      initialAuthChecked.set(true);
+      initialAuthChecked.current = true;
       if (!silent) setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // Verificar si hay sesión activa (no silencioso la primera vez)
+    checkAuth();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, _session) => {
+      // On auth events, run a silent check to update session/profile without triggering global loading UI
+      checkAuth(true);
+    });
+
+    return () => {
+      listener?.subscription?.unsubscribe?.();
+    };
+  }, [checkAuth]);
+
+  // Función para normalizar el nombre de la compañía para usar en URL
+
+  // Sanitizar un dominio (ej: https://example.com/path -> example.com)
+  const sanitizeDomain = (domain: string): string => {
+    try {
+      // Quitar protocolo si existe
+      let d = domain.replace(/^https?:\/\//i, '');
+      // Quedarse solo con el hostname
+      d = d.split('/')[0];
+      // Lowercase y eliminar caracteres raros
+      return d.toLowerCase().replace(/[^a-z0-9.-]/g, '');
+    } catch {
+      return domain.toLowerCase().replace(/[^a-z0-9.-]/g, '');
+    }
   };
+
 
   const login = async (email: string, password: string) => {
     try {

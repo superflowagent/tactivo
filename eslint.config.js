@@ -1,5 +1,6 @@
 import globals from 'globals'
 import tsPlugin from '@typescript-eslint/eslint-plugin'
+import reactHooksPlugin from 'eslint-plugin-react-hooks'
 import tsParser from '@typescript-eslint/parser'
 import { defineConfig } from 'eslint/config'
 
@@ -19,10 +20,13 @@ export default defineConfig([
       globals: globals.browser,
     },
     plugins: {
-      '@typescript-eslint': tsPlugin
+      '@typescript-eslint': tsPlugin,
+      'react-hooks': reactHooksPlugin,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
     }
   },
 
