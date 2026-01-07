@@ -121,39 +121,41 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
               {programs.map((p) => {
                 const idKey = p.id ?? p.tempId;
                 return (
-                  <TabsTrigger key={idKey} className={programTabTriggerClass} value={idKey} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
-                    <div className="flex items-center gap-2">
-                      {editingProgramId === idKey ? (
-                        <input
-                          autoFocus
-                          className="text-sm rounded px-2 py-0.5 w-40"
-                          value={editingProgramName}
-                          onChange={(e) => setEditingProgramName(e.target.value)}
-                          onBlur={async () => {
-                            const newName = editingProgramName.trim();
-                            setEditingProgramId(null);
-                            setEditingProgramName('');
-                            if (newName && newName !== p.name) {
-                              await saveProgramName(idKey, newName);
-                            } else if (!newName) {
-                              alert('El nombre no puede estar vacío');
-                            }
-                          }}
-                          onKeyDown={async (e) => {
-                            if (e.key === 'Enter') {
-                              (e.target as HTMLInputElement).blur();
-                            } else if (e.key === 'Escape') {
+                  <TabsTrigger key={idKey} value={idKey} asChild>
+                    <div className={programTabTriggerClass} onClick={(e) => { e.stopPropagation(); setActiveProgramId(idKey); }}>
+                      <div className="flex items-center gap-2">
+                        {editingProgramId === idKey ? (
+                          <input
+                            autoFocus
+                            className="text-sm rounded px-2 py-0.5 w-40"
+                            value={editingProgramName}
+                            onChange={(e) => setEditingProgramName(e.target.value)}
+                            onBlur={async () => {
+                              const newName = editingProgramName.trim();
                               setEditingProgramId(null);
                               setEditingProgramName('');
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
-                      )}
-                      <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
-                        <Trash className="h-3 w-3" />
-                      </ActionButton>
+                              if (newName && newName !== p.name) {
+                                await saveProgramName(idKey, newName);
+                              } else if (!newName) {
+                                alert('El nombre no puede estar vacío');
+                              }
+                            }}
+                            onKeyDown={async (e) => {
+                              if (e.key === 'Enter') {
+                                (e.target as HTMLInputElement).blur();
+                              } else if (e.key === 'Escape') {
+                                setEditingProgramId(null);
+                                setEditingProgramName('');
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="text-sm" onDoubleClick={(e) => { e.stopPropagation(); setEditingProgramId(idKey); setEditingProgramName(p.name); }}>{p.name}</span>
+                        )}
+                        <ActionButton className="h-6 w-6 p-0.5" aria-label="Eliminar programa" onClick={(e:any) => { e.stopPropagation(); setProgramToDeleteId(idKey); setShowDeleteProgramDialog(true); }}>
+                          <Trash className="h-3 w-3" />
+                        </ActionButton>
+                      </div>
                     </div>
                   </TabsTrigger>
                 );

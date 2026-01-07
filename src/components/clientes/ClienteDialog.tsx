@@ -208,11 +208,22 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             let resolvedProfileId: string | null = null;
             let resolvedUserId: string | null = null;
             try {
-                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId] });
+                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId], p_company: companyId });
                 if (!profErr && profRows && (profRows as any[]).length > 0) {
                     const row = (profRows as any[])[0];
                     resolvedProfileId = row.id ?? null;
                     resolvedUserId = row.user ?? null;
+                } else {
+                    // Fallback: try selecting the profile row directly (may succeed if RPC is restricted)
+                    try {
+                        const { data: profileRow, error: selectErr } = await supabase.from('profiles').select('id, user').eq('id', clienteId).limit(1).maybeSingle();
+                        if (!selectErr && profileRow) {
+                            resolvedProfileId = profileRow.id ?? null;
+                            resolvedUserId = profileRow.user ?? null;
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
                 }
             } catch {
                 // ignore resolution errors, we'll fallback to simple matching
@@ -223,6 +234,33 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             });
             if (error) throw error;
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+
+            // Debug: show resolved profile/user ids and a sample of returned events to inspect shape
+            try {
+                console.debug('[ClienteDialog] resolved ids', { resolvedProfileId, resolvedUserId });
+                console.debug('[ClienteDialog] sample events', (recordsAll || []).slice(0, 3).map((r: any) => ({
+                    id: r.id,
+                    type: r.type,
+                    client: r.client,
+                    client_user_ids: r.client_user_ids,
+                    clientUserIds: r.clientUserIds,
+                    clients: r.clients,
+                    clientIds: r.clientIds,
+                    clientUserIdsAlt: r.client_userids || null,
+                    professional: r.professional,
+                })));
+
+                const matchesByField = (recordsAll || []).map((r: any) => {
+                    const candidates = [r.client, r.client_user_ids, r.clientUserIds, r.clients, r.clientIds, r.client_userids];
+                    const matched = candidates.some((c: any) => {
+                        if (!c) return false;
+                        const arr = Array.isArray(c) ? c : [c];
+                        return arr.map((x: any) => String(x)).includes(String(clienteId));
+                    });
+                    return { id: r.id, matched, candidatesPreview: candidates.map((c: any) => (c ? (Array.isArray(c) ? c.slice(0, 3) : [c]) : null)) };
+                });
+                console.debug('[ClienteDialog] matchesByField (clientId present?)', matchesByField.filter((m: any) => m.matched));
+            } catch (e) { /* ignore */ }
 
             // helper to check client membership supporting either profile id or user id stored in event.client
             // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
@@ -236,9 +274,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 if (resolvedUser && normalized.includes(String(resolvedUser))) return true;
                 return false;
             };
-
-            // Debug info: surface counts to console so we can check if RPC returned events at all (possible RLS block)
-            try { console.debug('[ClienteDialog] get_events_for_company returned', Array.isArray(rpcRecords) ? rpcRecords.length : (rpcRecords ? 1 : 0)); } catch (e) { /* ignore */ }
 
             const records = (recordsAll || []).filter((r: any) => {
                 // Some RPC rows may use different fields/names for client lists (client, client_user_ids, clientUserIds, etc.) — try all common ones
@@ -746,36 +781,36 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
 
 
-        return (
-            <>
-                <Dialog open={open} onOpenChange={onOpenChange}>
-                    <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
-                        <DialogHeader>
-                            <div className="flex items-center gap-2">
-                                {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                                <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
-                            </div>
-                            <DialogDescription>
-                                {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
-                            </DialogDescription>
-                        </DialogHeader>
+    return (
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
+                    <DialogHeader>
+                        <div className="flex items-center gap-2">
+                            {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
+                        </div>
+                        <DialogDescription>
+                            {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
+                        </DialogDescription>
+                    </DialogHeader>
 
-                        <Tabs
-                            value={activeTab}
-                            onValueChange={setActiveTab}
-                            className="flex-1 flex flex-col overflow-hidden min-h-0"
-                        >
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="datos">Datos</TabsTrigger>
-                                <TabsTrigger value="historial" disabled={!cliente?.id}>
-                                    Citas
-                                </TabsTrigger>
-                                <TabsTrigger value="programas">Programas</TabsTrigger>
-                            </TabsList>
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                        className="flex-1 flex flex-col overflow-hidden min-h-0"
+                    >
+                        <TabsList className="grid w-full grid-cols-3">
+                            <TabsTrigger value="datos">Datos</TabsTrigger>
+                            <TabsTrigger value="historial" disabled={!cliente?.id}>
+                                Citas
+                            </TabsTrigger>
+                            <TabsTrigger value="programas">Programas</TabsTrigger>
+                        </TabsList>
 
-                            <TabsContent value="datos" className="flex-1 flex flex-col mt-4 min-h-0">
-                                <div className="flex-1 overflow-y-auto min-h-0 h-full pr-2">
-                                    <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
+                        <TabsContent value="datos" className="flex-1 flex flex-col mt-4 min-h-0">
+                            <div className="flex-1 overflow-y-auto min-h-0 h-full pr-2">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
                                     {/* Campos Obligatorios */}
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
@@ -1053,133 +1088,133 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         </Collapsible>
                                     </div>
                                 </form>
-                                </div>
-                            </TabsContent>
-                            <TabsContent value="programas" className="flex-1 flex flex-col mt-4">
-                                <div className="flex-1 overflow-y-auto">
-                                    <ClientPrograms cliente={cliente} companyId={companyId || ''} />
-                                </div>
-                            </TabsContent>
-                            <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
-                                <div className="flex-1 overflow-y-auto px-1 space-y-4">
-                                    {loadingEventos ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <p className="text-muted-foreground">Cargando historial...</p>
-                                        </div>
-                                    ) : eventos.length === 0 ? (
-                                        <div className="flex items-center justify-center py-8">
-                                            <p className="text-muted-foreground">No hay citas registradas</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {eventos.map((evento) => {
-                                                const fecha = new Date(evento.datetime);
-                                                const profesionalNames = Array.isArray(evento.expand?.professional)
-                                                    ? evento.expand.professional
-                                                        .map((p: any) => `${p.name} ${p.last_name}`)
-                                                        .join(', ')
-                                                    : evento.expand?.professional
-                                                        ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
-                                                        : 'Sin asignar';
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="programas" className="flex-1 flex flex-col mt-4">
+                            <div className="flex-1 overflow-y-auto">
+                                <ClientPrograms cliente={cliente} companyId={companyId || ''} />
+                            </div>
+                        </TabsContent>
+                        <TabsContent value="historial" className="flex-1 flex flex-col mt-4">
+                            <div className="flex-1 overflow-y-auto px-1 space-y-4">
+                                {loadingEventos ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <p className="text-muted-foreground">Cargando historial...</p>
+                                    </div>
+                                ) : eventos.length === 0 ? (
+                                    <div className="flex items-center justify-center py-8">
+                                        <p className="text-muted-foreground">No hay citas registradas</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {eventos.map((evento) => {
+                                            const fecha = new Date(evento.datetime);
+                                            const profesionalNames = Array.isArray(evento.expand?.professional)
+                                                ? evento.expand.professional
+                                                    .map((p: any) => `${p.name} ${p.last_name}`)
+                                                    .join(', ')
+                                                : evento.expand?.professional
+                                                    ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
+                                                    : 'Sin asignar';
 
-                                                return (
-                                                    <Card key={evento.id} className="p-4">
-                                                        <div className="grid grid-cols-6 gap-4 items-center">
-                                                            <div className="flex items-center gap-2">
-                                                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                                                                <div>
-                                                                    <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {format(fecha, 'HH:mm')}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 col-span-2">
-                                                                <User className="h-4 w-4 text-muted-foreground" />
-                                                                <p className="text-sm">{profesionalNames}</p>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <Euro className="h-4 w-4 text-muted-foreground" />
-                                                                <p className="text-sm font-medium">{evento.cost || 0}</p>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {evento.paid ? (
-                                                                    <div className="flex items-center gap-1 text-green-600">
-                                                                        <CheckCircle className="h-4 w-4" />
-                                                                        <span className="text-sm">Pagada</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="flex items-center gap-1 text-red-600">
-                                                                        <XCircle className="h-4 w-4" />
-                                                                        <span className="text-sm">No pagada</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex justify-end">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleEditEvent(evento.id!)}
-                                                                >
-                                                                    <Pencil className="h-4 w-4" />
-                                                                </Button>
+                                            return (
+                                                <Card key={evento.id} className="p-4">
+                                                    <div className="grid grid-cols-6 gap-4 items-center">
+                                                        <div className="flex items-center gap-2">
+                                                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                                            <div>
+                                                                <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    {format(fecha, 'HH:mm')}
+                                                                </p>
                                                             </div>
                                                         </div>
-                                                    </Card>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </TabsContent>
-                        </Tabs>
-
-                        <DialogFooter className="mt-4">
-                            <div className="flex w-full justify-between">
-                                <div>
-                                    {cliente?.id && activeTab === 'datos' && (
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            onClick={() => setShowDeleteDialog(true)}
-                                            disabled={loading}
-                                        >
-                                            Eliminar
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                                        Cancelar
-                                    </Button>
-                                    <Button type="submit" form="cliente-form" disabled={loading}>
-                                        {loading ? 'Guardando...' : 'Guardar'}
-                                    </Button>
-                                </div>
+                                                        <div className="flex items-center gap-2 col-span-2">
+                                                            <User className="h-4 w-4 text-muted-foreground" />
+                                                            <p className="text-sm">{profesionalNames}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Euro className="h-4 w-4 text-muted-foreground" />
+                                                            <p className="text-sm font-medium">{evento.cost || 0}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            {evento.paid ? (
+                                                                <div className="flex items-center gap-1 text-green-600">
+                                                                    <CheckCircle className="h-4 w-4" />
+                                                                    <span className="text-sm">Pagada</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1 text-red-600">
+                                                                    <XCircle className="h-4 w-4" />
+                                                                    <span className="text-sm">No pagada</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex justify-end">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => handleEditEvent(evento.id!)}
+                                                            >
+                                                                <Pencil className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </Card>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                        </TabsContent>
+                    </Tabs>
 
-                <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDelete}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                                Eliminar
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                    <DialogFooter className="mt-4">
+                        <div className="flex w-full justify-between">
+                            <div>
+                                {cliente?.id && activeTab === 'datos' && (
+                                    <Button
+                                        type="button"
+                                        variant="destructive"
+                                        onClick={() => setShowDeleteDialog(true)}
+                                        disabled={loading}
+                                    >
+                                        Eliminar
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                    Cancelar
+                                </Button>
+                                <Button type="submit" form="cliente-form" disabled={loading}>
+                                    {loading ? 'Guardando...' : 'Guardar'}
+                                </Button>
+                            </div>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
 
-            </>
-        );
+        </>
+    );
 }
