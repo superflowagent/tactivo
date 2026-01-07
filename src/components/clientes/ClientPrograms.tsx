@@ -64,6 +64,33 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
   const [currentProgramForPicker, setCurrentProgramForPicker] = useState<string | null>(null);
   const [currentDayForPicker, setCurrentDayForPicker] = useState<string | null>(null);
 
+  // Derive lookup lists for anatomy/equipment from loaded exercises to avoid undefined pickers
+  const anatomyForPicker = React.useMemo(() => {
+    const map = new Map<string, string>();
+    exercisesForCompany.forEach((ex: any) => {
+      (ex?.anatomy || []).forEach((a: any) => {
+        const id = String(a?.id ?? a ?? '');
+        if (!id) return;
+        const name = String(a?.name ?? a ?? id);
+        map.set(id, name);
+      });
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [exercisesForCompany]);
+
+  const equipmentForPicker = React.useMemo(() => {
+    const map = new Map<string, string>();
+    exercisesForCompany.forEach((ex: any) => {
+      (ex?.equipment || []).forEach((eq: any) => {
+        const id = String(eq?.id ?? eq ?? '');
+        if (!id) return;
+        const name = String(eq?.name ?? eq ?? id);
+        map.set(id, name);
+      });
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [exercisesForCompany]);
+
 
   const toggleSelectExercise = (id: string) => {
     setSelectedExerciseIds((prev) => {

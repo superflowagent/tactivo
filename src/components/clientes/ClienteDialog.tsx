@@ -1196,7 +1196,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 </AlertDialogContent>
             </AlertDialog>
 
-            <InviteToast title={inviteToastTitle} durationMs={2500} onClose={() => setShowInviteToast(false)} open={showInviteToast} />
+            {showInviteToast && inviteToastTitle && (
+                <InviteToast title={inviteToastTitle} durationMs={2500} onClose={() => setShowInviteToast(false)} />
+            )}
 
         </>
     );
