@@ -14,8 +14,9 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
-import { CalendarIcon, UserStar, X, Mail, CheckCircle } from 'lucide-react';
+import { CalendarIcon, UserStar, X, Mail, CheckCircle, HelpCircle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { debug, error } from '@/lib/logger';
@@ -565,7 +566,23 @@ export function ProfesionalDialog({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email *</Label>
+                                <div className="flex items-center gap-1.5">
+                                    <Label htmlFor="email">Email *</Label>
+                                    {!profesional?.id && (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="inline-flex">
+                                                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                    <p>Al crear el perfil, se enviará un correo de invitación al usuario</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    )}
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <Input
                                         id="email"

@@ -191,6 +191,16 @@
       border: 1px solid hsl(var(--sidebar-border));
       box-shadow: var(--shadow-sm);
     }
+
+    /* Allow opting out of hover color changes (useful when icon must keep a color like red) */
+    @media (hover: hover) and (pointer: fine) {
+
+      .no-hover-color.action-icon:hover,
+      .no-hover-color.action-icon:focus-visible {
+        color: #dc2626 !important;
+        /* Tailwind red-600 */
+      }
+    }
   }
 
   /* Disable hover visuals on touch devices (mobile) - apply broadly to buttons and interactive elements */
