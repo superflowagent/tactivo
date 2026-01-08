@@ -771,8 +771,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     return (
         <>
             <Dialog open={open} onOpenChange={(next) => { if (!next) clientProgramsApi.resetToInitial(); onOpenChange(next); }}>
-                <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
-                    <DialogHeader>
+                <DialogContent className="h-screen w-screen max-w-full max-h-full flex flex-col overflow-hidden p-0">
+                    <DialogHeader className="px-6 pt-6">
                         <div className="flex items-center gap-2">
                             {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
                             <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
@@ -795,9 +795,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             <TabsTrigger value="programas">Programas</TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="datos" className="flex-1 min-h-0 mt-4 overflow-hidden">
+                        <TabsContent value="datos" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
                             <div className="h-full overflow-y-auto pr-2">
-                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6 px-1">
+                                <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6">
                                     {/* Campos Obligatorios */}
                                     <div className="space-y-4">
                                         <div className="grid grid-cols-2 gap-4">
@@ -1077,13 +1077,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 </form>
                             </div>
                         </TabsContent>
-                        <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden">
-                            <div className="h-full overflow-y-auto">
+                        <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
+                            <div className="h-full overflow-y-auto pr-2">
                                 <ClientPrograms api={clientProgramsApi} />
                             </div>
                         </TabsContent>
-                        <TabsContent value="historial" className="flex-1 min-h-0 mt-4 overflow-hidden">
-                            <div className="h-full overflow-y-auto px-1">
+                        <TabsContent value="historial" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
+                            <div className="h-full overflow-y-auto pr-2">
                                 {loadingEventos ? (
                                     <div className="flex items-center justify-center py-8">
                                         <p className="text-muted-foreground">Cargando historial...</p>
@@ -1156,7 +1156,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         </TabsContent>
                     </Tabs>
 
-                    <DialogFooter className="mt-4">
+                    <DialogFooter className="mt-4 px-6 pb-6">
                         <div className="flex w-full justify-between">
                             <div>
                                 {cliente?.id && activeTab === 'datos' && (

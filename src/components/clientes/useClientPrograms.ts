@@ -21,6 +21,9 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   const [loadingProgramsList, setLoadingProgramsList] = useState(false);
   const [exercisesForCompany, setExercisesForCompany] = useState<any[]>([]);
   const [exercisesLoading, setExercisesLoading] = useState(false);
+  // Lookup lists for anatomy/equipment (loaded when opening the picker)
+  const [anatomyList, setAnatomyList] = useState<any[]>([]);
+  const [equipmentList, setEquipmentList] = useState<any[]>([]);
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [savedToastTitle, setSavedToastTitle] = useState<string | null>(null);
   const [persistingAll, setPersistingAll] = useState(false);
@@ -147,6 +150,32 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     markOrderUpdated();
   };
 
+  // Persist normalized positions for a program's program_exercises in the DB
+  const persistProgramExercisePositions = async (programKey: string) => {
+    const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
+    if (!program) return;
+    const programId = program.id ?? null;
+    if (!programId) return; // nothing to persist for temp programs
+
+    // Ensure we have latest normalized list
+    const list = (program.programExercises || []).map((pe: any) => ({ id: pe.id, position: pe.position ?? 0, day: pe.day ?? 'A' }));
+    try {
+      // Update all that have an id
+      const updates = list
+        .filter((pe: any) => pe.id)
+        .map((pe: any) => supabase.from('program_exercises').update({ position: pe.position, day: pe.day }).eq('id', pe.id));
+      if (updates.length) {
+        const results = await Promise.all(updates);
+        for (const r of results) {
+          if ((r as any).error) throw (r as any).error;
+        }
+      }
+    } catch (err) {
+      logError('Error persisting program_exercise positions', err);
+      throw err;
+    }
+  };
+
   const addProgram = () => {
     const tempId = tempProgramId();
     const name = `Programa ${programs.length + 1}`;
@@ -180,6 +209,37 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       setActiveProgramId(nextActive);
       return filtered;
     });
+  };
+
+  // Delete a specific day from a program: remove the day and all associated program_exercises.
+  // If the program is persisted (has a real id), also delete the rows in the DB immediately.
+  const deleteDayFromProgram = async (programKey: string, day: string) => {
+    try {
+      // Update local state: remove the day and any programExercises for that day
+      setPrograms((prev) => prev.map((pr) => {
+        const key = pr.id ?? pr.tempId;
+        if (key !== programKey) return pr;
+        return {
+          ...pr,
+          days: (pr.days || []).filter((d: string) => d !== day),
+          programExercises: (pr.programExercises || []).filter((pe: any) => String(pe.day ?? 'A') !== String(day)),
+        };
+      }));
+
+      // If this program is persisted in the DB, delete the rows there as well
+      const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
+      const persistedId = program?.id ?? null;
+      if (persistedId) {
+        const { error } = await supabase.from('program_exercises').delete().match({ program: persistedId, day });
+        if (error) throw error;
+      }
+
+      // Recompute positions and days for that program
+      await updateProgramExercisesPositions(programKey);
+    } catch (err) {
+      logError('Error deleting day from program', err);
+      throw err;
+    }
   };
 
   const moveAssignmentUp = async (programId: string, day: string, peId: string) => {
@@ -240,13 +300,28 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     try {
       if (!companyId) return;
       setExercisesLoading(true);
-      const { data, error } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
-      if (error) throw error;
-      setExercisesForCompany((data as any) || []);
-      return data || [];
+      const { data: exercisesData, error: exErr } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+      if (exErr) throw exErr;
+
+      // Also load anatomy and equipment lists so we can show their names instead of raw ids
+      const [anatRes, equipRes] = await Promise.all([
+        supabase.from('anatomy').select('*').eq('company', companyId).order('name'),
+        supabase.from('equipment').select('*').eq('company', companyId).order('name'),
+      ]);
+
+      const anatomyData = (anatRes as any)?.data ?? (anatRes as any);
+      const equipmentData = (equipRes as any)?.data ?? (equipRes as any);
+
+      setExercisesForCompany((exercisesData as any) || []);
+      setAnatomyList((anatomyData as any) || []);
+      setEquipmentList((equipmentData as any) || []);
+
+      return exercisesData || [];
     } catch (e) {
       logError('Error loading exercises for picker', e);
       setExercisesForCompany([]);
+      setAnatomyList([]);
+      setEquipmentList([]);
       return [];
     } finally {
       setExercisesLoading(false);
@@ -405,7 +480,6 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
           const payload = inserts.map((pe: any) => ({
             program: programId,
             exercise: exerciseIdOf(pe),
-            company: companyId,
             position: pe.position ?? 0,
             day: pe.day ?? 'A',
             notes: pe.notes ?? null,
@@ -452,6 +526,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     openAddExercises,
     exercisesForCompany,
     exercisesLoading,
+    anatomyList,
+    equipmentList,
     showSavedToast,
     savedToastTitle,
     setShowSavedToast,
@@ -460,5 +536,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     markCurrentAsClean,
     loadPrograms,
     persistingAll,
+    persistProgramExercisePositions,
+    deleteDayFromProgram,
   };
 }
