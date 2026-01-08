@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import ProjectAlert from '@/components/ui/project-alert';
 
 export default function InviteToast({
@@ -11,14 +11,15 @@ export default function InviteToast({
   durationMs?: number;
   onClose?: () => void;
 }) {
-  // Auto-dismiss after durationMs if an onClose handler is provided
+  // Internal visibility so the toast auto-dismisses even if onClose isn't provided
+  const [visible, setVisible] = useState(true);
+
   useEffect(() => {
-    if (!onClose) return;
     const t = setTimeout(() => {
       try {
-        onClose();
-      } catch {
-        /* ignore */
+        if (onClose) onClose();
+      } finally {
+        setVisible(false);
       }
     }, durationMs);
     return () => clearTimeout(t);
@@ -32,5 +33,5 @@ export default function InviteToast({
     </div>
   );
 
-  return createPortal(content, document.body);
+  return visible ? createPortal(content, document.body) : null;
 }

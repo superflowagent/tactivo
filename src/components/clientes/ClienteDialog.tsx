@@ -44,6 +44,7 @@ import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';
 import { getProfilesByIds } from '@/lib/profiles';
 import InviteToast from '@/components/InviteToast';
 import ClientPrograms from '@/components/clientes/ClientPrograms';
+import { useClientPrograms } from '@/components/clientes/useClientPrograms';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
@@ -61,6 +62,7 @@ interface ClienteDialogProps {
 export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab }: ClienteDialogProps) {
 
     const { companyId } = useAuth();
+    const clientProgramsApi = useClientPrograms({ cliente, companyId });
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
         name: '',
@@ -602,6 +604,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     }
                     const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
                     savedUser = data;
+                    savedUserId = cliente.id ?? savedUser?.id ?? savedUser?.user ?? null;
                 } else {
                     // Use Edge Function to create client to bypass RLS (service role)
                     const lib = await import('@/lib/supabase');
@@ -626,7 +629,16 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     }
                     const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
                     savedUser = data;
+                    savedUserId = savedUser?.id || savedUser?.user || null;
                 }
+            }
+
+            const profileIdForPrograms = cliente?.id || savedUserId || savedUser?.id || savedUser?.user || null;
+            if (profileIdForPrograms) {
+                await clientProgramsApi.persistAll(profileIdForPrograms);
+                clientProgramsApi.markCurrentAsClean();
+            } else {
+                logError('No se pudo resolver el ID de perfil para guardar los programas');
             }
 
             // If we just created a new cliente, request the send-invite function (mirror profesional flow)
@@ -758,7 +770,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
     return (
         <>
-            <Dialog open={open} onOpenChange={onOpenChange}>
+            <Dialog open={open} onOpenChange={(next) => { if (!next) clientProgramsApi.resetToInitial(); onOpenChange(next); }}>
                 <DialogContent className={cn('h-[90vh] flex flex-col overflow-hidden', activeTab === 'programas' ? 'max-w-[95vw] w-[95vw]' : 'max-w-3xl')}>
                     <DialogHeader>
                         <div className="flex items-center gap-2">
@@ -1067,7 +1079,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         </TabsContent>
                         <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden">
                             <div className="h-full overflow-y-auto">
-                                <ClientPrograms cliente={cliente} companyId={companyId || ''} />
+                                <ClientPrograms api={clientProgramsApi} />
                             </div>
                         </TabsContent>
                         <TabsContent value="historial" className="flex-1 min-h-0 mt-4 overflow-hidden">
@@ -1159,10 +1171,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                 )}
                             </div>
                             <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                                <Button type="button" variant="outline" onClick={() => { clientProgramsApi.resetToInitial(); onOpenChange(false); }}>
                                     Cancelar
                                 </Button>
-                                <Button type="submit" form="cliente-form" disabled={loading}>
+                                <Button type="button" onClick={(e) => handleSubmit(e as any)} disabled={loading}>
                                     {loading ? 'Guardando...' : 'Guardar'}
                                 </Button>
                             </div>

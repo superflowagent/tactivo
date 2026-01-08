@@ -7,29 +7,23 @@ import ActionButton from '@/components/ui/ActionButton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import ProgramExerciseDialog from '@/components/programs/ProgramExerciseDialog';
 import { ExerciseBadgeGroup } from '@/components/ejercicios/ExerciseBadgeGroup';
-import { useClientPrograms } from './useClientPrograms';
-import type { Cliente } from '@/types/cliente';
-import { getFilePublicUrl, supabase } from '@/lib/supabase';
+import type { useClientPrograms } from './useClientPrograms';
+import { getFilePublicUrl } from '@/lib/supabase';
 import InviteToast from '@/components/InviteToast';
 import { error as logError } from '@/lib/logger';
 
+type ClientProgramsApi = ReturnType<typeof useClientPrograms>;
+
 interface Props {
-  cliente?: Cliente | null;
-  companyId?: string | null;
-  profileCreatedId?: string | null;
+  api: ClientProgramsApi;
 }
 
-export default function ClientPrograms({ cliente, companyId }: Props) {
-  const api = useClientPrograms({ cliente, companyId });
-
-  // If the parent created a profile (new client saved), persist any pending programs
-  React.useEffect(() => {
-    // noop if there's nothing to do
-  }, [cliente]);
+export default function ClientPrograms({ api }: Props) {
   const {
     programs,
     setPrograms,
@@ -199,14 +193,14 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
           </Tabs>
         </div>
 
-        <Tabs value={activeProgramId} onValueChange={setActiveProgramId} className="mt-4">
+        <Tabs value={activeProgramId} onValueChange={setActiveProgramId} className="mt-1">
           {programs.map((p) => {
             const idKey = p.id ?? p.tempId;
             return (
-              <TabsContent key={idKey} value={idKey} className="p-0 flex-1 overflow-hidden">
+              <TabsContent key={idKey} value={idKey} className="!mt-0 p-0 flex-1 overflow-hidden">
                 <div className="h-full overflow-y-auto">
                   <Card className="p-4 space-y-4 h-full">
-                    <div className="mt-2">
+                    <div className="mt-1">
                       <LazyRichTextEditor
                         value={p.description || ''}
                         onChange={(val) => setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)))}
@@ -217,33 +211,19 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
 
                     {/* Program exercises */}
                     <div>
-                      <div className="mt-2">
+                      <div className="mt-1">
                         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1">
                           {(p.days || ['A']).slice(0, 7).map((day: string, _di: number) => (
-                            <div key={day} className={dayColumnClass} onDragOver={(e) => { e.preventDefault(); }} onDrop={async (e) => {
+                            <div key={day} className={dayColumnClass} onDragOver={(e) => { e.preventDefault(); }} onDrop={(e) => {
                               e.preventDefault();
                               try {
                                 const payload = e.dataTransfer?.getData('text') || e.dataTransfer?.getData('application/json');
                                 if (!payload) return;
                                 const parsed = JSON.parse(payload);
                                 const peId = parsed.peId;
-                                setPrograms((prev) => prev.map((prog) => {
-                                  if ((prog.id || prog.tempId) !== (p.id || p.tempId)) return prog;
-                                  const items = (prog.programExercises || []).map((it: any) => it.id === peId || it.tempId === peId ? { ...it, day } : it);
-                                  return { ...prog, programExercises: items };
-                                }));
-                                if (peId && !String(peId).startsWith('tpe-')) {
-                                  const { error } = await supabase.from('program_exercises').update({ day }).eq('id', peId);
-                                  if (error) logError('Error updating day for program_exercise', error);
-                                  const items = ((p.programExercises || []).filter((pe: any) => String(pe.day) === day));
-                                  for (let i = 0; i < items.length; i++) {
-                                    const pe = items[i];
-                                    if (pe.id) {
-                                      const { error } = await supabase.from('program_exercises').update({ position: i }).eq('id', pe.id);
-                                      if (error) logError('Error updating position', error);
-                                    }
-                                  }
-                                }
+                                if (!peId) return;
+                                const updatedList = (p.programExercises || []).map((it: any) => (it.id === peId || it.tempId === peId ? { ...it, day } : it));
+                                updateProgramExercisesPositions(p.id ?? p.tempId, updatedList).catch((err) => logError('Error handling drop', err));
                               } catch (err) {
                                 logError('Error handling drop', err);
                               }
@@ -286,15 +266,13 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                             try {
                                               if (String(pe.tempId || '').startsWith('tpe-')) {
                                                 setPrograms((prev) => prev.map((pr) => (pr.tempId === p.tempId ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.tempId !== pe.tempId) } : pr)));
+                                                await updateProgramExercisesPositions(p.id ?? p.tempId);
                                                 return;
                                               }
-                                              const { error } = await supabase.from('program_exercises').delete().eq('id', pe.id);
-                                              if (error) throw error;
-                                              setPrograms((prev) => prev.map((pr) => (pr.id === p.id ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
-                                              await updateProgramExercisesPositions(p.id);
+                                              setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === (p.id ?? p.tempId) ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
+                                              await updateProgramExercisesPositions(p.id ?? p.tempId);
                                             } catch (err) {
                                               logError('Error deleting program_exercise', err);
-                                              alert('Error eliminando asignación: ' + String(err));
                                             }
                                           }} aria-label="Eliminar asignación">
                                             <Trash className={iconButtonClass} />
@@ -306,7 +284,7 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
                                 })()}
 
                                 {((p.days || []).length < 7) && (
-                                  <Card className={cn(dayColumnClass, "flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors")} onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
+                                  <Card className={cn(dayColumnClass, "flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors")} onClick={() => setPrograms(prev => prev.map(pr => (pr.id ?? pr.tempId) === (p.id ?? p.tempId) ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
                                     <div className="text-2xl font-bold">+</div>
                                   </Card>
                                 )}
@@ -330,12 +308,18 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
           programExercise={editingProgramExercise}
           onSaved={(updated) => {
             if (!updated) return;
-            setPrograms((prev) => prev.map((pr) => (pr.id === updated.program ? { ...pr, programExercises: (pr.programExercises || []).map((pe: any) => (pe.id === updated.id ? updated : pe)) } : pr)));
-            try {
-              updateProgramExercisesPositions(updated.program);
-            } catch (err) {
-              logError('Error normalizing after save', err);
-            }
+            const targetProgram = updated.program ?? editingProgramExercise?.program ?? activeProgramId;
+            setPrograms((prev) => prev.map((pr) => {
+              const key = pr.id ?? pr.tempId;
+              if (key !== targetProgram) return pr;
+              const list = (pr.programExercises || []).map((pe: any) => {
+                const peKey = pe.id ?? pe.tempId;
+                const updatedKey = updated.id ?? updated.tempId;
+                return peKey === updatedKey ? { ...pe, ...updated } : pe;
+              });
+              return { ...pr, programExercises: list };
+            }));
+            updateProgramExercisesPositions(targetProgram).catch((err) => logError('Error normalizing after save', err));
           }}
         />
 
@@ -394,17 +378,28 @@ export default function ClientPrograms({ cliente, companyId }: Props) {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showDeleteProgramDialog} onOpenChange={setShowDeleteProgramDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>¿Eliminar programa?</DialogTitle>
-            </DialogHeader>
-            <div className="p-2 flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowDeleteProgramDialog(false)}>Cancelar</Button>
-              <Button onClick={async () => { if (!programToDeleteId) return; await deleteProgram(programToDeleteId); setShowDeleteProgramDialog(false); setProgramToDeleteId(null); }}>Eliminar</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <AlertDialog open={showDeleteProgramDialog} onOpenChange={setShowDeleteProgramDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar programa?</AlertDialogTitle>
+              <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!programToDeleteId) return;
+                  await deleteProgram(programToDeleteId);
+                  setShowDeleteProgramDialog(false);
+                  setProgramToDeleteId(null);
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       </div>
     </div>

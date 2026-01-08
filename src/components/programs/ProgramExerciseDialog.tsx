@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabase';
 
 interface Props {
     open: boolean;
@@ -36,23 +35,8 @@ export default function ProgramExerciseDialog({ open, onOpenChange, programExerc
         }
         setSaving(true);
         try {
-            if (programExercise.id) {
-                const updates = {
-                    day: local.day ?? null,
-                    position: local.position ?? null,
-                    notes: local.notes ?? null,
-                    reps: local.reps ?? null,
-                    sets: local.sets ?? null,
-                    weight: local.weight ?? null,
-                    secs: local.secs ?? null,
-                } as any;
-                const { data, error } = await supabase.from('program_exercises').update(updates).eq('id', programExercise.id).select('*, exercise:exercises(*)').single();
-                if (error) throw error;
-                onSaved(data);
-            } else {
-                // local temp object: just forward the updated object
-                onSaved(local);
-            }
+            const updated = { ...programExercise, ...local };
+            onSaved(updated);
             onOpenChange(false);
         } catch (err) {
             console.error('Error saving program_exercise', err);
