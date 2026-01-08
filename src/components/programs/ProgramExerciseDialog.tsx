@@ -5,6 +5,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ export default function ProgramExerciseDialog({ open, onOpenChange, programExerc
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>{programExercise?.id ? 'Editar ejercicio del programa' : 'Editar asignación'}</DialogTitle>
+                    <DialogDescription>Modifica el día, reps, sets y notas de la asignación</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">

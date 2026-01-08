@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dumbbell, PencilLine, GripVertical, ArrowUp, ArrowDown, Trash } from 'lucide-react';
+import { Dumbbell, PencilLine, GripVertical, ArrowUp, ArrowDown, Trash, ChevronDown } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, fetchProfileByUserId } from '@/lib/supabase';
 import ActionButton from '@/components/ui/ActionButton';
@@ -183,10 +184,17 @@ export function ProgramasView() {
                                 {programs.map((p) => (
                                     <TabsContent key={p.id} value={p.id} className="p-0">
                                         <Card className="p-4 space-y-4">
-                                            <div className="mt-2">
-                                                <Label>Descripción</Label>
-                                                <Input value={p.description || ''} readOnly className="w-full bg-muted" />
-                                            </div>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button className="flex items-center gap-2 text-sm font-medium px-2 py-1 rounded hover:bg-muted/50 transition-colors">
+                                                        Descripción
+                                                        <ChevronDown className="h-4 w-4" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="start" className="w-[500px] p-3">
+                                                    <div className="text-sm text-muted-foreground whitespace-pre-wrap">{p.description || 'Sin descripción'}</div>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
 
                                             <div>
                                                 <Label>Rutina semanal</Label>
@@ -238,7 +246,7 @@ export function ProgramasView() {
                                                                         if (!items.length) {
                                                                             return (
                                                                                 <div className="flex items-center justify-center py-6">
-                                                                                    <Button onClick={async () => {
+                                                                                    <Button variant="secondary" className="btn-propagate px-4 py-2" onClick={async () => {
                                                                                         setCurrentProgramForPicker(p.id);
                                                                                         setCurrentDayForPicker(day);
                                                                                         try {
@@ -248,14 +256,16 @@ export function ProgramasView() {
                                                                                         } catch (err) {
                                                                                             console.error('Error loading exercises', err);
                                                                                         }
-                                                                                    }} className="px-4 py-2">+ Ejercicio</Button>
+                                                                                    }}>
+                                                                                        <Plus className="mr-2 h-4 w-4" />
+                                                                                        Ejercicio
+                                                                                    </Button>
                                                                                 </div>
                                                                             );
                                                                         }
                                                                         return items.map((pe: any) => (
                                                                             <div key={pe.id || pe.tempId} draggable role="button" aria-grabbed="false" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }} onDragStart={(ev) => ev.dataTransfer?.setData('text', JSON.stringify({ programId: p.id, peId: pe.id ?? pe.tempId }))} onDragOver={(e) => e.preventDefault()} className="p-2 bg-white rounded border flex items-center justify-between gap-2">
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                                                                                     <div>
                                                                                         <div className="text-sm font-medium">{pe.exercise?.name}</div>
                                                                                         <div className="text-xs text-muted-foreground">{pe.exercise?.description}</div>
@@ -263,11 +273,6 @@ export function ProgramasView() {
                                                                                     </div>
                                                                                 </div>
                                                                                 <div className="flex items-center gap-2">
-                                                                                    <Button size="sm" variant="ghost" onClick={async () => { /* move up */ const items = (p.programExercises || []).filter((x: any) => String(x.day) === day).sort((a: any, b: any) => (a.position || 0) - (b.position || 0)); const idx = items.findIndex((it: any) => (it.id ?? it.tempId) === (pe.id ?? pe.tempId)); if (idx > 0) { const prev = items[idx - 1]; setPrograms((prevP) => prevP.map(pr => pr.id === p.id ? { ...pr, programExercises: (pr.programExercises || []).map((pe2: any) => { if ((pe2.id ?? pe2.tempId) === (prev.id ?? prev.tempId)) return { ...pe2, position: idx }; if ((pe2.id ?? pe2.tempId) === (pe.id ?? pe.tempId)) return { ...pe2, position: idx - 1 }; return pe2; }) } : pr)); await updateProgramExercisesPositions(p.id); } }} aria-label="Mover arriba"><ArrowUp className="h-4 w-4" /></Button>
-                                                                                    <Button size="sm" variant="ghost" onClick={async () => { /* move down */ const items = (p.programExercises || []).filter((x: any) => String(x.day) === day).sort((a: any, b: any) => (a.position || 0) - (b.position || 0)); const idx = items.findIndex((it: any) => (it.id ?? it.tempId) === (pe.id ?? pe.tempId)); if (idx !== -1 && idx < items.length - 1) { const next = items[idx + 1]; setPrograms((prevP) => prevP.map(pr => pr.id === p.id ? { ...pr, programExercises: (pr.programExercises || []).map((pe2: any) => { if ((pe2.id ?? pe2.tempId) === (next.id ?? next.tempId)) return { ...pe2, position: idx }; if ((pe2.id ?? pe2.tempId) === (pe.id ?? pe.id ?? pe.tempId)) return { ...pe2, position: idx + 1 }; return pe2; }) } : pr)); await updateProgramExercisesPositions(p.id); } }} aria-label="Mover abajo"><ArrowDown className="h-4 w-4" /></Button>
-                                                                                    <ActionButton tooltip="Editar asignación" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar asignación">
-                                                                                        <PencilLine className="h-4 w-4" />
-                                                                                    </ActionButton>
                                                                                 </div>
                                                                             </div>
                                                                         ));
@@ -277,7 +282,7 @@ export function ProgramasView() {
                                                         ))}
                                                         {((p.days || []).length < 7) && (
                                                             <Card className="border rounded p-1 bg-muted/10 min-w-[120px] md:min-w-[90px] flex items-center justify-center cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => setPrograms(prev => prev.map(pr => pr.id === p.id ? { ...pr, days: [...(pr.days || ['A']), String.fromCharCode(((pr.days || ['A']).slice(-1)[0].charCodeAt(0) + 1))] } : pr))}>
-                                                                <div className="text-2xl font-bold">+</div>
+                                                                <div className="text-6xl font-bold opacity-40">+</div>
                                                             </Card>
                                                         )}
                                                     </div>
