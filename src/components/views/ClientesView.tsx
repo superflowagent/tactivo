@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpDown, UserPlus, Pencil, Trash, Dumbbell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowUpDown, UserPlus, Trash } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -21,24 +22,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ClienteDialog } from '@/components/clientes/ClienteDialog';
 import { getFilePublicUrl } from '@/lib/supabase';
-import { debug, error as logError } from '@/lib/logger';
+import { error as logError } from '@/lib/logger';
 import { normalizeForSearch } from '@/lib/stringUtils';
 import type { Cliente } from '@/types/cliente';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfilesByRole } from '@/lib/profiles';
+
 export function ClientesView() {
-  const { companyId } = useAuth();
+  const { companyId, companyName } = useAuth();
+  const navigate = useNavigate();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [filteredClientes, setFilteredClientes] = useState<Cliente[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
-  const [dialogInitialTab, setDialogInitialTab] = useState<'datos' | 'programas'>('datos');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<string | null>(null);
 
@@ -124,30 +123,12 @@ export function ClientesView() {
   };
 
   const handleAdd = () => {
-    setSelectedCliente(null);
-    setDialogInitialTab('datos');
-    setDialogOpen(true);
+    navigate(`/${companyName}/panel/cliente/nuevo`);
   };
 
-  const handleEdit = async (cliente: Cliente) => {
-    // Debug (use logger)
-    debug('[ClientesView] handleEdit called', { clienteId: cliente.id });
-
-    // Ensure the dialog opens on the 'Datos' tab
-    setDialogInitialTab('datos');
-
-    // Recargar los datos más recientes del cliente desde `profiles` (Supabase)
+  const handleRowClick = (cliente: Cliente) => {
     if (!cliente.id) return;
-
-    try {
-      const fetcher = await import('@/lib/supabase');
-      const freshCliente = await fetcher.fetchProfileByUserId(cliente.id);
-      setSelectedCliente(freshCliente || cliente);
-    } catch (err) {
-      logError('Error al cargar cliente:', err);
-      setSelectedCliente(cliente); // Usar datos en cache si falla
-    }
-    setDialogOpen(true);
+    navigate(`/${companyName}/panel/cliente/${cliente.id}`);
   };
 
   const handleDeleteClick = (id: string) => {
@@ -172,30 +153,6 @@ export function ClientesView() {
     } catch (err: any) {
       logError('Error al eliminar cliente:', err);
       alert('Error al eliminar el cliente: ' + (err?.message || 'Error desconocido'));
-    }
-  };
-
-  const handleSave = async () => {
-    // Recargar la lista de clientes
-    try {
-      if (!companyId) return;
-
-      const records = await getProfilesByRole(companyId, 'client');
-      const mapped = (records || []).map((r: any) => {
-        const uid = r.user || r.user_id || r.id;
-        return {
-          id: uid,
-          ...r,
-          photoUrl:
-            r.photoUrl ||
-            (r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null),
-        };
-      });
-      setClientes(mapped);
-      setFilteredClientes(mapped);
-    } catch (err: any) {
-      logError('Error al recargar clientes:', err);
-      alert('Error al recargar los clientes: ' + (err?.message || 'Error desconocido'));
     }
   };
 
@@ -253,7 +210,11 @@ export function ClientesView() {
           </TableHeader>
           <TableBody>
             {filteredClientes.map((cliente) => (
-              <TableRow key={cliente.id}>
+              <TableRow
+                key={cliente.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleRowClick(cliente)}
+              >
                 <TableCell>
                   {(() => {
                     const photoUrl =
@@ -292,26 +253,9 @@ export function ClientesView() {
                 <TableCell className="text-right pr-4">
                   <div className="flex justify-end gap-0.5">
                     <ActionButton
-                      tooltip="Editar"
-                      onClick={() => handleEdit(cliente)}
-                      aria-label="Editar cliente"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </ActionButton>
-                    <ActionButton
-                      tooltip="Programas"
-                      onClick={() => {
-                        setSelectedCliente(cliente);
-                        setDialogInitialTab('programas');
-                        setDialogOpen(true);
-                      }}
-                      aria-label="Ver programas"
-                    >
-                      <Dumbbell className="h-4 w-4" />
-                    </ActionButton>
-                    <ActionButton
                       tooltip="Eliminar"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (!cliente.id) return;
                         handleDeleteClick(cliente.id);
                       }}
@@ -326,14 +270,6 @@ export function ClientesView() {
           </TableBody>
         </Table>
       </div>
-
-      <ClienteDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        cliente={selectedCliente}
-        onSave={handleSave}
-        initialTab={dialogInitialTab}
-      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

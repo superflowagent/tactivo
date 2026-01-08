@@ -70,6 +70,10 @@ export default function ClientPrograms({ api }: Props) {
   // Drag & drop state
   const [draggedExercise, setDraggedExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
   const [dragOverExercise, setDragOverExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
+  // Column (day) drag & drop state
+  const [draggedDayColumn, setDraggedDayColumn] = useState<{ day: string; programId: string } | null>(null);
+  const [dragOverDayColumn, setDragOverDayColumn] = useState<{ day: string; programId: string } | null>(null);
+  const [dragOverDayColumnSide, setDragOverDayColumnSide] = useState<'left' | 'right' | null>(null);
 
   // Derive lookup lists for anatomy/equipment from loaded exercises to avoid undefined pickers
   const anatomyForPicker = React.useMemo(() => {
@@ -298,15 +302,76 @@ export default function ClientPrograms({ api }: Props) {
   const handleDragEnd = () => {
     setDraggedExercise(null);
     setDragOverExercise(null);
+    setDraggedDayColumn(null);
+    setDragOverDayColumn(null);
+    setDragOverDayColumnSide(null);
   };
 
   const handleDragOverColumn = (e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    // If dragging columns, show column hover indicator and side preview
+    if (draggedDayColumn && draggedDayColumn.programId === programId) {
+      setDragOverDayColumn({ day, programId });
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const side = x < rect.width / 2 ? 'left' : 'right';
+      setDragOverDayColumnSide(side);
+      return;
+    }
   };
 
   const handleDropToNewDay = async (e: React.DragEvent, targetDay: string, programId: string) => {
     e.preventDefault();
+    // Handle column (day) reorder
+    if (draggedDayColumn) {
+      const srcDay = draggedDayColumn.day;
+      const dstDay = targetDay;
+      if (srcDay === dstDay || draggedDayColumn.programId !== programId) {
+        setDraggedDayColumn(null);
+        setDragOverDayColumn(null);
+        setDragOverDayColumnSide(null);
+        return;
+      }
+
+      const program = programs.find((p) => (p.id ?? p.tempId) === programId);
+      if (!program) {
+        setDraggedDayColumn(null);
+        setDragOverDayColumn(null);
+        setDragOverDayColumnSide(null);
+        return;
+      }
+      const days = [...(program.days || ['A'])];
+      const draggedIdx = days.findIndex((d) => d === srcDay);
+      const dropIdx = days.findIndex((d) => d === dstDay);
+      if (draggedIdx === -1 || dropIdx === -1) {
+        setDraggedDayColumn(null);
+        setDragOverDayColumn(null);
+        setDragOverDayColumnSide(null);
+        return;
+      }
+      // Remove first, then compute target index in the array after removal
+      const reordered = [...days];
+      const [removed] = reordered.splice(draggedIdx, 1);
+      const targetIdxAfterRemoval = reordered.findIndex((d) => d === dstDay);
+      let insertIdx = targetIdxAfterRemoval;
+      if (dragOverDayColumnSide === 'right') insertIdx = targetIdxAfterRemoval + 1;
+      if (insertIdx < 0) insertIdx = 0;
+      reordered.splice(insertIdx, 0, removed);
+
+      setPrograms((prev) => prev.map((p) => ((p.id ?? p.tempId) === programId ? { ...p, days: reordered } : p)));
+      try {
+        await updateProgramExercisesPositions(programId);
+      } catch (err) {
+        logError('Error normalizing after day reorder', err);
+      }
+
+      setDraggedDayColumn(null);
+      setDragOverDayColumn(null);
+      setDragOverDayColumnSide(null);
+      return;
+    }
+
     if (!draggedExercise) {
       setDraggedExercise(null);
       setDragOverExercise(null);
@@ -477,8 +542,25 @@ export default function ClientPrograms({ api }: Props) {
     setDragOverExercise(null);
   };
 
+  // Day column drag handlers
+  const handleDayDragStart = (e: React.DragEvent, day: string, programId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    if (draggedExercise) return; // ignore if an exercise drag is active
+    // Some browsers require setting data to enable drop
+    try { e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'day', day, programId })); } catch { }
+    setDraggedDayColumn({ day, programId });
+  };
+  const handleDayDragOver = (e: React.DragEvent, day: string, programId: string) => {
+    e.preventDefault();
+    if (!draggedDayColumn || draggedDayColumn.programId !== programId) return;
+    setDragOverDayColumn({ day, programId });
+  };
+  const handleDayDrop = (e: React.DragEvent, day: string, programId: string) => {
+    return handleDropToNewDay(e, day, programId);
+  };
+
   const programTabTriggerClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 cursor-pointer select-none";
-  const dayColumnClass = "border rounded p-1 bg-muted/10 w-[240px]";
+  const dayColumnClass = "relative border rounded p-1 bg-muted/10 w-[240px]";
   const exerciseCardClass = "p-2 bg-white rounded border flex items-center justify-between gap-2 transition-shadow duration-150 hover:shadow-lg";
   const iconButtonClass = "h-4 w-4";
 
@@ -588,11 +670,32 @@ export default function ClientPrograms({ api }: Props) {
                                 className={dayColumnClass}
                                 onDragOver={(e) => handleDragOverColumn(e, day, p.id ?? p.tempId)}
                                 onDrop={(e) => handleDropToNewDay(e, day, p.id ?? p.tempId)}
+                                onDragLeave={() => {
+                                  if (dragOverDayColumn?.day === day && dragOverDayColumn?.programId === (p.id ?? p.tempId)) {
+                                    setDragOverDayColumn(null);
+                                    setDragOverDayColumnSide(null);
+                                  }
+                                }}
                               >
+                                {draggedDayColumn && dragOverDayColumn?.day === day && dragOverDayColumn?.programId === (p.id ?? p.tempId) && (
+                                  <div className="pointer-events-none absolute top-0 h-full w-[3px] bg-blue-500 left-1/2 -translate-x-1/2" />
+                                )}
                                 <div className="flex items-center justify-between mb-2">
-                                  <div className="text-sm font-medium pl-2">{`Día ${day}`}</div>
+                                  <div
+                                    className="text-sm font-medium pl-2 cursor-move flex-1"
+                                    role="button"
+                                    aria-grabbed={draggedDayColumn?.day === day ? 'true' : 'false'}
+                                    tabIndex={0}
+                                    draggable
+                                    onDragStart={(e) => handleDayDragStart(e, day, p.id ?? p.tempId)}
+                                    onDragOver={(e) => handleDayDragOver(e, day, p.id ?? p.tempId)}
+                                    onDrop={(e) => handleDayDrop(e, day, p.id ?? p.tempId)}
+                                    onDragEnd={handleDragEnd}
+                                  >
+                                    {`Día ${day}`}
+                                  </div>
                                   <div>
-                                    <ActionButton tooltip="Eliminar día" onClick={() => { setProgramDayToDelete({ programKey: p.id ?? p.tempId, day }); setShowDeleteDayDialog(true); }} aria-label="Eliminar día">
+                                    <ActionButton tooltip="Eliminar día" draggable={false} onMouseDown={(e) => e.stopPropagation()} onClick={() => { setProgramDayToDelete({ programKey: p.id ?? p.tempId, day }); setShowDeleteDayDialog(true); }} aria-label="Eliminar día">
                                       <Trash className={iconButtonClass} />
                                     </ActionButton>
                                   </div>

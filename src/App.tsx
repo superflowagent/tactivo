@@ -3,6 +3,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoginView } from '@/components/views/LoginView';
 import { Panel } from '@/components/Panel';
+import ClienteView from '@/components/views/ClienteView';
 import PasswordResetView from '@/components/views/PasswordResetView';
 import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect';
 import AcceptInviteView from '@/components/views/AcceptInviteView';
@@ -30,6 +31,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Panel />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/:companyName/panel/cliente/:uid"
+            element={
+              <ProtectedRoute>
+                <ClienteView />
               </ProtectedRoute>
             }
           />

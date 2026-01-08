@@ -1,13 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,10 +22,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import {
+    ArrowLeft,
     CalendarIcon,
     ChevronDown,
-    UserPlus,
-    PencilLine,
     User,
     Euro,
     CheckCircle,
@@ -54,18 +46,18 @@ import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventDialog } from '@/components/eventos/EventDialog';
+import { AppSidebar } from '@/components/app-sidebar';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import type { ViewType } from '@/App';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
-interface ClienteDialogProps {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    cliente?: Cliente | null;
-    onSave: () => void;
-    initialTab?: 'datos' | 'programas';
-}
-
-export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab }: ClienteDialogProps) {
+export default function ClienteView() {
+    const { companyName, uid } = useParams<{ companyName: string; uid: string }>();
+    const navigate = useNavigate();
+    const isNewCliente = !uid || uid === 'nuevo';
 
     const { companyId } = useAuth();
+    const [cliente, setCliente] = useState<Cliente | null>(null);
     const clientProgramsApi = useClientPrograms({ cliente, companyId });
     const nameInputRef = useRef<HTMLInputElement | null>(null);
     const [formData, setFormData] = useState<Cliente>({
@@ -90,65 +82,62 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     const [eventDialogOpen, setEventDialogOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [activeTab, setActiveTab] = useState('datos');
-
-    // If the parent requests a specific tab when opening, apply it when the dialog is shown
-    useEffect(() => {
-        if (open) {
-            setActiveTab(initialTab ?? 'datos');
+    const [loadingCliente, setLoadingCliente] = useState(!isNewCliente);
+    const [currentView, setCurrentView] = useState<ViewType>(() => {
+        try {
+            const saved = localStorage.getItem('tactivo.currentView') as ViewType | null;
+            return saved || 'clientes';
+        } catch {
+            return 'clientes';
         }
-    }, [open, initialTab]);
+    });
 
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showInviteToast, setShowInviteToast] = useState(false);
     const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
 
-    // Resolve existing customer photo URL (public or signed)
-    const resolvedClientePhoto = useResolvedFileUrl(
-        'profile_photos',
-        cliente?.id || null,
-        cliente?.photo_path || null
-    );
+    const resolvedClientePhoto = useResolvedFileUrl('profile_photos', cliente?.id || null, cliente?.photo_path || null);
 
-    // Helper function to calculate age
     const calcularEdad = useCallback((fecha: Date) => {
         const hoy = new Date();
-        let edad = hoy.getFullYear() - fecha.getFullYear();
+        let years = hoy.getFullYear() - fecha.getFullYear();
         const mes = hoy.getMonth() - fecha.getMonth();
         if (mes < 0 || (mes === 0 && hoy.getDate() < fecha.getDate())) {
-            edad--;
+            years--;
         }
-        setEdad(edad);
+        setEdad(years);
     }, []);
 
-    // Load events for the client
     const loadEventos = useCallback(async (clienteId: string) => {
         if (!clienteId) return;
 
         setLoadingEventos(true);
         try {
-            // Resolve profile row for the given clienteId (could be user id or profile id)
             let resolvedProfileId: string | null = null;
             let resolvedUserId: string | null = null;
             try {
-                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId], p_company: companyId });
+                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', {
+                    p_ids: [clienteId],
+                    p_company: companyId,
+                });
                 if (!profErr && profRows && (profRows as any[]).length > 0) {
                     const row = (profRows as any[])[0];
                     resolvedProfileId = row.id ?? null;
                     resolvedUserId = row.user ?? null;
                 } else {
-                    // Fallback: try selecting the profile row directly (may succeed if RPC is restricted)
-                    try {
-                        const { data: profileRow, error: selectErr } = await supabase.from('profiles').select('id, user').eq('id', clienteId).limit(1).maybeSingle();
-                        if (!selectErr && profileRow) {
-                            resolvedProfileId = profileRow.id ?? null;
-                            resolvedUserId = profileRow.user ?? null;
-                        }
-                    } catch {
-                        // ignore
+                    const { data: profileRow, error: selectErr } = await supabase
+                        .from('profiles')
+                        .select('id, user')
+                        .eq('id', clienteId)
+                        .limit(1)
+                        .maybeSingle();
+                    if (!selectErr && profileRow) {
+                        resolvedProfileId = (profileRow as any).id ?? null;
+                        resolvedUserId = (profileRow as any).user ?? null;
                     }
                 }
             } catch {
-                // ignore resolution errors, we'll fallback to simple matching
+                // ignore resolution errors
             }
 
             const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
@@ -157,12 +146,13 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             if (error) throw error;
             const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
 
-            // (removed debug logging)
-
-            // helper to check client membership supporting either profile id or user id stored in event.client
-            // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
-            const clientMatches = (clientsField: any, pid: string, resolvedProfile: string | null, resolvedUser: string | null) => {
-                const arr = Array.isArray(clientsField) ? clientsField : (clientsField ? [clientsField] : []);
+            const clientMatches = (
+                clientsField: any,
+                pid: string,
+                resolvedProfile: string | null,
+                resolvedUser: string | null,
+            ) => {
+                const arr = Array.isArray(clientsField) ? clientsField : clientsField ? [clientsField] : [];
                 if (!arr || arr.length === 0) return false;
                 const normalized = arr.map((x: any) => String(x));
                 const pidStr = String(pid);
@@ -173,12 +163,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             };
 
             const records = (recordsAll || []).filter((r: any) => {
-                // Some RPC rows may use different fields/names for client lists (client, client_user_ids, clientUserIds, etc.) — try all common ones
                 const clientsField = r.client ?? r.client_user_ids ?? r.clientUserIds ?? r.clients ?? r.clientIds ?? null;
                 return clientMatches(clientsField, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment';
             });
 
-            // Enrich professional field
             const profIds = new Set<string>();
             (records || []).forEach((r: any) => {
                 const pros = Array.isArray(r.professional)
@@ -207,7 +195,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         .filter(Boolean),
                 },
             }));
-            const sorted = (enriched || []).slice().sort((a: any, b: any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
+            const sorted = (enriched || [])
+                .slice()
+                .sort((a: any, b: any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
             setEventos(sorted);
         } catch (err) {
             logError('Error al cargar eventos:', err);
@@ -228,6 +218,35 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             logError('Error fetching authoritative email for client', err);
         }
     }, [cliente]);
+
+    useEffect(() => {
+        const fetchCliente = async () => {
+            if (isNewCliente) {
+                resetFormData();
+                setCliente(null);
+                setLoadingCliente(false);
+                return;
+            }
+            setLoadingCliente(true);
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', uid as string)
+                    .maybeSingle();
+                if (error || !data) throw error || new Error('Cliente no encontrado');
+                setCliente(data as Cliente);
+            } catch (err) {
+                logError('Error al cargar cliente:', err);
+                alert('No se pudo cargar el cliente');
+                navigate(`/${companyName}/panel`);
+            } finally {
+                setLoadingCliente(false);
+            }
+        };
+
+        fetchCliente();
+    }, [uid, isNewCliente, navigate, companyName]);
 
     useEffect(() => {
         if (cliente) {
@@ -258,20 +277,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 setFechaNacimiento(date);
                 calcularEdad(date);
             }
-
-            // Cargar events y asegurar email actualizado
             ensureAuthoritativeEmail(cliente.id!);
-
             loadEventos(cliente.id!);
         } else {
             resetFormData();
         }
         setPhoneError('');
+    }, [cliente, ensureAuthoritativeEmail, loadEventos, calcularEdad]);
 
-        // Autofocus removed per UX decision
-    }, [cliente, open, ensureAuthoritativeEmail, loadEventos]);
-
-    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
     useEffect(() => {
         if (cliente?.photo_path) {
             if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
@@ -355,8 +368,28 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     };
 
     const handleEventSaved = () => {
-        loadEventos(cliente?.id!);
+        if (cliente?.id) loadEventos(cliente.id);
     };
+
+    const isSaveDisabled = useMemo(() => {
+        const requiredFilled = (val: unknown) => {
+            if (val === undefined || val === null) return false;
+            return String(val).trim() !== '';
+        };
+
+        const phoneValid = /^[0-9]{9}$/.test(formData.phone || '');
+        const requiredFieldsOk = [
+            formData.name,
+            formData.last_name,
+            formData.dni,
+            formData.phone,
+            formData.email,
+            formData.session_credits,
+            formData.class_credits,
+        ].every(requiredFilled);
+
+        return !requiredFieldsOk || !phoneValid || !!phoneError || loading;
+    }, [formData, phoneError, loading]);
 
     const handleDateSelect = (date: Date | undefined) => {
         setFechaNacimiento(date);
@@ -370,8 +403,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validar teléfono
-        if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
+        if (formData.phone && !/^[0-9]{9}$/.test(formData.phone)) {
             setPhoneError('El teléfono debe tener exactamente 9 dígitos');
             return;
         }
@@ -379,20 +411,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         setLoading(true);
 
         try {
-            // Build payload object for non-file updates
             const payload: any = {};
-
-            // Añadir campos regulares (excluyendo campos especiales y metadata)
             Object.entries(formData).forEach(([key, value]) => {
-                if (
-                    key === 'id' ||
-                    key === 'created' ||
-                    key === 'updated' ||
-                    key === 'photo' ||
-                    key === 'birth_date' ||
-                    key === 'email'
-                )
-                    return;
+                if (['id', 'created', 'updated', 'photo', 'birth_date', 'email'].includes(key)) return;
                 if (value !== undefined && value !== null && value !== '') {
                     if (key === 'session_credits' || key === 'class_credits') {
                         const parsed = parseInt(String(value));
@@ -403,7 +424,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 }
             });
 
-            // Email handling
             if (!cliente?.id) {
                 if (formData.email) {
                     payload.email = formData.email;
@@ -413,11 +433,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 payload.emailVisibility = 'true';
             }
 
-            // Fecha nacimiento
             if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, 'yyyy-MM-dd');
 
-            // Role/company for new client (do NOT include passwords in profiles table)
-            // The invite function will ensure an auth user is created and the recovery email is sent.
             if (!cliente?.id) {
                 payload.role = 'client';
                 if (companyId) payload.company = companyId;
@@ -431,10 +448,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 const ext = originalFilename.includes('.')
                     ? originalFilename.slice(originalFilename.lastIndexOf('.'))
                     : '';
-                const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
+                const filename = `${Date.now()}-${crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
 
                 if (cliente?.id) {
-                    // Update profile via Edge Function to avoid RLS
                     const lib = await import('@/lib/supabase');
                     const okSession = await lib.ensureValidSession();
                     if (!okSession) throw new Error('session_invalid');
@@ -451,38 +467,19 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     );
                     const fnJson = await fnRes.json().catch(() => null);
                     if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
+                        throw new Error('failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson)));
                     }
                     const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
                     savedUser = data;
-
-                    savedUserId =
-                        savedUser && (savedUser.id || savedUser.user)
-                            ? savedUser.id || savedUser.user
-                            : cliente.id;
+                    savedUserId = savedUser && (savedUser.id || savedUser.user) ? savedUser.id || savedUser.user : cliente.id;
 
                     try {
                         const storagePath = `${filename}`;
-                        const { data: uploadData, error: uploadErr } = await supabase.storage
+                        const { error: uploadErr } = await supabase.storage
                             .from('profile_photos')
                             .upload(storagePath, photoFile);
-                        if (uploadErr) {
-                            logError('Upload error for cliente', {
-                                bucket: 'profile_photos',
-                                path: storagePath,
-                                error: uploadErr,
-                            });
-                            throw uploadErr;
-                        }
-                        console.debug('Upload success for cliente', {
-                            bucket: 'profile_photos',
-                            path: storagePath,
-                            data: uploadData,
-                        });
+                        if (uploadErr) throw uploadErr;
 
-                        // Attempt to set photo_path and verify via Edge Function to avoid RLS
                         const patchPhotoRes = await fetch(
                             `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
                             {
@@ -493,27 +490,21 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         );
                         const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
                         if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
-                            throw new Error(
-                                'failed_to_set_photo_path: ' +
-                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
-                            );
+                            throw new Error('failed_to_set_photo_path: ' + (patchPhotoJson?.error || JSON.stringify(patchPhotoJson)));
                         }
                         const api2 = await import('@/lib/supabase');
                         const verified = await api2.fetchProfileByUserId(savedUserId!);
-                        if (!verified || verified.photo_path !== filename)
-                            throw new Error('photo_path no persistió para el cliente');
+                        if (!verified || verified.photo_path !== filename) throw new Error('photo_path no persistió para el cliente');
 
-                        // Update preview to resolved public/signed URL (prefer root filename)
                         setPhotoPreview(
                             getFilePublicUrl('profile_photos', null, filename) ||
                             getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                            null
+                            null,
                         );
                     } catch (e) {
                         logError('Error subiendo foto de cliente:', e);
                     }
                 } else {
-                    // Create profile first via Edge Function to avoid RLS restrictions
                     const lib = await import('@/lib/supabase');
                     const okSession = await lib.ensureValidSession();
                     if (!okSession) throw new Error('session_invalid');
@@ -530,29 +521,17 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     );
                     const fnJson = await fnRes.json().catch(() => null);
                     if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
+                        throw new Error('failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson)));
                     }
                     const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
                     savedUser = data;
-
-                    savedUserId =
-                        savedUser && (savedUser.id || savedUser.user)
-                            ? savedUser.id || savedUser.user
-                            : savedUser?.id || null;
+                    savedUserId = savedUser && (savedUser.id || savedUser.user) ? savedUser.id || savedUser.user : savedUser?.id || null;
 
                     try {
                         const storagePath = `${filename}`;
-                        const { data: uploadData, error: uploadErr } = await supabase.storage
+                        const { error: uploadErr } = await supabase.storage
                             .from('profile_photos')
                             .upload(storagePath, photoFile);
-                        if (uploadErr) throw uploadErr;
-                        console.debug('Upload success for cliente', {
-                            bucket: 'profile_photos',
-                            path: storagePath,
-                            data: uploadData,
-                        });
                         if (uploadErr) throw uploadErr;
 
                         const patchPhotoRes = await fetch(
@@ -565,27 +544,21 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                         );
                         const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
                         if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
-                            throw new Error(
-                                'failed_to_set_photo_path: ' +
-                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
-                            );
+                            throw new Error('failed_to_set_photo_path: ' + (patchPhotoJson?.error || JSON.stringify(patchPhotoJson)));
                         }
-                        // Update preview to resolved public/signed URL (prefer root filename)
                         setPhotoPreview(
                             getFilePublicUrl('profile_photos', null, filename) ||
                             getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                            null
+                            null,
                         );
                     } catch (e) {
                         logError('Error subiendo foto de cliente:', e);
                     }
                 }
             } else {
-                // No new file
                 if (removePhoto && cliente?.id) payload.photo_path = null;
 
                 if (cliente?.id) {
-                    // Update via Edge Function to avoid RLS
                     const lib = await import('@/lib/supabase');
                     const okSession = await lib.ensureValidSession();
                     if (!okSession) throw new Error('session_invalid');
@@ -602,15 +575,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     );
                     const fnJson = await fnRes.json().catch(() => null);
                     if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
+                        throw new Error('failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson)));
                     }
                     const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
                     savedUser = data;
                     savedUserId = cliente.id ?? savedUser?.id ?? savedUser?.user ?? null;
                 } else {
-                    // Use Edge Function to create client to bypass RLS (service role)
                     const lib = await import('@/lib/supabase');
                     const okSession = await lib.ensureValidSession();
                     if (!okSession) throw new Error('session_invalid');
@@ -627,9 +597,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     );
                     const fnJson = await fnRes.json().catch(() => null);
                     if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
+                        throw new Error('failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson)));
                     }
                     const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
                     savedUser = data;
@@ -645,68 +613,51 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                 logError('No se pudo resolver el ID de perfil para guardar los programas');
             }
 
-            // If we just created a new cliente, request the send-invite function (mirror profesional flow)
             if (!cliente?.id) {
                 try {
                     const lib = await import('@/lib/supabase');
-                    let ok = await lib.ensureValidSession();
-                    if (!ok) {
-                        alert(
-                            'La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.'
-                        );
-                    } else {
-                        let token = await lib.getAuthToken();
-                        if (!token) {
-                            console.warn('No token available after ensureValidSession()');
-                            alert(
-                                'No se pudo obtener un token válido. Por favor cierra sesión e inicia sesión de nuevo.'
-                            );
-                        } else {
-                            try {
-                                const sendInvite = await import('@/lib/invites');
-                                const inviteKey = (savedUserId as string) || formData.email || '';
-                                if (!inviteKey) throw new Error('missing_profile_id_or_email');
-                                const { res, json } = await sendInvite.default(inviteKey);
-                                if (res.ok) {
-                                    if (json?.note === 'no_email') {
-                                        alert('Invitación creada, pero el perfil no tiene correo electrónico. No se pudo enviar el email de invitación.');
-                                    } else {
-                                        setInviteToastTitle('Invitación enviada al cliente');
-                                        setShowInviteToast(true);
-                                    }
-                                } else {
-                                    const hint =
-                                        (json?.auth_error &&
-                                            (json.auth_error.message || json.auth_error.error_description)) ||
-                                        json?.message ||
-                                        json?.error ||
-                                        json?.code ||
-                                        'Error';
-                                    const debug = json?.auth_debug
-                                        ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug)
-                                        : '';
-                                    alert(
-                                        'La invitación fue creada pero no se pudo ejecutar la función de envío: ' +
-                                        hint +
-                                        debug
-                                    );
-                                }
-                            } catch (e) {
-                                console.warn('Error calling send-invite helper', e);
-                                alert('Error llamando a la función de envío: ' + (((e as any)?.message) || String(e)));
+                    const ok = await lib.ensureValidSession();
+                    if (ok) {
+                        const token = await lib.getAuthToken();
+                        if (!token) throw new Error('missing_token');
+                        const sendInvite = await import('@/lib/invites');
+                        const inviteKey = (savedUserId as string) || formData.email || '';
+                        if (!inviteKey) throw new Error('missing_profile_id_or_email');
+                        const { res, json } = await sendInvite.default(inviteKey);
+                        if (res.ok) {
+                            if (json?.note === 'no_email') {
+                                alert('Invitación creada, pero el perfil no tiene correo electrónico. No se pudo enviar el email de invitación.');
+                            } else {
+                                setInviteToastTitle('Invitación enviada al cliente');
+                                setShowInviteToast(true);
                             }
+                        } else {
+                            const hint =
+                                (json?.auth_error && (json.auth_error.message || json.auth_error.error_description)) ||
+                                json?.message ||
+                                json?.error ||
+                                json?.code ||
+                                'Error';
+                            const debug = json?.auth_debug
+                                ? '\nDetalles del servidor: ' + JSON.stringify(json.auth_debug)
+                                : '';
+                            alert('La invitación fue creada pero no se pudo ejecutar la función de envío: ' + hint + debug);
                         }
+                    } else {
+                        alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo para reenviar la invitación.');
                     }
                 } catch (e) {
                     console.warn('Error calling send-invite function', e);
                 }
             }
 
-
-
-            onSave();
-            onOpenChange(false);
+            try {
+                localStorage.setItem('tactivo.currentView', 'clientes');
+            } catch {
+                // ignore
+            }
             setRemovePhoto(false);
+            navigate(`/${companyName}/panel`);
         } catch (err) {
             logError('Error al guardar cliente:', err);
             logError('Error completo:', JSON.stringify(err, null, 2));
@@ -715,9 +666,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
             }
             const msg = String(((err as any)?.message) || err || '');
             if (msg.includes('PGRST204') || msg.includes("Could not find the 'email' column")) {
-                alert(
-                    'Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.'
-                );
+                alert('Error al guardar: parece haber un problema con la caché del esquema de PostgREST. Ve a Supabase Dashboard → Settings → API → Reload schema y prueba de nuevo.');
             } else {
                 alert(`Error al guardar el cliente: ${(err as any)?.message || 'Error desconocido'}`);
             }
@@ -731,23 +680,23 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
         try {
             setLoading(true);
-            // Ensure session is valid and attempt refresh if needed
             const lib = await import('@/lib/supabase');
             const ok = await lib.ensureValidSession();
             if (!ok) {
-                alert(
-                    'La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.'
-                );
+                alert('La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.');
                 return;
             }
-            // Request server-side deletion: removes both the profile row and the linked auth user (service role) if present.
             const api = await import('@/lib/supabase');
             const res = await api.deleteUserByProfileId(cliente.id!);
             if (!res || !res.ok) throw res?.data || res?.error || new Error('failed_to_delete_user');
 
-            onSave();
-            onOpenChange(false);
+            try {
+                localStorage.setItem('tactivo.currentView', 'clientes');
+            } catch {
+                // ignore
+            }
             setShowDeleteDialog(false);
+            navigate(`/${companyName}/panel`);
         } catch (err: any) {
             logError('Error al eliminar cliente:', err);
             alert(`Error al eliminar el cliente: ${err?.message || 'Error desconocido'}`);
@@ -759,7 +708,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
     const handleChange = (field: keyof Cliente, value: string | number) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
 
-        // Validar teléfono en tiempo real
         if (field === 'phone') {
             const phoneStr = String(value);
             if (phoneStr && !/^\d{9}$/.test(phoneStr)) {
@@ -770,42 +718,89 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         }
     };
 
+    const handleBack = () => {
+        try {
+            localStorage.setItem('tactivo.currentView', 'clientes');
+        } catch {
+            // ignore
+        }
+        navigate(`/${companyName}/panel`);
+    };
 
+    const handleViewChange = (view: ViewType) => {
+        try {
+            localStorage.setItem('tactivo.currentView', view);
+        } catch {
+            // ignore
+        }
+        setCurrentView(view);
+        navigate(`/${companyName}/panel`);
+    };
+
+    if (loadingCliente) {
+        return (
+            <SidebarProvider defaultOpen={true}>
+                <AppSidebar currentView={currentView} onViewChange={handleViewChange} />
+                <SidebarInset>
+                    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 justify-between">
+                        <h1 className="text-xl md:text-2xl font-bold">Cliente</h1>
+                        <Button variant="outline" onClick={handleBack}>
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver
+                        </Button>
+                    </header>
+                    <div className="flex flex-1 items-center justify-center">
+                        <p className="text-muted-foreground">Cargando cliente...</p>
+                    </div>
+                </SidebarInset>
+            </SidebarProvider>
+        );
+    }
 
     return (
-        <>
-            <Dialog open={open} onOpenChange={(next) => { if (!next) clientProgramsApi.resetToInitial(); onOpenChange(next); }}>
-                <DialogContent className="h-screen w-screen max-w-full max-h-full flex flex-col overflow-hidden p-0">
-                    <DialogHeader className="px-6 pt-6">
-                        <div className="flex items-center gap-2">
-                            {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
-                        </div>
-                        <DialogDescription>
-                            {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
-                        </DialogDescription>
-                    </DialogHeader>
+        <SidebarProvider defaultOpen={true}>
+            <AppSidebar currentView={currentView} onViewChange={handleViewChange} />
+            <SidebarInset>
+                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 justify-between">
+                    <h1 className="text-xl md:text-2xl font-bold">{cliente ? 'Editar Cliente' : 'Crear Cliente'}</h1>
+                    <Button variant="outline" onClick={handleBack}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver
+                    </Button>
+                </header>
+                <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">
+                    <div className="flex items-center gap-2">
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink onClick={handleBack} className="cursor-pointer">
+                                        Clientes
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <BreadcrumbPage>{cliente ? `${cliente.name} ${cliente.last_name}` : 'Nuevo Cliente'}</BreadcrumbPage>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
+                    </div>
 
-                    <div className="w-full px-6 flex-1 flex flex-col">
-                        <Tabs
-                            value={activeTab}
-                            onValueChange={setActiveTab}
-                            className="flex-1 flex flex-col overflow-hidden min-h-0"
-                        >
-                            <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="datos">Datos</TabsTrigger>
-                                <TabsTrigger value="historial" disabled={!cliente?.id}>
-                                    Citas{cliente?.id ? ` (${eventos.length})` : ''}
-                                </TabsTrigger>
-                                <TabsTrigger value="programas">Programas</TabsTrigger>
-                            </TabsList>
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+                        <TabsList className="grid w-full max-w-md grid-cols-3">
+                            <TabsTrigger value="datos">Datos</TabsTrigger>
+                            <TabsTrigger value="historial" disabled={!cliente?.id}>
+                                Citas{cliente?.id ? ` (${eventos.length})` : ''}
+                            </TabsTrigger>
+                            <TabsTrigger value="programas">Programas</TabsTrigger>
+                        </TabsList>
 
-                            <TabsContent value="datos" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
-                                <div className="h-full overflow-y-auto pr-2">
+                        <TabsContent value="datos" className="flex-1 min-h-0">
+                            <div className="mt-2 overflow-hidden pr-1">
+                                <div className="grid w-full gap-6 rounded-lg border bg-card p-4 shadow-sm">
                                     <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6">
-                                        {/* Campos Obligatorios reorganizados */}
-                                        <div className="space-y-6">
-                                            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start">
+                                        <div className="space-y-8">
+                                            {/* Fila 1 */}
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="name">Nombre *</Label>
                                                     <Input
@@ -813,19 +808,9 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         value={formData.name || ''}
                                                         onChange={(e) => handleChange('name', e.target.value)}
                                                         required
+                                                        className="h-11"
                                                         ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
                                                     />
-
-                                                    <Label className="mt-4" htmlFor="phone">Teléfono *</Label>
-                                                    <Input
-                                                        id="phone"
-                                                        type="tel"
-                                                        value={formData.phone || ''}
-                                                        onChange={(e) => handleChange('phone', e.target.value)}
-                                                        className={phoneError ? 'border-red-500' : ''}
-                                                        required
-                                                    />
-                                                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -835,36 +820,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         value={formData.last_name || ''}
                                                         onChange={(e) => handleChange('last_name', e.target.value)}
                                                         required
+                                                        className="h-11"
                                                     />
-
-                                                    <div className="mt-4">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Label htmlFor="email">Email *</Label>
-                                                            {!cliente?.id && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <span className="inline-flex">
-                                                                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                                                                            </span>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
-                                                                            <p>Al crear el perfil, se enviará un correo de invitación al usuario</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                        </div>
-                                                        <Input
-                                                            id="email"
-                                                            type="email"
-                                                            value={formData.email || ''}
-                                                            onChange={(e) => handleChange('email', e.target.value)}
-                                                            disabled={!!cliente?.id}
-                                                            readOnly={!!cliente?.id}
-                                                            required
-                                                        />
-                                                    </div>
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -874,75 +831,126 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         value={formData.dni || ''}
                                                         onChange={(e) => handleChange('dni', e.target.value)}
                                                         required
-                                                    />
-
-                                                    <Label className="mt-4" htmlFor="address">Dirección</Label>
-                                                    <Input
-                                                        id="address"
-                                                        value={formData.address || ''}
-                                                        onChange={(e) => handleChange('address', e.target.value)}
+                                                        className="h-11"
                                                     />
                                                 </div>
 
-                                                {/* Foto arriba a la derecha */}
+                                                {/* Foto */}
                                                 <div className="space-y-2 flex flex-col items-end w-full">
                                                     <Label htmlFor="photo" className="w-full text-right pr-6">Foto</Label>
                                                     <div className="w-full flex justify-end pr-6">
-                                                        <Input
-                                                            id="photo"
-                                                            type="file"
-                                                            accept="image/*"
-                                                            className="hidden"
-                                                            onChange={(e) => {
-                                                                const file = e.target.files?.[0];
-                                                                if (file) {
-                                                                    setPhotoFile(file);
-                                                                    setRemovePhoto(false);
-                                                                    // Crear preview
-                                                                    const reader = new FileReader();
-                                                                    reader.onloadend = () => {
-                                                                        setPhotoPreview(reader.result as string);
-                                                                    };
-                                                                    reader.readAsDataURL(file);
-                                                                }
-                                                            }}
-                                                        />
+                                                        <div>
+                                                            <Input
+                                                                id="photo"
+                                                                type="file"
+                                                                accept="image/*"
+                                                                className="hidden"
+                                                                onChange={(e) => {
+                                                                    const file = e.target.files?.[0];
+                                                                    if (file) {
+                                                                        setPhotoFile(file);
+                                                                        setRemovePhoto(false);
+                                                                        const reader = new FileReader();
+                                                                        reader.onloadend = () => {
+                                                                            setPhotoPreview(reader.result as string);
+                                                                        };
+                                                                        reader.readAsDataURL(file);
+                                                                    }
+                                                                }}
+                                                            />
 
-                                                        <div className="relative mt-2 flex justify-end">
-                                                            <label htmlFor="photo" className="w-32 h-32 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground cursor-pointer">
-                                                                {photoPreview ? (
-                                                                    <img src={photoPreview} alt="Preview" className="object-cover w-full h-full" />
-                                                                ) : (
-                                                                    <span>Foto</span>
+                                                            <div className="relative mt-2">
+                                                                <label htmlFor="photo" className="w-32 h-32 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground cursor-pointer">
+                                                                    {photoPreview ? (
+                                                                        <img src={photoPreview} alt="Preview" className="object-cover w-full h-full" />
+                                                                    ) : (
+                                                                        <span>Foto</span>
+                                                                    )}
+                                                                </label>
+
+                                                                {/* Delete overlay */}
+                                                                {(photoPreview || photoFile || (formData.photo && !removePhoto)) && (
+                                                                    <ActionButton
+                                                                        tooltip="Eliminar foto"
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault();
+                                                                            e.stopPropagation();
+                                                                            setPhotoFile(null);
+                                                                            setPhotoPreview(null);
+                                                                            setRemovePhoto(true);
+                                                                            setFormData((prev) => ({ ...prev, photo: '' }));
+                                                                            const input = document.getElementById('photo') as HTMLInputElement;
+                                                                            if (input) input.value = '';
+                                                                        }}
+                                                                        className="absolute top-1 right-1 inline-flex items-center justify-center h-6 w-6 rounded-md bg-white shadow border border-border text-red-600 no-hover-color"
+                                                                        aria-label="Eliminar foto"
+                                                                    >
+                                                                        <Trash className="h-3 w-3" />
+                                                                    </ActionButton>
                                                                 )}
-                                                            </label>
-
-                                                            {/* Delete overlay */}
-                                                            {(photoPreview || photoFile || (formData.photo && !removePhoto)) && (
-                                                                <ActionButton
-                                                                    tooltip="Eliminar foto"
-                                                                    onClick={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                        setPhotoFile(null);
-                                                                        setPhotoPreview(null);
-                                                                        setRemovePhoto(true);
-                                                                        setFormData((prev) => ({ ...prev, photo: '' }));
-                                                                        // Reset file input
-                                                                        const input = document.getElementById('photo') as HTMLInputElement;
-                                                                        if (input) input.value = '';
-                                                                    }}
-                                                                    className="absolute top-1 right-1 inline-flex items-center justify-center h-6 w-6 rounded-md bg-white shadow border border-border text-red-600 no-hover-color"
-                                                                    aria-label="Eliminar foto"
-                                                                >
-                                                                    <Trash className="h-3 w-3" />
-                                                                </ActionButton>
-                                                            )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
+                                            {/* Fila 2 */}
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="phone">Teléfono *</Label>
+                                                    <Input
+                                                        id="phone"
+                                                        type="tel"
+                                                        value={formData.phone || ''}
+                                                        onChange={(e) => handleChange('phone', e.target.value)}
+                                                        className={`${phoneError ? 'border-red-500' : ''} h-11`}
+                                                        required
+                                                    />
+                                                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
+                                                </div>
+
+                                                <div className="space-y-2 pt-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Label htmlFor="email">Email *</Label>
+                                                        {!cliente?.id && (
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span className="inline-flex">
+                                                                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                                        <p>Al crear el perfil, se enviará un correo de invitación al usuario</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        )}
+                                                    </div>
+                                                    <Input
+                                                        id="email"
+                                                        type="email"
+                                                        value={formData.email || ''}
+                                                        onChange={(e) => handleChange('email', e.target.value)}
+                                                        disabled={!!cliente?.id}
+                                                        readOnly={!!cliente?.id}
+                                                        required
+                                                        className="h-11 disabled:bg-white disabled:text-foreground disabled:border-input disabled:opacity-100"
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2 md:col-span-2">
+                                                    <Label className="" htmlFor="address">Dirección</Label>
+                                                    <Input
+                                                        id="address"
+                                                        value={formData.address || ''}
+                                                        onChange={(e) => handleChange('address', e.target.value)}
+                                                        className="h-11"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Fila 3 */}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="session_credits">Sesiones *</Label>
@@ -952,6 +960,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         value={String(formData.session_credits ?? '')}
                                                         onChange={(e) => handleChange('session_credits', e.target.value)}
                                                         required
+                                                        className="h-11"
                                                     />
                                                 </div>
 
@@ -963,86 +972,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         value={String(formData.class_credits ?? '')}
                                                         onChange={(e) => handleChange('class_credits', e.target.value)}
                                                         required
+                                                        className="h-11"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
 
-                                        {/* Campos Opcionales */}
                                         <div className="space-y-6 pt-4 border-t">
-                                            {/* Foto y Dirección en la misma línea */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="photo">Foto</Label>
-                                                    <div className="space-y-2">
-                                                        <div className="relative">
-                                                            <Input
-                                                                id="photo"
-                                                                type="file"
-                                                                accept="image/*"
-                                                                className="hidden"
-                                                                onChange={(e) => {
-                                                                    const file = e.target.files?.[0];
-                                                                    if (file) {
-                                                                        setPhotoFile(file);
-                                                                        setRemovePhoto(false);
-                                                                        // Crear preview
-                                                                        const reader = new FileReader();
-                                                                        reader.onloadend = () => {
-                                                                            setPhotoPreview(reader.result as string);
-                                                                        };
-                                                                        reader.readAsDataURL(file);
-                                                                    }
-                                                                }}
-                                                            />
-                                                            <label
-                                                                htmlFor="photo"
-                                                                className="flex items-center justify-between h-10 px-3 py-2 text-sm rounded-md border border-border bg-background cursor-pointer hover:bg-muted hover:text-foreground"
-                                                            >
-                                                                <span>{photoFile ? photoFile.name : 'Elegir archivo'}</span>
-                                                                {(photoFile || photoPreview) && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault();
-                                                                            setPhotoFile(null);
-                                                                            setPhotoPreview(null);
-                                                                            setRemovePhoto(true);
-                                                                            setFormData((prev) => ({ ...prev, photo: '' }));
-                                                                            // Reset file input
-                                                                            const input = document.getElementById(
-                                                                                'photo'
-                                                                            ) as HTMLInputElement;
-                                                                            if (input) input.value = '';
-                                                                        }}
-                                                                        className="ml-2 text-foreground hover:text-destructive text-lg font-semibold"
-                                                                    >
-                                                                        ×
-                                                                    </button>
-                                                                )}
-                                                            </label>
-                                                        </div>
-                                                        {photoPreview && (
-                                                            <div className="relative w-1/2 aspect-square rounded-lg overflow-hidden border">
-                                                                <img
-                                                                    src={photoPreview}
-                                                                    alt="Preview"
-                                                                    className="object-cover w-full h-full"
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
 
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="address">Dirección</Label>
-                                                    <Input
-                                                        id="address"
-                                                        value={formData.address || ''}
-                                                        onChange={(e) => handleChange('address', e.target.value)}
-                                                    />
-                                                </div>
-                                            </div>
 
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
@@ -1051,15 +988,10 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className={cn(
-                                                                    'w-full justify-start text-left font-normal h-10',
-                                                                    !fechaNacimiento && 'text-muted-foreground'
-                                                                )}
+                                                                className={cn('w/full justify-start text-left font-normal h-10', !fechaNacimiento && 'text-muted-foreground')}
                                                             >
                                                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                                                {fechaNacimiento
-                                                                    ? format(fechaNacimiento, 'dd/MM/yyyy')
-                                                                    : 'Seleccionar fecha'}
+                                                                {fechaNacimiento ? format(fechaNacimiento, 'dd/MM/yyyy') : 'Seleccionar fecha'}
                                                             </Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto p-0">
@@ -1078,11 +1010,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
                                                 <div className="space-y-2">
                                                     <Label>Edad</Label>
-                                                    <Input
-                                                        value={edad !== null ? `${edad} años` : ''}
-                                                        disabled
-                                                        className="bg-muted h-10"
-                                                    />
+                                                    <Input value={edad !== null ? `${edad} años` : ''} disabled className="bg-muted h-10" />
                                                 </div>
                                             </div>
 
@@ -1093,6 +1021,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         id="occupation"
                                                         value={formData.occupation || ''}
                                                         onChange={(e) => handleChange('occupation', e.target.value)}
+                                                        className="h-11"
                                                     />
                                                 </div>
 
@@ -1102,17 +1031,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         id="sport"
                                                         value={formData.sport || ''}
                                                         onChange={(e) => handleChange('sport', e.target.value)}
+                                                        className="h-11"
                                                     />
                                                 </div>
                                             </div>
 
                                             <Collapsible className="rounded-lg border">
                                                 <CollapsibleTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50"
-                                                        type="button"
-                                                    >
+                                                    <Button variant="ghost" className="w/full justify-between p-4 h-auto rounded-none hover:bg-muted/50" type="button">
                                                         <span className="font-semibold">Información Adicional</span>
                                                         <ChevronDown className="h-4 w-4" />
                                                     </Button>
@@ -1121,34 +1047,22 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     <div className="border-t bg-muted/30 p-4 space-y-4">
                                                         <div className="space-y-2">
                                                             <Label>Antecedentes</Label>
-                                                            <LazyRichTextEditor
-                                                                value={formData.history || ''}
-                                                                onChange={(value) => handleChange('history', value)}
-                                                            />
+                                                            <LazyRichTextEditor value={formData.history || ''} onChange={(value) => handleChange('history', value)} />
                                                         </div>
 
                                                         <div className="space-y-2">
                                                             <Label>Diagnóstico</Label>
-                                                            <LazyRichTextEditor
-                                                                value={formData.diagnosis || ''}
-                                                                onChange={(value) => handleChange('diagnosis', value)}
-                                                            />
+                                                            <LazyRichTextEditor value={formData.diagnosis || ''} onChange={(value) => handleChange('diagnosis', value)} />
                                                         </div>
 
                                                         <div className="space-y-2">
                                                             <Label>Alergias</Label>
-                                                            <LazyRichTextEditor
-                                                                value={formData.allergies || ''}
-                                                                onChange={(value) => handleChange('allergies', value)}
-                                                            />
+                                                            <LazyRichTextEditor value={formData.allergies || ''} onChange={(value) => handleChange('allergies', value)} />
                                                         </div>
 
                                                         <div className="space-y-2">
                                                             <Label>Notas</Label>
-                                                            <LazyRichTextEditor
-                                                                value={formData.notes || ''}
-                                                                onChange={(value) => handleChange('notes', value)}
-                                                            />
+                                                            <LazyRichTextEditor value={formData.notes || ''} onChange={(value) => handleChange('notes', value)} />
                                                         </div>
                                                     </div>
                                                 </CollapsibleContent>
@@ -1156,14 +1070,20 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         </div>
                                     </form>
                                 </div>
-                            </TabsContent>
-                            <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
-                                <div className="h-full overflow-y-auto pr-2">
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="programas" className="flex-1 min-h-0">
+                            <div className="mt-6 overflow-hidden pr-1">
+                                <div className="h-full overflow-y-auto rounded-lg border bg-card p-6 shadow-sm">
                                     <ClientPrograms api={clientProgramsApi} />
                                 </div>
-                            </TabsContent>
-                            <TabsContent value="historial" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
-                                <div className="h-full overflow-y-auto pr-2">
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="historial" className="flex-1 min-h-0">
+                            <div className="mt-6 overflow-hidden pr-1">
+                                <div className="h-full overflow-y-auto rounded-lg border bg-card p-4 shadow-sm">
                                     {loadingEventos ? (
                                         <div className="flex items-center justify-center py-8">
                                             <p className="text-muted-foreground">Cargando historial...</p>
@@ -1173,7 +1093,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                             <p className="text-muted-foreground">No hay citas registradas</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-2 py-4">
+                                        <div className="space-y-2">
                                             {eventos.map((evento) => {
                                                 const fecha = new Date(evento.datetime);
                                                 const profesionalNames = Array.isArray(evento.expand?.professional)
@@ -1191,9 +1111,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                 <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                                                 <div>
                                                                     <p className="text-sm">{format(fecha, 'dd/MM/yyyy')}</p>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {format(fecha, 'HH:mm')}
-                                                                    </p>
+                                                                    <p className="text-sm text-muted-foreground">{format(fecha, 'HH:mm')}</p>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2 col-span-2">
@@ -1218,11 +1136,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                                 )}
                                                             </div>
                                                             <div className="flex justify-end">
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() => handleEditEvent(evento.id!)}
-                                                                >
+                                                                <Button variant="ghost" size="icon" onClick={() => handleEditEvent(evento.id!)}>
                                                                     <Pencil className="h-4 w-4" />
                                                                 </Button>
                                                             </div>
@@ -1233,66 +1147,64 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         </div>
                                     )}
                                 </div>
-                            </TabsContent>
-                        </Tabs>
-
-                        <DialogFooter className="mt-4 px-6 pb-6 sm:justify-between">
-                            <div className="flex w-full justify-between">
-                                <div>
-                                    {cliente?.id && activeTab === 'datos' && (
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            onClick={() => setShowDeleteDialog(true)}
-                                            disabled={loading}
-                                        >
-                                            Eliminar
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button type="button" variant="outline" onClick={() => { clientProgramsApi.resetToInitial(); onOpenChange(false); }}>
-                                        Cancelar
-                                    </Button>
-                                    <Button type="button" onClick={(e) => handleSubmit(e as any)} disabled={loading}>
-                                        {loading ? 'Guardando...' : 'Guardar'}
-                                    </Button>
-                                </div>
                             </div>
-                        </DialogFooter>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+
+                <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:px-6">
+                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+                        <div>
+                            {cliente?.id && activeTab === 'datos' && (
+                                <Button type="button" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={loading}>
+                                    Eliminar
+                                </Button>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    clientProgramsApi.resetToInitial();
+                                    handleBack();
+                                }}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button type="button" onClick={(e) => handleSubmit(e as any)} disabled={isSaveDisabled}>
+                                {loading ? 'Guardando...' : 'Guardar'}
+                            </Button>
+                        </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+                </div>
 
-            <EventDialog
-                open={eventDialogOpen}
-                onOpenChange={(open) => setEventDialogOpen(open)}
-                event={selectedEvent}
-                onSave={handleEventSaved}
-            />
+                <EventDialog
+                    open={eventDialogOpen}
+                    onOpenChange={(open) => setEventDialogOpen(open)}
+                    event={selectedEvent}
+                    onSave={handleEventSaved}
+                />
 
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Eliminar
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+                            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Eliminar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
-            {showInviteToast && inviteToastTitle && (
-                <InviteToast title={inviteToastTitle} durationMs={2500} onClose={() => setShowInviteToast(false)} />
-            )}
-
-        </>
+                {showInviteToast && inviteToastTitle && (
+                    <InviteToast title={inviteToastTitle} durationMs={2500} onClose={() => setShowInviteToast(false)} />
+                )}
+            </SidebarInset>
+        </SidebarProvider>
     );
 }
