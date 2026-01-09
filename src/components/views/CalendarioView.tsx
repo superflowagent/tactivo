@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 const FullCalendarLazy = lazy(() => import('./FullCalendarWrapper'));
+import CalendarioList from './CalendarioList';
 import {
   Select,
   SelectContent,
@@ -43,6 +44,11 @@ export function CalendarioView() {
   // Client credits state (only used when logged in as a client)
   const [clientCredits, setClientCredits] = useState<number | null>(null);
   const isMobile = useIsMobile();
+
+  // Vista seleccionada ('Mes' | 'Semana' | 'Día' | 'Lista')
+  const [selectedView, setSelectedView] = useState<string>(isMobile ? 'Día' : 'Semana');
+  const calendarRef = useRef<any>(null);
+
 
   // Avoid frequent reloads (e.g., when returning from another tab)
   // by tracking last load time and ignoring reload attempts that happen
@@ -277,6 +283,16 @@ export function CalendarioView() {
     filterEvents();
   }, [filterEvents]);
 
+  // Si cambiamos la vista (desde el selector), pedir al calendario que cambie de vista
+  useEffect(() => {
+    if (selectedView === 'Lista') return;
+    const viewName = selectedView === 'Mes' ? 'dayGridMonth' : selectedView === 'Día' ? 'timeGridDay' : 'timeGridWeek';
+    const api = calendarRef.current?.getApi?.();
+    if (api && typeof api.changeView === 'function') {
+      api.changeView(viewName);
+    }
+  }, [selectedView]);
+
   const handleDateClick = (arg: any) => {
     // Clientes no pueden crear eventos desde el calendario (sin funcionalidad por ahora)
     if (isClient) return;
@@ -461,6 +477,22 @@ export function CalendarioView() {
             </label>
           </div>
         )}
+
+        {/* Selector de vista: Mes / Semana / Día / Lista */}
+        <div className="w-full sm:w-40">
+          <Select value={selectedView} onValueChange={setSelectedView}>
+            <SelectTrigger className="section-search">
+              <SelectValue placeholder="Vista" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Mes">Mes</SelectItem>
+              <SelectItem value="Semana">Semana</SelectItem>
+              <SelectItem value="Día">Día</SelectItem>
+              <SelectItem value="Lista">Lista</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {(searchQuery || selectedProfessional !== 'all') && (
           <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
             Limpiar filtros
@@ -496,38 +528,60 @@ export function CalendarioView() {
               const closeTime = company?.close_time || '20:00';
 
               return (
-                <FullCalendarLazy
-                  initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
-                  headerToolbar={{
-                    left: isMobile ? 'prev,next' : 'prev,next today',
-                    center: 'title',
-                    right: isMobile ? 'today' : 'dayGridMonth,timeGridWeek,timeGridDay',
-                  }}
-                  buttonText={{
-                    today: 'Hoy',
-                    month: 'Mes',
-                    week: 'Semana',
-                    day: 'Día',
-                  }}
-                  slotMinTime={openTime}
-                  slotMaxTime={closeTime}
-                  allDaySlot={false}
-                  height="100%"
-                  contentHeight="auto"
-                  slotDuration="00:30:00"
-                  events={filteredEvents}
-                  dateClick={handleDateClick}
-                  eventClick={handleEventClick}
-                  editable={true}
-                  selectable={!isClient}
-                  selectMirror={!isClient}
-                  dayMaxEvents={true}
-                  weekends={true}
-                  eventDrop={handleEventDrop}
-                  eventResize={handleEventResize}
-                  titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
-                  dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
-                />
+                <div className={`calendar-wrapper ${selectedView === 'Lista' ? 'calendar--list' : ''}`}>
+                  <FullCalendarLazy
+                    ref={calendarRef}
+                    initialView={selectedView === 'Mes' ? 'dayGridMonth' : selectedView === 'Día' ? 'timeGridDay' : 'timeGridWeek'}
+                    headerToolbar={{
+                      left: isMobile ? 'prev,next' : 'prev,next today',
+                      center: 'title',
+                      right: isMobile ? 'today,listButton' : 'dayGridMonth,timeGridWeek,timeGridDay,listButton',
+                    }}
+                    customButtons={{
+                      listButton: {
+                        text: 'Lista',
+                        click: () => setSelectedView('Lista'),
+                      },
+                    }}
+                    buttonText={{
+                      today: 'Hoy',
+                      month: 'Mes',
+                      week: 'Semana',
+                      day: 'Día',
+                    }}
+                    slotMinTime={openTime}
+                    slotMaxTime={closeTime}
+                    allDaySlot={false}
+                    height="100%"
+                    contentHeight="auto"
+                    slotDuration="00:30:00"
+                    events={filteredEvents}
+                    dateClick={handleDateClick}
+                    eventClick={handleEventClick}
+                    datesSet={(arg: any) => {
+                      // Keep the external selector in sync with built-in calendar buttons
+                      const t = arg.view.type;
+                      if (t === 'dayGridMonth') setSelectedView('Mes');
+                      else if (t === 'timeGridDay') setSelectedView('Día');
+                      else setSelectedView('Semana');
+                    }}
+                    editable={true}
+                    selectable={!isClient}
+                    selectMirror={!isClient}
+                    dayMaxEvents={true}
+                    weekends={true}
+                    eventDrop={handleEventDrop}
+                    eventResize={handleEventResize}
+                    titleFormat={isMobile ? { month: 'short', day: 'numeric' } : undefined}
+                    dayHeaderFormat={isMobile ? { weekday: 'short', day: 'numeric' } : undefined}
+                  />
+
+                  {selectedView === 'Lista' && (
+                    <div className="calendar-list-slot mt-0">
+                      <CalendarioList events={filteredEvents} onRowClick={handleEventClick} onDeleteComplete={() => loadEvents()} canDelete={!isClient} />
+                    </div>
+                  )}
+                </div>
               );
             })()}
           </Suspense>

@@ -604,10 +604,10 @@ export function EjerciciosView() {
               return (
                 <Card
                   key={exercise.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
+                  className="overflow-hidden hover:shadow-lg transition-shadow h-48 sm:h-56 md:h-64 flex flex-col"
                 >
                   {/* Card Header: Título, Edit Button y Badges */}
-                  <CardHeader className="py-2 px-4">
+                  <CardHeader className="py-2 px-4 min-h-20">
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
                         {exercise.name}
@@ -670,6 +670,7 @@ export function EjerciciosView() {
                               getFilePublicUrl('exercise_videos', exercise.id, exercise.file) ||
                               undefined
                             }
+                            className="w-full h-full object-cover"
                           />
                         )}
 

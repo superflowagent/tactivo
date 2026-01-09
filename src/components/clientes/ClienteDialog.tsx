@@ -1,13 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { format } from 'date-fns';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+/* DELETED: ClienteDialog removed — use the client page at /:companyName/panel/cliente/:uid instead */
+
+export default function ClienteDialog() {
+    return null as any;
+}
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -63,12 +58,220 @@ interface ClienteDialogProps {
     initialTab?: 'datos' | 'programas';
 }
 
-export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab }: ClienteDialogProps) {
+export function ClienteDialog() {
+    // DEPRECATED: component removed. Use the client page at /:companyName/panel/cliente/:uid instead.
+    return null as any;
 
-    const { companyId } = useAuth();
-    const clientProgramsApi = useClientPrograms({ cliente, companyId });
-    const nameInputRef = useRef<HTMLInputElement | null>(null);
-    const [formData, setFormData] = useState<Cliente>({
+    company: '',
+        session_credits: 0,
+            class_credits: 0,
+    });
+const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined);
+const [edad, setEdad] = useState<number | null>(null);
+const [loading, setLoading] = useState(false);
+const [photoFile, setPhotoFile] = useState<File | null>(null);
+const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+const [removePhoto, setRemovePhoto] = useState(false);
+const [phoneError, setPhoneError] = useState<string>('');
+const [eventos, setEventos] = useState<Event[]>([]);
+const [loadingEventos, setLoadingEventos] = useState(false);
+const [eventDialogOpen, setEventDialogOpen] = useState(false);
+const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+const [activeTab, setActiveTab] = useState('datos');
+
+// If the parent requests a specific tab when opening, apply it when the dialog is shown
+useEffect(() => {
+    if (open) {
+        setActiveTab(initialTab ?? 'datos');
+    }
+}, [open, initialTab]);
+
+const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+const [showInviteToast, setShowInviteToast] = useState(false);
+const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
+// Local indicator fallback for pending changes (in case hook API is not available immediately)
+const [localPendingChanges, setLocalPendingChanges] = useState(false);
+
+// Resolve existing customer photo URL (public or signed)
+const resolvedClientePhoto = useResolvedFileUrl(
+    'profile_photos',
+    cliente?.id || null,
+    cliente?.photo_path || null
+);
+
+// Helper function to calculate age
+const calcularEdad = useCallback((fecha: Date) => {
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - fecha.getFullYear();
+    const mes = hoy.getMonth() - fecha.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < fecha.getDate())) {
+        edad--;
+    }
+    setEdad(edad);
+}, []);
+
+// Load events for the client
+const loadEventos = useCallback(async (clienteId: string) => {
+    if (!clienteId) return;
+
+    setLoadingEventos(true);
+    try {
+        // Resolve profile row for the given clienteId (could be user id or profile id)
+        let resolvedProfileId: string | null = null;
+        let resolvedUserId: string | null = null;
+        try {
+            const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId], p_company: companyId });
+            if (!profErr && profRows && (profRows as any[]).length > 0) {
+                const row = (profRows as any[])[0];
+                resolvedProfileId = row.id ?? null;
+                resolvedUserId = row.user ?? null;
+            } else {
+                // Fallback: try selecting the profile row directly (may succeed if RPC is restricted)
+                try {
+                    const { data: profileRow, error: selectErr } = await supabase.from('profiles').select('id, user').eq('id', clienteId).limit(1).maybeSingle();
+                    if (!selectErr && profileRow) {
+                        resolvedProfileId = profileRow.id ?? null;
+                        resolvedUserId = profileRow.user ?? null;
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+        } catch {
+            // ignore resolution errors, we'll fallback to simple matching
+        }
+
+        const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+            p_company: companyId,
+        });
+        if (error) throw error;
+        const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+
+        // (removed debug logging)
+
+        // helper to check client membership supporting either profile id or user id stored in event.client
+        // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
+        const clientMatches = (clientsField: any, pid: string, resolvedProfile: string | null, resolvedUser: string | null) => {
+            const arr = Array.isArray(clientsField) ? clientsField : (clientsField ? [clientsField] : []);
+            if (!arr || arr.length === 0) return false;
+            const normalized = arr.map((x: any) => String(x));
+            const pidStr = String(pid);
+            if (normalized.includes(pidStr)) return true;
+            if (resolvedProfile && normalized.includes(String(resolvedProfile))) return true;
+            if (resolvedUser && normalized.includes(String(resolvedUser))) return true;
+            return false;
+        };
+
+        const records = (recordsAll || []).filter((r: any) => {
+            // Some RPC rows may use different fields/names for client lists (client, client_user_ids, clientUserIds, etc.) — try all common ones
+            const clientsField = r.client ?? r.client_user_ids ?? r.clientUserIds ?? r.clients ?? r.clientIds ?? null;
+            return clientMatches(clientsField, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment';
+        });
+
+        // Enrich professional field
+        const profIds = new Set<string>();
+        (records || []).forEach((r: any) => {
+            const pros = Array.isArray(r.professional)
+                ? r.professional
+                : r.professional
+                    ? [r.professional]
+                    : [];
+            pros.forEach((id: string) => profIds.add(id));
+        });
+        let profileMap: Record<string, any> = {};
+        if (profIds.size > 0) {
+            const ids = Array.from(profIds);
+            const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+            profileMap = profilesMap || {};
+        }
+        const enriched = (records || []).map((r: any) => ({
+            ...r,
+            expand: {
+                professional: (Array.isArray(r.professional)
+                    ? r.professional
+                    : r.professional
+                        ? [r.professional]
+                        : []
+                )
+                    .map((id: string) => profileMap[id] || null)
+                    .filter(Boolean),
+            },
+        }));
+        const sorted = (enriched || []).slice().sort((a: any, b: any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
+        setEventos(sorted);
+    } catch (err) {
+        logError('Error al cargar eventos:', err);
+    } finally {
+        setLoadingEventos(false);
+    }
+}, [companyId]);
+
+const ensureAuthoritativeEmail = useCallback(async (clienteId?: string) => {
+    if (!clienteId) return;
+    try {
+        if (!cliente?.email) {
+            const api = await import('@/lib/supabase');
+            const profile = await api.fetchProfileByUserId(clienteId);
+            if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
+        }
+    } catch (err) {
+        logError('Error fetching authoritative email for client', err);
+    }
+}, [cliente]);
+
+useEffect(() => {
+    if (cliente) {
+        setFormData((prev) => ({
+            ...prev,
+            id: cliente.id,
+            name: cliente.name || '',
+            last_name: cliente.last_name || '',
+            dni: cliente.dni || '',
+            email: cliente.email || '',
+            phone: cliente.phone || '',
+            company: cliente.company || '',
+            session_credits: cliente.session_credits ?? 0,
+            class_credits: cliente.class_credits ?? 0,
+            photo: cliente.photo || '',
+            photo_path: cliente.photo_path ?? null,
+            birth_date: cliente.birth_date ?? undefined,
+            address: cliente.address || '',
+            occupation: cliente.occupation || '',
+            sport: cliente.sport || '',
+            history: cliente.history || '',
+            diagnosis: cliente.diagnosis || '',
+            allergies: cliente.allergies || '',
+            notes: cliente.notes || '',
+        }));
+        if (cliente.birth_date) {
+            const date = new Date(cliente.birth_date);
+            setFechaNacimiento(date);
+            calcularEdad(date);
+        }
+
+        // Cargar events y asegurar email actualizado
+        ensureAuthoritativeEmail(cliente.id!);
+
+        loadEventos(cliente.id!);
+    } else {
+        resetFormData();
+    }
+    setPhoneError('');
+
+    // Autofocus removed per UX decision
+}, [cliente, open, ensureAuthoritativeEmail, loadEventos]);
+
+// Update photo preview when the resolved URL or the selected file changes (without touching formData)
+useEffect(() => {
+    if (cliente?.photo_path) {
+        if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
+    } else {
+        setPhotoPreview(null);
+    }
+}, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
+
+const resetFormData = () => {
+    setFormData({
         name: '',
         last_name: '',
         dni: '',
@@ -78,573 +281,358 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
         session_credits: 0,
         class_credits: 0,
     });
-    const [fechaNacimiento, setFechaNacimiento] = useState<Date | undefined>(undefined);
-    const [edad, setEdad] = useState<number | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [photoFile, setPhotoFile] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [removePhoto, setRemovePhoto] = useState(false);
-    const [phoneError, setPhoneError] = useState<string>('');
-    const [eventos, setEventos] = useState<Event[]>([]);
-    const [loadingEventos, setLoadingEventos] = useState(false);
-    const [eventDialogOpen, setEventDialogOpen] = useState(false);
-    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-    const [activeTab, setActiveTab] = useState('datos');
+    setFechaNacimiento(undefined);
+    setEdad(null);
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setRemovePhoto(false);
+    setEventos([]);
+};
 
-    // If the parent requests a specific tab when opening, apply it when the dialog is shown
-    useEffect(() => {
-        if (open) {
-            setActiveTab(initialTab ?? 'datos');
-        }
-    }, [open, initialTab]);
-
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-    const [showInviteToast, setShowInviteToast] = useState(false);
-    const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
-
-    // Resolve existing customer photo URL (public or signed)
-    const resolvedClientePhoto = useResolvedFileUrl(
-        'profile_photos',
-        cliente?.id || null,
-        cliente?.photo_path || null
-    );
-
-    // Helper function to calculate age
-    const calcularEdad = useCallback((fecha: Date) => {
-        const hoy = new Date();
-        let edad = hoy.getFullYear() - fecha.getFullYear();
-        const mes = hoy.getMonth() - fecha.getMonth();
-        if (mes < 0 || (mes === 0 && hoy.getDate() < fecha.getDate())) {
-            edad--;
-        }
-        setEdad(edad);
-    }, []);
-
-    // Load events for the client
-    const loadEventos = useCallback(async (clienteId: string) => {
-        if (!clienteId) return;
-
-        setLoadingEventos(true);
-        try {
-            // Resolve profile row for the given clienteId (could be user id or profile id)
-            let resolvedProfileId: string | null = null;
-            let resolvedUserId: string | null = null;
-            try {
-                const { data: profRows, error: profErr } = await supabase.rpc('get_profiles_by_ids_for_clients', { p_ids: [clienteId], p_company: companyId });
-                if (!profErr && profRows && (profRows as any[]).length > 0) {
-                    const row = (profRows as any[])[0];
-                    resolvedProfileId = row.id ?? null;
-                    resolvedUserId = row.user ?? null;
-                } else {
-                    // Fallback: try selecting the profile row directly (may succeed if RPC is restricted)
-                    try {
-                        const { data: profileRow, error: selectErr } = await supabase.from('profiles').select('id, user').eq('id', clienteId).limit(1).maybeSingle();
-                        if (!selectErr && profileRow) {
-                            resolvedProfileId = profileRow.id ?? null;
-                            resolvedUserId = profileRow.user ?? null;
-                        }
-                    } catch {
-                        // ignore
-                    }
-                }
-            } catch {
-                // ignore resolution errors, we'll fallback to simple matching
-            }
-
-            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
-                p_company: companyId,
-            });
-            if (error) throw error;
-            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
-
-            // (removed debug logging)
-
-            // helper to check client membership supporting either profile id or user id stored in event.client
-            // Normalize values to strings to avoid mismatches between numeric/uuid/string storage in events.client
-            const clientMatches = (clientsField: any, pid: string, resolvedProfile: string | null, resolvedUser: string | null) => {
-                const arr = Array.isArray(clientsField) ? clientsField : (clientsField ? [clientsField] : []);
-                if (!arr || arr.length === 0) return false;
-                const normalized = arr.map((x: any) => String(x));
-                const pidStr = String(pid);
-                if (normalized.includes(pidStr)) return true;
-                if (resolvedProfile && normalized.includes(String(resolvedProfile))) return true;
-                if (resolvedUser && normalized.includes(String(resolvedUser))) return true;
-                return false;
-            };
-
-            const records = (recordsAll || []).filter((r: any) => {
-                // Some RPC rows may use different fields/names for client lists (client, client_user_ids, clientUserIds, etc.) — try all common ones
-                const clientsField = r.client ?? r.client_user_ids ?? r.clientUserIds ?? r.clients ?? r.clientIds ?? null;
-                return clientMatches(clientsField, clienteId, resolvedProfileId, resolvedUserId) && r.type === 'appointment';
-            });
-
-            // Enrich professional field
-            const profIds = new Set<string>();
-            (records || []).forEach((r: any) => {
-                const pros = Array.isArray(r.professional)
-                    ? r.professional
-                    : r.professional
-                        ? [r.professional]
-                        : [];
-                pros.forEach((id: string) => profIds.add(id));
-            });
-            let profileMap: Record<string, any> = {};
-            if (profIds.size > 0) {
-                const ids = Array.from(profIds);
-                const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
-                profileMap = profilesMap || {};
-            }
-            const enriched = (records || []).map((r: any) => ({
-                ...r,
-                expand: {
-                    professional: (Array.isArray(r.professional)
-                        ? r.professional
-                        : r.professional
-                            ? [r.professional]
-                            : []
-                    )
-                        .map((id: string) => profileMap[id] || null)
-                        .filter(Boolean),
-                },
-            }));
-            const sorted = (enriched || []).slice().sort((a: any, b: any) => (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0));
-            setEventos(sorted);
-        } catch (err) {
-            logError('Error al cargar eventos:', err);
-        } finally {
-            setLoadingEventos(false);
-        }
-    }, [companyId]);
-
-    const ensureAuthoritativeEmail = useCallback(async (clienteId?: string) => {
-        if (!clienteId) return;
-        try {
-            if (!cliente?.email) {
-                const api = await import('@/lib/supabase');
-                const profile = await api.fetchProfileByUserId(clienteId);
-                if (profile?.email) setFormData((prev) => ({ ...prev, email: profile.email || prev.email }));
-            }
-        } catch (err) {
-            logError('Error fetching authoritative email for client', err);
-        }
-    }, [cliente]);
-
-    useEffect(() => {
-        if (cliente) {
-            setFormData((prev) => ({
-                ...prev,
-                id: cliente.id,
-                name: cliente.name || '',
-                last_name: cliente.last_name || '',
-                dni: cliente.dni || '',
-                email: cliente.email || '',
-                phone: cliente.phone || '',
-                company: cliente.company || '',
-                session_credits: cliente.session_credits ?? 0,
-                class_credits: cliente.class_credits ?? 0,
-                photo: cliente.photo || '',
-                photo_path: cliente.photo_path ?? null,
-                birth_date: cliente.birth_date ?? undefined,
-                address: cliente.address || '',
-                occupation: cliente.occupation || '',
-                sport: cliente.sport || '',
-                history: cliente.history || '',
-                diagnosis: cliente.diagnosis || '',
-                allergies: cliente.allergies || '',
-                notes: cliente.notes || '',
-            }));
-            if (cliente.birth_date) {
-                const date = new Date(cliente.birth_date);
-                setFechaNacimiento(date);
-                calcularEdad(date);
-            }
-
-            // Cargar events y asegurar email actualizado
-            ensureAuthoritativeEmail(cliente.id!);
-
-            loadEventos(cliente.id!);
-        } else {
-            resetFormData();
-        }
-        setPhoneError('');
-
-        // Autofocus removed per UX decision
-    }, [cliente, open, ensureAuthoritativeEmail, loadEventos]);
-
-    // Update photo preview when the resolved URL or the selected file changes (without touching formData)
-    useEffect(() => {
-        if (cliente?.photo_path) {
-            if (!photoFile) setPhotoPreview(resolvedClientePhoto || null);
-        } else {
-            setPhotoPreview(null);
-        }
-    }, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
-
-    const resetFormData = () => {
-        setFormData({
-            name: '',
-            last_name: '',
-            dni: '',
-            email: '',
-            phone: '',
-            company: '',
-            session_credits: 0,
-            class_credits: 0,
+const handleEditEvent = async (eventId: string) => {
+    try {
+        const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+            p_company: companyId,
         });
-        setFechaNacimiento(undefined);
-        setEdad(null);
-        setPhotoFile(null);
-        setPhotoPreview(null);
-        setRemovePhoto(false);
-        setEventos([]);
-    };
+        if (error) throw error;
 
-    const handleEditEvent = async (eventId: string) => {
-        try {
-            const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
-                p_company: companyId,
-            });
-            if (error) throw error;
-
-            const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
-            const eventData = (recordsAll || []).find((r: any) => r.id === eventId);
-            if (!eventData) throw new Error('event not found');
-            const ids = [
-                ...(Array.isArray(eventData.client)
+        const recordsAll = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+        const eventData = (recordsAll || []).find((r: any) => r.id === eventId);
+        if (!eventData) throw new Error('event not found');
+        const ids = [
+            ...(Array.isArray(eventData.client)
+                ? eventData.client
+                : eventData.client
+                    ? [eventData.client]
+                    : []),
+            ...(Array.isArray(eventData.professional)
+                ? eventData.professional
+                : eventData.professional
+                    ? [eventData.professional]
+                    : []),
+        ];
+        let profileMap: Record<string, any> = {};
+        if (ids.length > 0) {
+            const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+            profileMap = profilesMap || {};
+        }
+        const enriched = {
+            ...eventData,
+            expand: {
+                client: (Array.isArray(eventData.client)
                     ? eventData.client
                     : eventData.client
                         ? [eventData.client]
-                        : []),
-                ...(Array.isArray(eventData.professional)
+                        : []
+                )
+                    .map((id: string) => profileMap[id] || null)
+                    .filter(Boolean),
+                professional: (Array.isArray(eventData.professional)
                     ? eventData.professional
                     : eventData.professional
                         ? [eventData.professional]
-                        : []),
-            ];
-            let profileMap: Record<string, any> = {};
-            if (ids.length > 0) {
-                const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
-                profileMap = profilesMap || {};
-            }
-            const enriched = {
-                ...eventData,
-                expand: {
-                    client: (Array.isArray(eventData.client)
-                        ? eventData.client
-                        : eventData.client
-                            ? [eventData.client]
-                            : []
-                    )
-                        .map((id: string) => profileMap[id] || null)
-                        .filter(Boolean),
-                    professional: (Array.isArray(eventData.professional)
-                        ? eventData.professional
-                        : eventData.professional
-                            ? [eventData.professional]
-                            : []
-                    )
-                        .map((id: string) => profileMap[id] || null)
-                        .filter(Boolean),
-                },
-            };
-            setSelectedEvent(enriched as any);
-            setEventDialogOpen(true);
-        } catch (err) {
-            logError('Error cargando evento:', err);
-        }
-    };
-
-    const handleEventSaved = () => {
-        loadEventos(cliente?.id!);
-    };
-
-    const handleDateSelect = (date: Date | undefined) => {
-        setFechaNacimiento(date);
-        if (date) {
-            calcularEdad(date);
-        } else {
-            setEdad(null);
-        }
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        // Validar teléfono
-        if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
-            setPhoneError('El teléfono debe tener exactamente 9 dígitos');
-            return;
-        }
-
-        setLoading(true);
-
-        try {
-            // Build payload object for non-file updates
-            const payload: any = {};
-
-            // Añadir campos regulares (excluyendo campos especiales y metadata)
-            Object.entries(formData).forEach(([key, value]) => {
-                if (
-                    key === 'id' ||
-                    key === 'created' ||
-                    key === 'updated' ||
-                    key === 'photo' ||
-                    key === 'birth_date' ||
-                    key === 'email'
+                        : []
                 )
-                    return;
-                if (value !== undefined && value !== null && value !== '') {
-                    if (key === 'session_credits' || key === 'class_credits') {
-                        const parsed = parseInt(String(value));
-                        payload[key] = String(isNaN(parsed) ? 0 : parsed);
-                    } else {
-                        payload[key] = String(value);
-                    }
-                }
-            });
+                    .map((id: string) => profileMap[id] || null)
+                    .filter(Boolean),
+            },
+        };
+        setSelectedEvent(enriched as any);
+        setEventDialogOpen(true);
+    } catch (err) {
+        logError('Error cargando evento:', err);
+    }
+};
 
-            // Email handling
-            if (!cliente?.id) {
-                if (formData.email) {
-                    payload.email = formData.email;
+const handleEventSaved = () => {
+    loadEventos(cliente?.id!);
+};
+
+const handleDateSelect = (date: Date | undefined) => {
+    setFechaNacimiento(date);
+    if (date) {
+        calcularEdad(date);
+    } else {
+        setEdad(null);
+    }
+};
+
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validar teléfono
+    if (formData.phone && !/^\d{9}$/.test(formData.phone)) {
+        setPhoneError('El teléfono debe tener exactamente 9 dígitos');
+        return;
+    }
+
+    setLoading(true);
+
+    try {
+        // Build payload object for non-file updates
+        const payload: any = {};
+
+        // Añadir campos regulares (excluyendo campos especiales y metadata)
+        Object.entries(formData).forEach(([key, value]) => {
+            if (
+                key === 'id' ||
+                key === 'created' ||
+                key === 'updated' ||
+                key === 'photo' ||
+                key === 'birth_date' ||
+                key === 'email'
+            )
+                return;
+            if (value !== undefined && value !== null && value !== '') {
+                if (key === 'session_credits' || key === 'class_credits') {
+                    const parsed = parseInt(String(value));
+                    payload[key] = String(isNaN(parsed) ? 0 : parsed);
+                } else {
+                    payload[key] = String(value);
                 }
-            } else if (formData.email && formData.email !== cliente.email) {
+            }
+        });
+
+        // Email handling
+        if (!cliente?.id) {
+            if (formData.email) {
                 payload.email = formData.email;
-                payload.emailVisibility = 'true';
             }
+        } else if (formData.email && formData.email !== cliente.email) {
+            payload.email = formData.email;
+            payload.emailVisibility = 'true';
+        }
 
-            // Fecha nacimiento
-            if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, 'yyyy-MM-dd');
+        // Fecha nacimiento
+        if (fechaNacimiento) payload.birth_date = format(fechaNacimiento, 'yyyy-MM-dd');
 
-            // Role/company for new client (do NOT include passwords in profiles table)
-            // The invite function will ensure an auth user is created and the recovery email is sent.
-            if (!cliente?.id) {
-                payload.role = 'client';
-                if (companyId) payload.company = companyId;
-            }
+        // Role/company for new client (do NOT include passwords in profiles table)
+        // The invite function will ensure an auth user is created and the recovery email is sent.
+        if (!cliente?.id) {
+            payload.role = 'client';
+            if (companyId) payload.company = companyId;
+        }
 
-            let savedUser: any = null;
-            let savedUserId: string | null = null;
+        let savedUser: any = null;
+        let savedUserId: string | null = null;
 
-            if (photoFile) {
-                const originalFilename = photoFile.name;
-                const ext = originalFilename.includes('.')
-                    ? originalFilename.slice(originalFilename.lastIndexOf('.'))
-                    : '';
-                const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
+        if (photoFile) {
+            const originalFilename = photoFile.name;
+            const ext = originalFilename.includes('.')
+                ? originalFilename.slice(originalFilename.lastIndexOf('.'))
+                : '';
+            const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
 
-                if (cliente?.id) {
-                    // Update profile via Edge Function to avoid RLS
-                    const lib = await import('@/lib/supabase');
-                    const okSession = await lib.ensureValidSession();
-                    if (!okSession) throw new Error('session_invalid');
-                    const token = await lib.getAuthToken();
-                    if (!token) throw new Error('missing_token');
+            if (cliente?.id) {
+                // Update profile via Edge Function to avoid RLS
+                const lib = await import('@/lib/supabase');
+                const okSession = await lib.ensureValidSession();
+                if (!okSession) throw new Error('session_invalid');
+                const token = await lib.getAuthToken();
+                if (!token) throw new Error('missing_token');
 
-                    const fnRes = await fetch(
+                const fnRes = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                    }
+                );
+                const fnJson = await fnRes.json().catch(() => null);
+                if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    throw new Error(
+                        'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                    );
+                }
+                const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
+                savedUser = data;
+
+                savedUserId =
+                    savedUser && (savedUser.id || savedUser.user)
+                        ? savedUser.id || savedUser.user
+                        : cliente.id;
+
+                try {
+                    const storagePath = `${filename}`;
+                    const { data: uploadData, error: uploadErr } = await supabase.storage
+                        .from('profile_photos')
+                        .upload(storagePath, photoFile);
+                    if (uploadErr) {
+                        logError('Upload error for cliente', {
+                            bucket: 'profile_photos',
+                            path: storagePath,
+                            error: uploadErr,
+                        });
+                        throw uploadErr;
+                    }
+                    console.debug('Upload success for cliente', {
+                        bucket: 'profile_photos',
+                        path: storagePath,
+                        data: uploadData,
+                    });
+
+                    // Attempt to set photo_path and verify via Edge Function to avoid RLS
+                    const patchPhotoRes = await fetch(
                         `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
                         {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                            body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
                         }
                     );
-                    const fnJson = await fnRes.json().catch(() => null);
-                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
+                    if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
                         throw new Error(
-                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                            'failed_to_set_photo_path: ' +
+                            (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
                         );
                     }
-                    const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
-                    savedUser = data;
+                    const api2 = await import('@/lib/supabase');
+                    const verified = await api2.fetchProfileByUserId(savedUserId!);
+                    if (!verified || verified.photo_path !== filename)
+                        throw new Error('photo_path no persistió para el cliente');
 
-                    savedUserId =
-                        savedUser && (savedUser.id || savedUser.user)
-                            ? savedUser.id || savedUser.user
-                            : cliente.id;
-
-                    try {
-                        const storagePath = `${filename}`;
-                        const { data: uploadData, error: uploadErr } = await supabase.storage
-                            .from('profile_photos')
-                            .upload(storagePath, photoFile);
-                        if (uploadErr) {
-                            logError('Upload error for cliente', {
-                                bucket: 'profile_photos',
-                                path: storagePath,
-                                error: uploadErr,
-                            });
-                            throw uploadErr;
-                        }
-                        console.debug('Upload success for cliente', {
-                            bucket: 'profile_photos',
-                            path: storagePath,
-                            data: uploadData,
-                        });
-
-                        // Attempt to set photo_path and verify via Edge Function to avoid RLS
-                        const patchPhotoRes = await fetch(
-                            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
-                            {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
-                            }
-                        );
-                        const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
-                        if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
-                            throw new Error(
-                                'failed_to_set_photo_path: ' +
-                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
-                            );
-                        }
-                        const api2 = await import('@/lib/supabase');
-                        const verified = await api2.fetchProfileByUserId(savedUserId!);
-                        if (!verified || verified.photo_path !== filename)
-                            throw new Error('photo_path no persistió para el cliente');
-
-                        // Update preview to resolved public/signed URL (prefer root filename)
-                        setPhotoPreview(
-                            getFilePublicUrl('profile_photos', null, filename) ||
-                            getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                            null
-                        );
-                    } catch (e) {
-                        logError('Error subiendo foto de cliente:', e);
-                    }
-                } else {
-                    // Create profile first via Edge Function to avoid RLS restrictions
-                    const lib = await import('@/lib/supabase');
-                    const okSession = await lib.ensureValidSession();
-                    if (!okSession) throw new Error('session_invalid');
-                    const token = await lib.getAuthToken();
-                    if (!token) throw new Error('missing_token');
-
-                    const fnRes = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify(payload),
-                        }
+                    // Update preview to resolved public/signed URL (prefer root filename)
+                    setPhotoPreview(
+                        getFilePublicUrl('profile_photos', null, filename) ||
+                        getFilePublicUrl('profile_photos', savedUserId, filename) ||
+                        null
                     );
-                    const fnJson = await fnRes.json().catch(() => null);
-                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
-                    }
-                    const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
-                    savedUser = data;
-
-                    savedUserId =
-                        savedUser && (savedUser.id || savedUser.user)
-                            ? savedUser.id || savedUser.user
-                            : savedUser?.id || null;
-
-                    try {
-                        const storagePath = `${filename}`;
-                        const { data: uploadData, error: uploadErr } = await supabase.storage
-                            .from('profile_photos')
-                            .upload(storagePath, photoFile);
-                        if (uploadErr) throw uploadErr;
-                        console.debug('Upload success for cliente', {
-                            bucket: 'profile_photos',
-                            path: storagePath,
-                            data: uploadData,
-                        });
-                        if (uploadErr) throw uploadErr;
-
-                        const patchPhotoRes = await fetch(
-                            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
-                            {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
-                            }
-                        );
-                        const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
-                        if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
-                            throw new Error(
-                                'failed_to_set_photo_path: ' +
-                                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
-                            );
-                        }
-                        // Update preview to resolved public/signed URL (prefer root filename)
-                        setPhotoPreview(
-                            getFilePublicUrl('profile_photos', null, filename) ||
-                            getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                            null
-                        );
-                    } catch (e) {
-                        logError('Error subiendo foto de cliente:', e);
-                    }
+                } catch (e) {
+                    logError('Error subiendo foto de cliente:', e);
                 }
             } else {
-                // No new file
-                if (removePhoto && cliente?.id) payload.photo_path = null;
+                // Create profile first via Edge Function to avoid RLS restrictions
+                const lib = await import('@/lib/supabase');
+                const okSession = await lib.ensureValidSession();
+                if (!okSession) throw new Error('session_invalid');
+                const token = await lib.getAuthToken();
+                if (!token) throw new Error('missing_token');
 
-                if (cliente?.id) {
-                    // Update via Edge Function to avoid RLS
-                    const lib = await import('@/lib/supabase');
-                    const okSession = await lib.ensureValidSession();
-                    if (!okSession) throw new Error('session_invalid');
-                    const token = await lib.getAuthToken();
-                    if (!token) throw new Error('missing_token');
+                const fnRes = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify(payload),
+                    }
+                );
+                const fnJson = await fnRes.json().catch(() => null);
+                if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    throw new Error(
+                        'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                    );
+                }
+                const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+                savedUser = data;
 
-                    const fnRes = await fetch(
+                savedUserId =
+                    savedUser && (savedUser.id || savedUser.user)
+                        ? savedUser.id || savedUser.user
+                        : savedUser?.id || null;
+
+                try {
+                    const storagePath = `${filename}`;
+                    const { data: uploadData, error: uploadErr } = await supabase.storage
+                        .from('profile_photos')
+                        .upload(storagePath, photoFile);
+                    if (uploadErr) throw uploadErr;
+                    console.debug('Upload success for cliente', {
+                        bucket: 'profile_photos',
+                        path: storagePath,
+                        data: uploadData,
+                    });
+                    if (uploadErr) throw uploadErr;
+
+                    const patchPhotoRes = await fetch(
                         `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
                         {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                            body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
                         }
                     );
-                    const fnJson = await fnRes.json().catch(() => null);
-                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
+                    if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
                         throw new Error(
-                            'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                            'failed_to_set_photo_path: ' +
+                            (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
                         );
                     }
-                    const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
-                    savedUser = data;
-                    savedUserId = cliente.id ?? savedUser?.id ?? savedUser?.user ?? null;
-                } else {
-                    // Use Edge Function to create client to bypass RLS (service role)
-                    const lib = await import('@/lib/supabase');
-                    const okSession = await lib.ensureValidSession();
-                    if (!okSession) throw new Error('session_invalid');
-                    const token = await lib.getAuthToken();
-                    if (!token) throw new Error('missing_token');
-
-                    const fnRes = await fetch(
-                        `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                            body: JSON.stringify(payload),
-                        }
+                    // Update preview to resolved public/signed URL (prefer root filename)
+                    setPhotoPreview(
+                        getFilePublicUrl('profile_photos', null, filename) ||
+                        getFilePublicUrl('profile_photos', savedUserId, filename) ||
+                        null
                     );
-                    const fnJson = await fnRes.json().catch(() => null);
-                    if (!fnRes.ok || !fnJson || !fnJson.ok) {
-                        throw new Error(
-                            'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
-                        );
-                    }
-                    const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
-                    savedUser = data;
-                    savedUserId = savedUser?.id || savedUser?.user || null;
+                } catch (e) {
+                    logError('Error subiendo foto de cliente:', e);
                 }
             }
+        } else {
+            // No new file
+            if (removePhoto && cliente?.id) payload.photo_path = null;
 
-            const profileIdForPrograms = cliente?.id || savedUserId || savedUser?.id || savedUser?.user || null;
-            if (profileIdForPrograms) {
-                await clientProgramsApi.persistAll(profileIdForPrograms);
-                clientProgramsApi.markCurrentAsClean();
+            if (cliente?.id) {
+                // Update via Edge Function to avoid RLS
+                const lib = await import('@/lib/supabase');
+                const okSession = await lib.ensureValidSession();
+                if (!okSession) throw new Error('session_invalid');
+                const token = await lib.getAuthToken();
+                if (!token) throw new Error('missing_token');
+
+                const fnRes = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
+                    {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ profile_id: cliente.id, ...payload }),
+                    }
+                );
+                const fnJson = await fnRes.json().catch(() => null);
+                if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    throw new Error(
+                        'failed_to_update_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                    );
+                }
+                const data = Array.isArray(fnJson.updated) ? fnJson.updated[0] : fnJson.updated;
+                savedUser = data;
+                savedUserId = cliente.id ?? savedUser?.id ?? savedUser?.user ?? null;
             } else {
-                logError('No se pudo resolver el ID de perfil para guardar los programas');
-            }
+                // Use Edge Function to create client to bypass RLS (service role)
+                const lib = await import('@/lib/supabase');
+                const okSession = await lib.ensureValidSession();
+                if (!okSession) throw new Error('session_invalid');
+                const token = await lib.getAuthToken();
+                if (!token) throw new Error('missing_token');
 
+                const fnRes = await fetch(
+                    `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify(payload),
+                    }
+                );
+                const fnJson = await fnRes.json().catch(() => null);
+                if (!fnRes.ok || !fnJson || !fnJson.ok) {
+                    throw new Error(
+                        'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
+                    );
+                }
+                const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+                savedUser = data;
+                savedUserId = savedUser?.id || savedUser?.user || null;
+            }
+        }
+
+        const profileIdForPrograms = cliente?.id || savedUserId || savedUser?.id || savedUser?.user || null;
+        if (profileIdForPrograms) {
+            await clientProgramsApi.persistAll(profileIdForPrograms);
+            clientProgramsApi.markCurrentAsClean();
+            try { clientProgramsApi.markPendingChanges(false); } catch { }
+            setLocalPendingChanges(false);
             // If we just created a new cliente, request the send-invite function (mirror profesional flow)
             if (!cliente?.id) {
                 try {
@@ -758,6 +746,17 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
 
     const handleChange = (field: keyof Cliente, value: string | number) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
+        // Mark pending changes for any client form edits
+        setLocalPendingChanges(true);
+        // eslint-disable-next-line no-console
+        console.debug('ClienteDialog.handleChange', field, value);
+        if (clientProgramsApi && typeof clientProgramsApi.markPendingChanges === 'function') {
+            clientProgramsApi.markPendingChanges(true);
+        } else {
+            // Dev-time warning to help debugging
+            // eslint-disable-next-line no-console
+            console.warn('clientProgramsApi.markPendingChanges not available', clientProgramsApi);
+        }
 
         // Validar teléfono en tiempo real
         if (field === 'phone') {
@@ -779,7 +778,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                     <DialogHeader className="px-6 pt-6">
                         <div className="flex items-center gap-2">
                             {cliente ? <PencilLine className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            <DialogTitle>{cliente ? 'Editar Cliente' : 'Crear Cliente'}</DialogTitle>
+                            <DialogTitle>{cliente ? `${cliente.name} ${cliente.last_name}` : 'Crear Cliente'}</DialogTitle>
                         </div>
                         <DialogDescription>
                             {cliente ? 'Modifica los datos del cliente' : 'Completa los datos del nuevo cliente'}
@@ -792,17 +791,20 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                             onValueChange={setActiveTab}
                             className="flex-1 flex flex-col overflow-hidden min-h-0"
                         >
-                            <TabsList className="grid w-full grid-cols-3">
+                            <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="datos">Datos</TabsTrigger>
+                                <TabsTrigger value="bonos">Bonos</TabsTrigger>
+                                <TabsTrigger value="programas">Programas</TabsTrigger>
                                 <TabsTrigger value="historial" disabled={!cliente?.id}>
                                     Citas{cliente?.id ? ` (${eventos.length})` : ''}
                                 </TabsTrigger>
-                                <TabsTrigger value="programas">Programas</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="datos" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
                                 <div className="h-full overflow-y-auto pr-2">
                                     <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6">
+
+
                                         {/* Campos Obligatorios reorganizados */}
                                         <div className="space-y-6">
                                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-start">
@@ -815,17 +817,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         required
                                                         ref={(el: HTMLInputElement) => (nameInputRef.current = el)}
                                                     />
-
-                                                    <Label className="mt-4" htmlFor="phone">Teléfono *</Label>
-                                                    <Input
-                                                        id="phone"
-                                                        type="tel"
-                                                        value={formData.phone || ''}
-                                                        onChange={(e) => handleChange('phone', e.target.value)}
-                                                        className={phoneError ? 'border-red-500' : ''}
-                                                        required
-                                                    />
-                                                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -836,35 +827,6 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         onChange={(e) => handleChange('last_name', e.target.value)}
                                                         required
                                                     />
-
-                                                    <div className="mt-4">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <Label htmlFor="email">Email *</Label>
-                                                            {!cliente?.id && (
-                                                                <TooltipProvider>
-                                                                    <Tooltip>
-                                                                        <TooltipTrigger asChild>
-                                                                            <span className="inline-flex">
-                                                                                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                                                                            </span>
-                                                                        </TooltipTrigger>
-                                                                        <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
-                                                                            <p>Al crear el perfil, se enviará un correo de invitación al usuario</p>
-                                                                        </TooltipContent>
-                                                                    </Tooltip>
-                                                                </TooltipProvider>
-                                                            )}
-                                                        </div>
-                                                        <Input
-                                                            id="email"
-                                                            type="email"
-                                                            value={formData.email || ''}
-                                                            onChange={(e) => handleChange('email', e.target.value)}
-                                                            disabled={!!cliente?.id}
-                                                            readOnly={!!cliente?.id}
-                                                            required
-                                                        />
-                                                    </div>
                                                 </div>
 
                                                 <div className="space-y-2">
@@ -875,19 +837,12 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         onChange={(e) => handleChange('dni', e.target.value)}
                                                         required
                                                     />
-
-                                                    <Label className="mt-4" htmlFor="address">Dirección</Label>
-                                                    <Input
-                                                        id="address"
-                                                        value={formData.address || ''}
-                                                        onChange={(e) => handleChange('address', e.target.value)}
-                                                    />
                                                 </div>
 
                                                 {/* Foto arriba a la derecha */}
-                                                <div className="space-y-2 flex flex-col items-end w-full">
-                                                    <Label htmlFor="photo" className="w-full text-right pr-6">Foto</Label>
-                                                    <div className="w-full flex justify-end pr-6">
+                                                <div className="space-y-2 row-span-2 flex flex-col items-start md:items-end w-full">
+                                                    <Label htmlFor="photo" className="w-full text-left md:text-right pr-0 md:pr-6">Foto</Label>
+                                                    <div className="w-full flex justify-start md:justify-end pr-0 md:pr-6">
                                                         <Input
                                                             id="photo"
                                                             type="file"
@@ -908,7 +863,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                             }}
                                                         />
 
-                                                        <div className="relative mt-2 flex justify-end">
+                                                        <div className="relative mt-0 flex justify-end">
                                                             <label htmlFor="photo" className="w-32 h-32 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground cursor-pointer">
                                                                 {photoPreview ? (
                                                                     <img src={photoPreview} alt="Preview" className="object-cover w-full h-full" />
@@ -941,35 +896,47 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="session_credits">Sesiones *</Label>
+                                                    <Label htmlFor="phone">Teléfono *</Label>
                                                     <Input
-                                                        id="session_credits"
-                                                        type="text"
-                                                        value={String(formData.session_credits ?? '')}
-                                                        onChange={(e) => handleChange('session_credits', e.target.value)}
+                                                        id="phone"
+                                                        type="tel"
+                                                        value={formData.phone || ''}
+                                                        onChange={(e) => handleChange('phone', e.target.value)}
+                                                        className={phoneError ? 'border-red-500' : ''}
+                                                        required
+                                                    />
+                                                    {phoneError && <p className="text-xs text-red-500">{phoneError}</p>}
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="email">Email *</Label>
+                                                    <Input
+                                                        id="email"
+                                                        type="email"
+                                                        value={formData.email || ''}
+                                                        onChange={(e) => handleChange('email', e.target.value)}
+                                                        disabled={!!cliente?.id}
+                                                        readOnly={!!cliente?.id}
                                                         required
                                                     />
                                                 </div>
 
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="class_credits">Clases *</Label>
+                                                <div className="space-y-2 md:col-span-1">
+                                                    <Label className="" htmlFor="address">Dirección</Label>
                                                     <Input
-                                                        id="class_credits"
-                                                        type="text"
-                                                        value={String(formData.class_credits ?? '')}
-                                                        onChange={(e) => handleChange('class_credits', e.target.value)}
-                                                        required
+                                                        id="address"
+                                                        value={formData.address || ''}
+                                                        onChange={(e) => handleChange('address', e.target.value)}
                                                     />
                                                 </div>
+
                                             </div>
                                         </div>
 
                                         {/* Campos Opcionales */}
-                                        <div className="space-y-6 pt-4 border-t">
+                                        <div className="space-y-4 pt-0">
                                             {/* Foto y Dirección en la misma línea */}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
@@ -1044,8 +1011,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label>Fecha de Nacimiento</Label>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
@@ -1076,7 +1043,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     </Popover>
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label>Edad</Label>
                                                     <Input
                                                         value={edad !== null ? `${edad} años` : ''}
@@ -1084,10 +1051,8 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                         className="bg-muted h-10"
                                                     />
                                                 </div>
-                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label htmlFor="occupation">Ocupación</Label>
                                                     <Input
                                                         id="occupation"
@@ -1096,7 +1061,7 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                                     />
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label htmlFor="sport">Actividad Física</Label>
                                                     <Input
                                                         id="sport"
@@ -1155,6 +1120,34 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                             </Collapsible>
                                         </div>
                                     </form>
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="bonos" className="flex-1 min-h-0 mt-4 overflow-hidden px-0">
+                                <div className="mt-2 overflow-hidden pr-0">
+                                    <div className="grid w-full gap-6 rounded-lg border bg-card p-4 shadow-sm">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="session_credits">Sesiones</Label>
+                                                <Input
+                                                    id="session_credits"
+                                                    type="text"
+                                                    value={String(formData.session_credits ?? '')}
+                                                    onChange={(e) => handleChange('session_credits', e.target.value)}
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="class_credits">Clases</Label>
+                                                <Input
+                                                    id="class_credits"
+                                                    type="text"
+                                                    value={String(formData.class_credits ?? '')}
+                                                    onChange={(e) => handleChange('class_credits', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </TabsContent>
                             <TabsContent value="programas" className="flex-1 min-h-0 mt-4 overflow-hidden px-6">
@@ -1250,7 +1243,14 @@ export function ClienteDialog({ open, onOpenChange, cliente, onSave, initialTab 
                                         </Button>
                                     )}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 items-center">
+                                    <div>
+                                        {(clientProgramsApi.hasPendingChanges || localPendingChanges) && (
+                                            <div className="inline-flex items-center gap-2">
+                                                <div className="rounded-md bg-amber-600 text-white px-3 py-1 text-sm font-semibold shadow">⚠️ Cambios pendientes</div>
+                                            </div>
+                                        )}
+                                    </div>
                                     <Button type="button" variant="outline" onClick={() => { clientProgramsApi.resetToInitial(); onOpenChange(false); }}>
                                         Cancelar
                                     </Button>
