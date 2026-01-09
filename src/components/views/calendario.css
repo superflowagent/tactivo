@@ -196,3 +196,40 @@
 .fc .fc-timegrid-body {
   overflow: hidden !important;
 }
+
+/* When using the custom "Lista" view, hide FullCalendar's view area but keep the toolbar */
+.calendar-wrapper.calendar--list .fc .fc-view-harness {
+  display: none !important;
+}
+
+/* Collapse calendar's reserved area when in "Lista" */
+.calendar-wrapper.calendar--list .fc {
+  height: auto !important;
+  min-height: 0 !important;
+}
+
+.calendar-wrapper.calendar--list .fc .fc-scroller,
+.calendar-wrapper.calendar--list .fc .fc-scrollgrid,
+.calendar-wrapper.calendar--list .fc .fc-scrollgrid-section {
+  display: none !important;
+  height: 0 !important;
+}
+
+/* Remove toolbar bottom spacing so list sits tight under it */
+.calendar-wrapper.calendar--list .fc .fc-toolbar {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+/* Container to host the list inside the same calendar card area */
+.calendar-list-slot {
+  /* remove extra vertical spacing */
+  margin-top: 0 !important;
+  min-height: 0;
+}
+
+@media (min-width: 640px) {
+  .calendar-list-slot {
+    min-height: 64px;
+  }
+}

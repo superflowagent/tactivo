@@ -22,7 +22,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import {
-    ArrowLeft,
     CalendarIcon,
     ChevronDown,
     User,
@@ -42,6 +41,7 @@ import InviteToast from '@/components/InviteToast';
 import ClientPrograms from '@/components/clientes/ClientPrograms';
 import { useClientPrograms } from '@/components/clientes/useClientPrograms';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
+import { Badge } from '@/components/ui/badge';
 import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
@@ -95,6 +95,19 @@ export default function ClienteView() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [showInviteToast, setShowInviteToast] = useState(false);
     const [inviteToastTitle, setInviteToastTitle] = useState<string | null>(null);
+    const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+    const [pendingNavigation, setPendingNavigation] = useState<null | { type: 'back' | 'view'; view?: ViewType }>(null);
+
+    const initialFormRef = useRef<Cliente | null>(null);
+    const [hasEventDirty, setHasEventDirty] = useState(false);
+
+    useEffect(() => {
+        const handler = (e: any) => setHasEventDirty(Boolean(e?.detail?.dirty));
+        window.addEventListener('event-dialog-dirty', handler as EventListener);
+        return () => {
+            window.removeEventListener('event-dialog-dirty', handler as EventListener);
+        };
+    }, []);
 
     const resolvedClientePhoto = useResolvedFileUrl('profile_photos', cliente?.id || null, cliente?.photo_path || null);
 
@@ -250,8 +263,7 @@ export default function ClienteView() {
 
     useEffect(() => {
         if (cliente) {
-            setFormData((prev) => ({
-                ...prev,
+            const initial = {
                 id: cliente.id,
                 name: cliente.name || '',
                 last_name: cliente.last_name || '',
@@ -271,7 +283,10 @@ export default function ClienteView() {
                 diagnosis: cliente.diagnosis || '',
                 allergies: cliente.allergies || '',
                 notes: cliente.notes || '',
-            }));
+            } as Cliente;
+            setFormData(initial);
+            initialFormRef.current = JSON.parse(JSON.stringify(initial));
+
             if (cliente.birth_date) {
                 const date = new Date(cliente.birth_date);
                 setFechaNacimiento(date);
@@ -294,7 +309,7 @@ export default function ClienteView() {
     }, [resolvedClientePhoto, photoFile, cliente?.photo_path]);
 
     const resetFormData = () => {
-        setFormData({
+        const defaults: Cliente = {
             name: '',
             last_name: '',
             dni: '',
@@ -303,13 +318,38 @@ export default function ClienteView() {
             company: '',
             session_credits: 0,
             class_credits: 0,
-        });
+        };
+        setFormData(defaults);
         setFechaNacimiento(undefined);
         setEdad(null);
         setPhotoFile(null);
         setPhotoPreview(null);
         setRemovePhoto(false);
         setEventos([]);
+        setHasEventDirty(false);
+        initialFormRef.current = JSON.parse(JSON.stringify(defaults));
+    };
+
+    const revertChanges = () => {
+        // Revert form fields to the initial snapshot if available, or reset for a new client.
+        if (initialFormRef.current) {
+            setFormData(JSON.parse(JSON.stringify(initialFormRef.current)));
+            if (initialFormRef.current.birth_date) {
+                const d = new Date(initialFormRef.current.birth_date);
+                setFechaNacimiento(d);
+                calcularEdad(d);
+            } else {
+                setFechaNacimiento(undefined);
+                setEdad(null);
+            }
+            setPhotoFile(null);
+            setRemovePhoto(false);
+            setPhotoPreview(resolvedClientePhoto || null);
+            clientProgramsApi.resetToInitial();
+            setHasEventDirty(false);
+        } else {
+            resetFormData();
+        }
     };
 
     const handleEditEvent = async (eventId: string) => {
@@ -384,12 +424,31 @@ export default function ClienteView() {
             formData.dni,
             formData.phone,
             formData.email,
-            formData.session_credits,
-            formData.class_credits,
         ].every(requiredFilled);
 
         return !requiredFieldsOk || !phoneValid || !!phoneError || loading;
     }, [formData, phoneError, loading]);
+
+    const hasFormChanges = useMemo(() => {
+        const orig = initialFormRef.current;
+        if (!orig) return false;
+        const keys = ['name', 'last_name', 'dni', 'email', 'phone', 'company', 'session_credits', 'class_credits', 'photo_path', 'birth_date', 'address', 'occupation', 'sport', 'history', 'diagnosis', 'allergies', 'notes'];
+        for (const k of keys) {
+            if (k === 'birth_date') {
+                const a = formData.birth_date ?? (fechaNacimiento ? format(fechaNacimiento, 'yyyy-MM-dd') : '');
+                const b = String((orig as any).birth_date ?? '');
+                if (String(a ?? '') !== String(b ?? '')) return true;
+            } else {
+                const a = String((formData as any)[k] ?? '');
+                const b = String((orig as any)[k] ?? '');
+                if (a !== b) return true;
+            }
+        }
+        return false;
+    }, [formData, fechaNacimiento]);
+
+    const photoDirty = Boolean(photoFile) || (removePhoto && Boolean(initialFormRef.current?.photo_path));
+    const isDirty = hasFormChanges || photoDirty || clientProgramsApi.hasPendingChanges || hasEventDirty;
 
     const handleDateSelect = (date: Date | undefined) => {
         setFechaNacimiento(date);
@@ -609,6 +668,12 @@ export default function ClienteView() {
             if (profileIdForPrograms) {
                 await clientProgramsApi.persistAll(profileIdForPrograms);
                 clientProgramsApi.markCurrentAsClean();
+                // clear event dirty and snapshot current form as persisted
+                setHasEventDirty(false);
+                initialFormRef.current = JSON.parse(JSON.stringify({
+                    ...(formData as any),
+                    birth_date: fechaNacimiento ? format(fechaNacimiento, 'yyyy-MM-dd') : (formData as any).birth_date,
+                }));
             } else {
                 logError('No se pudo resolver el ID de perfil para guardar los programas');
             }
@@ -733,6 +798,11 @@ export default function ClienteView() {
         } catch {
             // ignore
         }
+        if (isDirty) {
+            setPendingNavigation({ type: 'view', view });
+            setShowDiscardDialog(true);
+            return;
+        }
         setCurrentView(view);
         navigate(`/${companyName}/panel`);
     };
@@ -744,10 +814,6 @@ export default function ClienteView() {
                 <SidebarInset>
                     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 justify-between">
                         <h1 className="text-xl md:text-2xl font-bold">Cliente</h1>
-                        <Button variant="outline" onClick={handleBack}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Volver
-                        </Button>
                     </header>
                     <div className="flex flex-1 items-center justify-center">
                         <p className="text-muted-foreground">Cargando cliente...</p>
@@ -762,44 +828,29 @@ export default function ClienteView() {
             <AppSidebar currentView={currentView} onViewChange={handleViewChange} />
             <SidebarInset>
                 <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 justify-between">
-                    <h1 className="text-xl md:text-2xl font-bold">{cliente ? 'Editar Cliente' : 'Crear Cliente'}</h1>
-                    <Button variant="outline" onClick={handleBack}>
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver
-                    </Button>
+                    <h1 className="text-xl md:text-2xl font-bold">
+                        {cliente ? `${cliente.name} ${cliente.last_name}` : 'Crear Cliente'}
+                        {isDirty && <Badge variant="outline" className="ml-3 bg-warning/10 text-muted-foreground border-warning px-1.5 py-[2px] text-xs">Cambios no guardados</Badge>}
+                    </h1>
                 </header>
                 <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">
-                    <div className="flex items-center gap-2">
-                        <Breadcrumb>
-                            <BreadcrumbList>
-                                <BreadcrumbItem>
-                                    <BreadcrumbLink onClick={handleBack} className="cursor-pointer">
-                                        Clientes
-                                    </BreadcrumbLink>
-                                </BreadcrumbItem>
-                                <BreadcrumbSeparator />
-                                <BreadcrumbItem>
-                                    <BreadcrumbPage>{cliente ? `${cliente.name} ${cliente.last_name}` : 'Nuevo Cliente'}</BreadcrumbPage>
-                                </BreadcrumbItem>
-                            </BreadcrumbList>
-                        </Breadcrumb>
-                    </div>
 
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-                        <TabsList className="grid w-full max-w-md grid-cols-3">
+                        <TabsList className="grid w-full max-w-md grid-cols-4">
                             <TabsTrigger value="datos">Datos</TabsTrigger>
+                            <TabsTrigger value="bonos">Bonos</TabsTrigger>
+                            <TabsTrigger value="programas">Programas</TabsTrigger>
                             <TabsTrigger value="historial" disabled={!cliente?.id}>
                                 Citas{cliente?.id ? ` (${eventos.length})` : ''}
                             </TabsTrigger>
-                            <TabsTrigger value="programas">Programas</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="datos" className="flex-1 min-h-0">
                             <div className="mt-2 overflow-hidden pr-1">
                                 <div className="grid w-full gap-6 rounded-lg border bg-card p-4 shadow-sm">
                                     <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6">
-                                        <div className="space-y-8">
-                                            {/* Fila 1 */}
+
+                                        <div className="space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="name">Nombre *</Label>
@@ -835,10 +886,10 @@ export default function ClienteView() {
                                                     />
                                                 </div>
 
-                                                {/* Foto */}
-                                                <div className="space-y-2 flex flex-col items-end w-full">
-                                                    <Label htmlFor="photo" className="w-full text-right pr-6">Foto</Label>
-                                                    <div className="w-full flex justify-end pr-6">
+                                                {/* Foto: span 2 filas en desktop */}
+                                                <div className="space-y-2 row-span-2 flex flex-col items-start md:items-end w-full">
+                                                    <Label htmlFor="photo" className="w-full text-left md:text-right pr-0 md:pr-6">Foto</Label>
+                                                    <div className="w-full flex justify-start md:justify-end pr-0 md:pr-6">
                                                         <div>
                                                             <Input
                                                                 id="photo"
@@ -859,7 +910,7 @@ export default function ClienteView() {
                                                                 }}
                                                             />
 
-                                                            <div className="relative mt-2">
+                                                            <div className="relative mt-0">
                                                                 <label htmlFor="photo" className="w-32 h-32 rounded-lg overflow-hidden border bg-muted/30 flex items-center justify-center text-sm text-muted-foreground cursor-pointer">
                                                                     {photoPreview ? (
                                                                         <img src={photoPreview} alt="Preview" className="object-cover w-full h-full" />
@@ -892,10 +943,7 @@ export default function ClienteView() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
 
-                                            {/* Fila 2 */}
-                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="phone">Teléfono *</Label>
                                                     <Input
@@ -939,7 +987,7 @@ export default function ClienteView() {
                                                     />
                                                 </div>
 
-                                                <div className="space-y-2 md:col-span-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label className="" htmlFor="address">Dirección</Label>
                                                     <Input
                                                         id="address"
@@ -950,45 +998,20 @@ export default function ClienteView() {
                                                 </div>
                                             </div>
 
-                                            {/* Fila 3 */}
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="session_credits">Sesiones *</Label>
-                                                    <Input
-                                                        id="session_credits"
-                                                        type="text"
-                                                        value={String(formData.session_credits ?? '')}
-                                                        onChange={(e) => handleChange('session_credits', e.target.value)}
-                                                        required
-                                                        className="h-11"
-                                                    />
-                                                </div>
 
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="class_credits">Clases *</Label>
-                                                    <Input
-                                                        id="class_credits"
-                                                        type="text"
-                                                        value={String(formData.class_credits ?? '')}
-                                                        onChange={(e) => handleChange('class_credits', e.target.value)}
-                                                        required
-                                                        className="h-11"
-                                                    />
-                                                </div>
-                                            </div>
                                         </div>
 
-                                        <div className="space-y-6 pt-4 border-t">
+                                        <div className="space-y-4 pt-0">
 
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label>Fecha de Nacimiento</Label>
                                                     <Popover>
                                                         <PopoverTrigger asChild>
                                                             <Button
                                                                 variant="outline"
-                                                                className={cn('w/full justify-start text-left font-normal h-10', !fechaNacimiento && 'text-muted-foreground')}
+                                                                className={cn('w-full justify-start text-left font-normal h-10', !fechaNacimiento && 'text-muted-foreground')}
                                                             >
                                                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                                                 {fechaNacimiento ? format(fechaNacimiento, 'dd/MM/yyyy') : 'Seleccionar fecha'}
@@ -1008,14 +1031,12 @@ export default function ClienteView() {
                                                     </Popover>
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label>Edad</Label>
                                                     <Input value={edad !== null ? `${edad} años` : ''} disabled className="bg-muted h-10" />
                                                 </div>
-                                            </div>
 
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label htmlFor="occupation">Ocupación</Label>
                                                     <Input
                                                         id="occupation"
@@ -1025,7 +1046,7 @@ export default function ClienteView() {
                                                     />
                                                 </div>
 
-                                                <div className="space-y-2">
+                                                <div className="space-y-2 md:col-span-1">
                                                     <Label htmlFor="sport">Actividad Física</Label>
                                                     <Input
                                                         id="sport"
@@ -1038,7 +1059,7 @@ export default function ClienteView() {
 
                                             <Collapsible className="rounded-lg border">
                                                 <CollapsibleTrigger asChild>
-                                                    <Button variant="ghost" className="w/full justify-between p-4 h-auto rounded-none hover:bg-muted/50" type="button">
+                                                    <Button variant="ghost" className="w-full justify-between p-4 h-auto rounded-none hover:bg-muted/50" type="button">
                                                         <span className="font-semibold">Información Adicional</span>
                                                         <ChevronDown className="h-4 w-4" />
                                                     </Button>
@@ -1073,16 +1094,46 @@ export default function ClienteView() {
                             </div>
                         </TabsContent>
 
+                        <TabsContent value="bonos" className="flex-1 min-h-0 mt-4 overflow-hidden px-0">
+                            <div className="mt-2 overflow-hidden pr-0">
+                                <div className="grid w-full gap-6 rounded-lg border bg-card p-4 shadow-sm">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="session_credits">Sesiones</Label>
+                                            <Input
+                                                id="session_credits"
+                                                type="text"
+                                                value={String(formData.session_credits ?? '')}
+                                                onChange={(e) => handleChange('session_credits', e.target.value)}
+                                                className="h-11"
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="class_credits">Clases</Label>
+                                            <Input
+                                                id="class_credits"
+                                                type="text"
+                                                value={String(formData.class_credits ?? '')}
+                                                onChange={(e) => handleChange('class_credits', e.target.value)}
+                                                className="h-11"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </TabsContent>
+
                         <TabsContent value="programas" className="flex-1 min-h-0">
-                            <div className="mt-6 overflow-hidden pr-1">
-                                <div className="h-full overflow-y-auto rounded-lg border bg-card p-6 shadow-sm">
+                            <div className="mt-2 overflow-hidden pr-1">
+                                <div className="h-full overflow-y-auto rounded-lg border bg-card p-2 shadow-sm">
                                     <ClientPrograms api={clientProgramsApi} />
                                 </div>
                             </div>
                         </TabsContent>
 
                         <TabsContent value="historial" className="flex-1 min-h-0">
-                            <div className="mt-6 overflow-hidden pr-1">
+                            <div className="mt-2 overflow-hidden pr-1">
                                 <div className="h-full overflow-y-auto rounded-lg border bg-card p-4 shadow-sm">
                                     {loadingEventos ? (
                                         <div className="flex items-center justify-center py-8">
@@ -1153,7 +1204,7 @@ export default function ClienteView() {
                 </div>
 
                 <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:px-6">
-                    <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+                    <div className="flex items-center justify-between w-full gap-3">
                         <div>
                             {cliente?.id && activeTab === 'datos' && (
                                 <Button type="button" variant="destructive" onClick={() => setShowDeleteDialog(true)} disabled={loading}>
@@ -1166,8 +1217,13 @@ export default function ClienteView() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => {
-                                    clientProgramsApi.resetToInitial();
-                                    handleBack();
+                                    if (isDirty) {
+                                        setPendingNavigation({ type: 'back' });
+                                        setShowDiscardDialog(true);
+                                    } else {
+                                        clientProgramsApi.resetToInitial();
+                                        handleBack();
+                                    }
                                 }}
                             >
                                 Cancelar
@@ -1196,6 +1252,37 @@ export default function ClienteView() {
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                                 Eliminar
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) { setShowDiscardDialog(false); setPendingNavigation(null); } }}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Cambios no guardados</AlertDialogTitle>
+                            <AlertDialogDescription>¿Descartar cambios no guardados?</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    // Discard changes and perform pending navigation (if any)
+                                    revertChanges();
+                                    setShowDiscardDialog(false);
+                                    const nav = pendingNavigation;
+                                    setPendingNavigation(null);
+                                    if (nav?.type === 'back') {
+                                        handleBack();
+                                    } else if (nav?.type === 'view') {
+                                        try { localStorage.setItem('tactivo.currentView', nav.view!); } catch { }
+                                        setCurrentView(nav.view!);
+                                        navigate(`/${companyName}/panel`);
+                                    }
+                                }}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Descartar cambios
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>

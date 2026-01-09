@@ -15,6 +15,38 @@ const tempProgramId = () => `t-${Date.now()}-${Math.random().toString(36).slice(
 const tempProgramExerciseId = () => `tpe-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const exerciseIdOf = (pe: any) => pe?.exercise?.id ?? pe?.exercise ?? null;
 
+// Normalize program exercises by compacting day letters to a contiguous sequence (A,B,C...)
+export const normalizeProgramExercises = (peList: any[], existingDays?: string[]) => {
+  const pe = Array.isArray(peList) ? peList : [];
+  const presentDays = Array.from(new Set(pe.map((p) => String(p.day ?? 'A'))));
+  let orderedPresentDays: string[] = [];
+  if (presentDays.length === 0) {
+    orderedPresentDays = Array.isArray(existingDays) && existingDays.length ? [...existingDays].sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0)) : ['A'];
+  } else {
+    // Force alphabetic ordering of present days to avoid edge cases with unordered letters
+    orderedPresentDays = presentDays.sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0));
+  }
+
+  const dayMap = new Map<string, string>();
+  orderedPresentDays.forEach((old, idx) => dayMap.set(old, String.fromCharCode('A'.charCodeAt(0) + idx)));
+
+  const normalized: any[] = [];
+  orderedPresentDays.forEach((oldDay) => {
+    const newDay = dayMap.get(oldDay)!;
+    const items = pe
+      .filter((p) => String(p.day ?? 'A') === String(oldDay))
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+    items.forEach((it: any, idx: number) => {
+      normalized.push({ ...it, position: idx, day: newDay });
+    });
+  });
+
+  return {
+    normalized,
+    daysCompact: Array.from(dayMap.values()).length ? Array.from(dayMap.values()) : ['A'],
+  };
+};
+
 export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [activeProgramId, setActiveProgramId] = useState<string>('');
@@ -27,6 +59,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   const [showSavedToast, setShowSavedToast] = useState(false);
   const [savedToastTitle, setSavedToastTitle] = useState<string | null>(null);
   const [persistingAll, setPersistingAll] = useState(false);
+  const [hasPendingChanges, setHasPendingChanges] = useState(false);
 
   const initialProgramsRef = useRef<Program[]>([]);
 
@@ -119,9 +152,64 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cliente?.id, companyId]);
 
+  // Listen for exercise updates and reflect them in program_exercises and cached company exercises
+  useEffect(() => {
+    const handler = (e: any) => {
+      const updated = e?.detail;
+      if (!updated || !updated.id) return;
+
+      // Update any program_exercises that reference this exercise
+      setPrograms((prev) => prev.map((pr) => ({
+        ...pr,
+        programExercises: (pr.programExercises || []).map((pe: any) => ((pe.exercise && (String(pe.exercise.id) === String(updated.id))) ? { ...pe, exercise: { ...pe.exercise, ...updated } } : pe)),
+      })));
+
+      // Update exercisesForCompany cache if present
+      setExercisesForCompany((prev) => (prev || []).map((ex: any) => (ex?.id === updated.id ? updated : ex)));
+    };
+
+    window.addEventListener('exercise-updated', handler as EventListener);
+    return () => window.removeEventListener('exercise-updated', handler as EventListener);
+  }, []);
+
+  // Load anatomy and equipment lists early so program cards can render badges without opening the picker
+  useEffect(() => {
+    if (!companyId) {
+      // ensure lists are cleared if no company available
+      setAnatomyList([]);
+      setEquipmentList([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const [anatRes, equipRes] = await Promise.all([
+          supabase.from('anatomy').select('*').eq('company', companyId).order('name'),
+          supabase.from('equipment').select('*').eq('company', companyId).order('name'),
+        ]);
+
+        const anatomyData = (anatRes as any)?.data ?? anatRes;
+        const equipmentData = (equipRes as any)?.data ?? equipRes;
+
+        if (!cancelled) {
+          setAnatomyList((anatomyData as any) || []);
+          setEquipmentList((equipmentData as any) || []);
+        }
+      } catch (err) {
+        logError('Error loading anatomy/equipment', err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [companyId]);
+
   const markOrderUpdated = () => {
     setSavedToastTitle('Orden actualizado (pendiente de guardar)');
     setShowSavedToast(true);
+    setHasPendingChanges(true);
     setTimeout(() => setShowSavedToast(false), 2600);
   };
 
@@ -130,20 +218,11 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       prev.map((p) => {
         if ((p.id ?? p.tempId) !== programId) return p;
         const peList = programExercises ? [...programExercises] : [...(p.programExercises || [])];
-        const daysList = Array.from(new Set([...(p.days || []), ...peList.map((pe: any) => pe.day || 'A')]));
-        const normalized: any[] = [];
-        daysList.forEach((day) => {
-          const items = peList
-            .filter((pe: any) => String(pe.day ?? 'A') === String(day))
-            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-          items.forEach((it: any, idx: number) => {
-            normalized.push({ ...it, position: idx, day });
-          });
-        });
+        const { normalized, daysCompact } = normalizeProgramExercises(peList, p.days);
         return {
           ...p,
           programExercises: normalized,
-          days: daysList.length ? daysList : ['A'],
+          days: daysCompact,
         };
       }),
     );
@@ -189,6 +268,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     };
     setPrograms((prev) => [...prev, t]);
     setActiveProgramId(tempId);
+    setHasPendingChanges(true);
   };
 
   const saveProgramName = async (idKey: string, newName: string) => {
@@ -197,6 +277,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       return;
     }
     setPrograms((prev) => prev.map((t) => ((t.id ?? t.tempId) === idKey ? { ...t, name: newName } : t)));
+    setHasPendingChanges(true);
   };
 
   const deleteProgram = async (idKey: string) => {
@@ -209,13 +290,14 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       setActiveProgramId(nextActive);
       return filtered;
     });
+    setHasPendingChanges(true);
   };
 
   // Delete a specific day from a program: remove the day and all associated program_exercises.
   // If the program is persisted (has a real id), also delete the rows in the DB immediately.
   const deleteDayFromProgram = async (programKey: string, day: string) => {
     try {
-      // Update local state: remove the day and any programExercises for that day
+      // Only perform local removal; persistence should happen on global save
       setPrograms((prev) => prev.map((pr) => {
         const key = pr.id ?? pr.tempId;
         if (key !== programKey) return pr;
@@ -226,18 +308,10 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
         };
       }));
 
-      // If this program is persisted in the DB, delete the rows there as well
-      const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
-      const persistedId = program?.id ?? null;
-      if (persistedId) {
-        const { error } = await supabase.from('program_exercises').delete().match({ program: persistedId, day });
-        if (error) throw error;
-      }
-
       // Recompute positions and days for that program
       await updateProgramExercisesPositions(programKey);
     } catch (err) {
-      logError('Error deleting day from program', err);
+      logError('Error deleting day locally from program', err);
       throw err;
     }
   };
@@ -365,10 +439,12 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     const clone = clonePrograms(initialProgramsRef.current);
     setPrograms(clone);
     setActiveProgramId(clone[0]?.id ?? clone[0]?.tempId ?? '');
+    setHasPendingChanges(false);
   };
 
   const markCurrentAsClean = () => {
     initialProgramsRef.current = clonePrograms(programs);
+    setHasPendingChanges(false);
   };
 
   const persistAll = async (profileId: string | null) => {
@@ -428,14 +504,9 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
         const initialPeList = existingMap.get(programId)?.programExercises || [];
         const currentPeList = (prog.programExercises || []).map((pe: any) => ({ ...pe, program: programId }));
 
-        const days = Array.from(new Set((currentPeList || []).map((pe: any) => pe.day || 'A')));
-        const normalized: any[] = [];
-        days.forEach((day) => {
-          const items = currentPeList
-            .filter((pe: any) => String(pe.day ?? 'A') === String(day))
-            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-          items.forEach((it: any, idx: number) => normalized.push({ ...it, position: idx, day }));
-        });
+        // Compute only days that have exercises and remap them to a compact sequence (A,B,C...) to avoid gaps
+        const { normalized } = normalizeProgramExercises(currentPeList, prog.days);
+
 
         const deletions = initialPeList.filter((pe: any) => pe.id && !normalized.some((c: any) => c.id === pe.id));
         if (deletions.length) {
@@ -501,6 +572,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
 
       const refreshed = await loadPrograms(profileId);
       initialProgramsRef.current = clonePrograms(refreshed || programs);
+      // On success, clear pending flag
+      setHasPendingChanges(false);
     } catch (e) {
       logError('Error persisting programs', e);
       alert('Error guardando programas: ' + String((e as any)?.message || e));
@@ -509,6 +582,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       setPersistingAll(false);
     }
   };
+
+  const markPendingChanges = (flag: boolean) => setHasPendingChanges(Boolean(flag));
 
   return {
     programs,
@@ -538,5 +613,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     persistingAll,
     persistProgramExercisePositions,
     deleteDayFromProgram,
+    // pending changes state
+    hasPendingChanges,
+    markPendingChanges,
   };
 }

@@ -19,14 +19,12 @@ interface Props {
     onSaved: (pe: any) => void;
 }
 
-const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
 export default function ProgramExerciseDialog({ open, onOpenChange, programExercise, onSaved }: Props) {
     const [local, setLocal] = useState<any>({});
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        setLocal(programExercise ? { ...programExercise, day: programExercise.day ?? 1 } : { day: 1 });
+        setLocal(programExercise ? { ...programExercise } : {});
     }, [programExercise]);
 
     const handleSave = async () => {
@@ -52,37 +50,28 @@ export default function ProgramExerciseDialog({ open, onOpenChange, programExerc
             <DialogContent className="max-w-md">
                 <DialogHeader>
                     <DialogTitle>{programExercise?.id ? 'Editar ejercicio del programa' : 'Editar asignación'}</DialogTitle>
-                    <DialogDescription>Modifica el día, reps, sets y notas de la asignación</DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
-                    <div>
-                        <Label>Día</Label>
-                        <select className="w-full p-2 border rounded" value={local.day} onChange={(e) => setLocal((s: any) => ({ ...s, day: Number(e.target.value) }))}>
-                            {dayNames.map((d, i) => (
-                                <option key={i} value={i + 1}>{d}</option>
-                            ))}
-                        </select>
-                    </div>
 
                     <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <Label>Reps</Label>
-                            <Input type="number" value={local.reps ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, reps: e.target.value ? Number(e.target.value) : null }))} />
-                        </div>
-                        <div>
-                            <Label>Sets</Label>
+                            <Label>Series</Label>
                             <Input type="number" value={local.sets ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, sets: e.target.value ? Number(e.target.value) : null }))} />
                         </div>
+                        <div>
+                            <Label>Repeticiones</Label>
+                            <Input type="number" value={local.reps ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, reps: e.target.value ? Number(e.target.value) : null }))} />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <Label>Weight</Label>
+                            <Label>Peso (kg)</Label>
                             <Input type="number" value={local.weight ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, weight: e.target.value ? Number(e.target.value) : null }))} />
                         </div>
                         <div>
-                            <Label>Secs</Label>
+                            <Label>Tiempo (s)</Label>
                             <Input type="number" value={local.secs ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, secs: e.target.value ? Number(e.target.value) : null }))} />
                         </div>
                     </div>

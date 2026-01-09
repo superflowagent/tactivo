@@ -248,6 +248,26 @@ export function EventDialog({
         }
     }, [showMaxAssistantsDialog]);
 
+    const initialEventRef = useRef<any>(null);
+
+    useEffect(() => {
+        if (!open) {
+            window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
+            return;
+        }
+        const snapshot = {
+            formData,
+            fecha: fecha ? fecha.toISOString() : null,
+            hora,
+            minutos,
+            dias,
+            selectedClients,
+            selectedProfessionals,
+        };
+        initialEventRef.current = snapshot;
+        window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
+    }, [open]);
+
     useEffect(() => {
         if (open) {
             if (!isClientView) loadClientes();
@@ -455,6 +475,7 @@ export function EventDialog({
             }
 
             onSave();
+            window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
         } catch (err) {
             logError('Error al guardar evento:', err);
@@ -475,6 +496,7 @@ export function EventDialog({
             if (delErr) throw delErr;
 
             onSave();
+            window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
             setShowDeleteDialog(false);
         } catch (err: any) {
@@ -516,6 +538,25 @@ export function EventDialog({
             : null;
 
     const eventHasPassed = event?.datetime ? new Date(event.datetime).getTime() < Date.now() : false;
+
+    const eventIsDirty = useMemo(() => {
+        const init = initialEventRef.current;
+        if (!init) return false;
+        const curr = {
+            formData,
+            fecha: fecha ? fecha.toISOString() : null,
+            hora,
+            minutos,
+            dias,
+            selectedClients,
+            selectedProfessionals,
+        };
+        return JSON.stringify(init) !== JSON.stringify(curr);
+    }, [formData, fecha, hora, minutos, dias, selectedClients, selectedProfessionals]);
+
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: eventIsDirty } }));
+    }, [eventIsDirty]);
 
     const hideFooterForClient =
         isClientView &&
