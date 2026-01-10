@@ -11,8 +11,7 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "preview": "vite preview",
-    "test": "vitest",
-    "new:function": "node ./scripts/new-edge-function.js"
+    "test": "vitest"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
