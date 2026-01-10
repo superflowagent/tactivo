@@ -286,6 +286,8 @@ export default function ClientPrograms({ api }: Props) {
 
   const handleDragStart = (e: React.DragEvent, peId: string, day: string, programId: string) => {
     e.dataTransfer.effectAllowed = 'move';
+    // Update ref synchronously so immediate dragover events see the current dragged item
+    draggedExerciseRef.current = { peId, day, programId };
     setDraggedExercise({ peId, day, programId });
   };
 
@@ -385,6 +387,9 @@ export default function ClientPrograms({ api }: Props) {
     }
     pendingDragOverRef.current = null;
     pendingDragOverColumnRef.current = null;
+    n    // Clear refs synchronously to avoid stale values on the next drag start
+    draggedExerciseRef.current = null;
+    draggedDayColumnRef.current = null;
 
     setDraggedExercise(null);
     setDragOverExercise(null);
@@ -709,6 +714,8 @@ export default function ClientPrograms({ api }: Props) {
     if (draggedExercise) return; // ignore if an exercise drag is active
     // Some browsers require setting data to enable drop
     try { e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'day', day, programId })); } catch { }
+    // Update ref synchronously so immediate dragover events see the current dragged column
+    draggedDayColumnRef.current = { day, programId };
     setDraggedDayColumn({ day, programId });
   };
   const handleDayDragOver = (e: React.DragEvent, day: string, programId: string) => {
