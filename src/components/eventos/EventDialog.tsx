@@ -251,6 +251,9 @@ export function EventDialog({
 
     const initialEventRef = useRef<any>(null);
 
+    /* We intentionally only want to run this effect when `open` changes to create the initial snapshot.
+       Other variables are read at the time the dialog opens; updating them while open should not reset the initial snapshot. */
+    /* eslint-disable react-hooks/exhaustive-deps */
     useEffect(() => {
         if (!open) {
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
@@ -268,6 +271,7 @@ export function EventDialog({
         initialEventRef.current = snapshot;
         window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
     }, [open]);
+    /* eslint-enable react-hooks/exhaustive-deps */
 
     useEffect(() => {
         if (open) {

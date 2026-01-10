@@ -39,7 +39,7 @@ function MobileHamburgerButton() {
 }
 
 export function Panel() {
-  const { user, companyName } = useAuth();
+  const { companyName } = useAuth();
   // Persist current view so remounts / focus changes don't reset it unintentionally
   const initialView = (() => {
     try {

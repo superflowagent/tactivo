@@ -49,7 +49,6 @@ import { EventDialog } from '@/components/eventos/EventDialog';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import type { ViewType } from '@/App';
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
 export default function ClienteView() {
     const { companyName, uid } = useParams<{ companyName: string; uid: string }>();
@@ -833,9 +832,9 @@ export default function ClienteView() {
                         {isDirty && <Badge variant="outline" className="ml-3 bg-warning/10 text-muted-foreground border-warning px-1.5 py-[2px] text-xs">Cambios no guardados</Badge>}
                     </h1>
                 </header>
-                <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0">
+                <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 min-h-0 overflow-hidden min-w-0 pb-24">
 
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col overflow-hidden">
                         <TabsList className="grid w-full max-w-md grid-cols-4">
                             <TabsTrigger value="datos">Datos</TabsTrigger>
                             <TabsTrigger value="bonos">Bonos</TabsTrigger>
@@ -1126,7 +1125,7 @@ export default function ClienteView() {
 
                         <TabsContent value="programas" className="flex-1 min-h-0">
                             <div className="mt-2 overflow-hidden pr-1">
-                                <div className="h-full overflow-y-auto rounded-lg border bg-card p-2 shadow-sm">
+                                <div className="h-full overflow-y-auto overflow-x-hidden rounded-lg border bg-card p-2 shadow-sm min-w-0">
                                     <ClientPrograms api={clientProgramsApi} />
                                 </div>
                             </div>
@@ -1203,7 +1202,7 @@ export default function ClienteView() {
                     </Tabs>
                 </div>
 
-                <div className="sticky bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:px-6">
+                <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:px-6 z-50">
                     <div className="flex items-center justify-between w-full gap-3">
                         <div>
                             {cliente?.id && activeTab === 'datos' && (

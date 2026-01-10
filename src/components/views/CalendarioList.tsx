@@ -23,7 +23,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { error as logError } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
-import type { Event } from '@/types/event';
+
 
 type Props = {
     events: any[]; // esperados objetos transformados para FullCalendar (con start: Date, title, extendedProps, id)
@@ -69,7 +69,7 @@ export default function CalendarioList({ events, onRowClick, onDeleteComplete, c
             const next = new Set(Array.from(s).filter((id) => futureEvents.some((e) => e.id === id)));
             return next;
         });
-    }, [events]);
+    }, [futureEvents]);
 
     const handleDeleteClick = (id: string) => {
         setEventToDelete(id);

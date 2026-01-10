@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash, Plus, ChevronDown, ArrowLeft, Pencil } from 'lucide-react';
@@ -45,21 +46,18 @@ export default function ClientPrograms({ api }: Props) {
     anatomyList,
     equipmentList,
     updateProgramExercisesPositions,
-    persistProgramExercisePositions,
-    moveAssignmentUp,
-    moveAssignmentDown,
     showSavedToast,
     savedToastTitle,
     setShowSavedToast,
   } = api;
 
+  const { user } = useAuth();
+  const isClient = user?.role === 'client';
+
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   const [editingProgramName, setEditingProgramName] = useState<string>('');
 
-  // Preserve delete day dialog state for backwards compatibility with HMR/runtime references
-  // (we removed the explicit confirmation flow but keep the state to avoid ReferenceErrors)
-  const [showDeleteDayDialog, setShowDeleteDayDialog] = useState(false);
-  const [programDayToDelete, setProgramDayToDelete] = useState<{ programKey: string; day: string } | null>(null);
+
 
   // (Removed confirmation dialog) Delete day will be immediate in UI and persisted only when 'Guardar' is used
 
@@ -88,6 +86,25 @@ export default function ClientPrograms({ api }: Props) {
   const [draggedDayColumn, setDraggedDayColumn] = useState<{ day: string; programId: string } | null>(null);
   const [dragOverDayColumn, setDragOverDayColumn] = useState<{ day: string; programId: string } | null>(null);
   const [dragOverDayColumnSide, setDragOverDayColumnSide] = useState<'top' | 'bottom' | null>(null);
+
+  // Refs to reduce reflow and re-render during dragover events (throttled with rAF)
+  const draggedExerciseRef = useRef(draggedExercise);
+  React.useEffect(() => { draggedExerciseRef.current = draggedExercise; }, [draggedExercise]);
+
+  const draggedDayColumnRef = useRef(draggedDayColumn);
+  React.useEffect(() => { draggedDayColumnRef.current = draggedDayColumn; }, [draggedDayColumn]);
+  const dragOverRafRef = useRef<number | null>(null);
+  const pendingDragOverRef = useRef<{ peId: string; day: string; programId: string } | null>(null);
+
+  const dragOverColumnRafRef = useRef<number | null>(null);
+  const pendingDragOverColumnRef = useRef<{ day: string; programId: string; pointerY?: number; target?: HTMLElement | null } | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (dragOverRafRef.current) cancelAnimationFrame(dragOverRafRef.current);
+      if (dragOverColumnRafRef.current) cancelAnimationFrame(dragOverColumnRafRef.current);
+    };
+  }, []);
 
   // Derive lookup lists for anatomy/equipment from loaded exercises to avoid undefined pickers
   const anatomyForPicker = React.useMemo(() => {
@@ -276,17 +293,28 @@ export default function ClientPrograms({ api }: Props) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
-    if (!draggedExercise) {
-      setDragOverExercise(null);
-      return;
-    }
+    // Defer work to rAF to avoid layout thrash / excessive re-renders
+    pendingDragOverRef.current = { peId, day, programId };
+    if (dragOverRafRef.current != null) return;
+    dragOverRafRef.current = requestAnimationFrame(() => {
+      dragOverRafRef.current = null;
+      const args = pendingDragOverRef.current;
+      pendingDragOverRef.current = null;
+      const d = draggedExerciseRef.current;
+      if (!d) {
+        setDragOverExercise((prev) => (prev ? null : prev));
+        return;
+      }
 
-    // Show indicator for any different element in the same program
-    if (draggedExercise.peId !== peId && draggedExercise.programId === programId) {
-      setDragOverExercise({ peId, day, programId });
-    } else {
-      setDragOverExercise(null);
-    }
+      if (d.peId !== args!.peId && d.programId === args!.programId) {
+        setDragOverExercise((prev) => {
+          if (prev && prev.peId === args!.peId && prev.day === args!.day && prev.programId === args!.programId) return prev;
+          return { peId: args!.peId, day: args!.day, programId: args!.programId };
+        });
+      } else {
+        setDragOverExercise((prev) => (prev ? null : prev));
+      }
+    });
   };
 
   const handleDrop = (e: React.DragEvent, peId: string, day: string, programId: string) => {
@@ -298,7 +326,6 @@ export default function ClientPrograms({ api }: Props) {
     }
 
     const draggedProgramId = draggedExercise.programId;
-    const draggedDay = draggedExercise.day;
     const draggedPeId = draggedExercise.peId;
 
     // Only allow reordering within the same program
@@ -347,6 +374,18 @@ export default function ClientPrograms({ api }: Props) {
   };
 
   const handleDragEnd = () => {
+    // Cancel any pending rAF work
+    if (dragOverRafRef.current) {
+      cancelAnimationFrame(dragOverRafRef.current);
+      dragOverRafRef.current = null;
+    }
+    if (dragOverColumnRafRef.current) {
+      cancelAnimationFrame(dragOverColumnRafRef.current);
+      dragOverColumnRafRef.current = null;
+    }
+    pendingDragOverRef.current = null;
+    pendingDragOverColumnRef.current = null;
+
     setDraggedExercise(null);
     setDragOverExercise(null);
     setDraggedDayColumn(null);
@@ -357,14 +396,42 @@ export default function ClientPrograms({ api }: Props) {
   const handleDragOverColumn = (e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    // If dragging columns (days), show row hover indicator and side (top/bottom) preview
-    if (draggedDayColumn && draggedDayColumn.programId === programId) {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const y = e.clientY - rect.top;
+
+    // If not dragging columns or program mismatch, clear preview early
+    if (!draggedDayColumnRef.current || draggedDayColumnRef.current.programId !== programId) {
+      setDragOverDayColumn(null);
+      setDragOverDayColumnSide(null);
+      return;
+    }
+
+    // Store latest target and pointer coordinates; defer heavy work to rAF
+    pendingDragOverColumnRef.current = { day, programId, pointerY: e.clientY, target: e.currentTarget as HTMLElement };
+    if (dragOverColumnRafRef.current != null) return;
+
+    dragOverColumnRafRef.current = requestAnimationFrame(() => {
+      dragOverColumnRafRef.current = null;
+      const pending = pendingDragOverColumnRef.current;
+      pendingDragOverColumnRef.current = null;
+      const dragged = draggedDayColumnRef.current;
+      if (!pending || !dragged || dragged.programId !== pending.programId) {
+        setDragOverDayColumn(null);
+        setDragOverDayColumnSide(null);
+        return;
+      }
+
+      const target = pending.target;
+      if (!target) {
+        setDragOverDayColumn(null);
+        setDragOverDayColumnSide(null);
+        return;
+      }
+
+      const rect = target.getBoundingClientRect();
+      const y = (pending.pointerY ?? 0) - rect.top;
       const side = y < rect.height / 2 ? 'top' : 'bottom';
 
       // Only show the preview if the insertion would actually change the order
-      const program = programs.find((p) => (p.id ?? p.tempId) === programId);
+      const program = programs.find((p) => (p.id ?? p.tempId) === pending.programId);
       if (!program) {
         setDragOverDayColumn(null);
         setDragOverDayColumnSide(null);
@@ -372,12 +439,12 @@ export default function ClientPrograms({ api }: Props) {
       }
 
       const days = [...(program.days || ['A'])];
-      const draggedDay = draggedDayColumn.day;
+      const draggedDay = dragged.day;
       const draggedIdx = days.findIndex((d) => d === draggedDay);
 
       // Build days without the dragged one and compute insertion index
       const daysWithout = days.filter((_, i) => i !== draggedIdx);
-      const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === day);
+      const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === pending.day);
       let insertIdx = targetIdxAfterRemoval;
       if (side === 'bottom') insertIdx = targetIdxAfterRemoval + 1;
       if (insertIdx < 0) insertIdx = 0;
@@ -391,12 +458,13 @@ export default function ClientPrograms({ api }: Props) {
         setDragOverDayColumn(null);
         setDragOverDayColumnSide(null);
       } else {
-        setDragOverDayColumn({ day, programId });
+        setDragOverDayColumn((prev) => {
+          if (prev && prev.day === pending.day && prev.programId === pending.programId) return prev;
+          return { day: pending.day, programId: pending.programId };
+        });
         setDragOverDayColumnSide(side);
       }
-
-      return;
-    }
+    });
   };
 
   const handleDropToNewDay = async (e: React.DragEvent, targetDay: string, programId: string) => {
@@ -530,10 +598,6 @@ export default function ClientPrograms({ api }: Props) {
     }).filter(Boolean) as any[];
 
     // Insert the dragged item at the correct position in target day
-    const targetDayItems = merged
-      .filter((pe: any) => String(pe.day) === targetDay)
-      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
     const draggedItem = (program.programExercises || []).find((pe: any) => (pe.id ?? pe.tempId) === draggedPeId);
     if (!draggedItem) return;
 
@@ -657,8 +721,10 @@ export default function ClientPrograms({ api }: Props) {
   };
 
   const programTabTriggerClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 cursor-pointer select-none";
-  const dayColumnClass = "relative border rounded-lg p-2 bg-muted/10 w-full";
+  void programTabTriggerClass;
+  const dayColumnClass = "relative border rounded-lg p-2 bg-muted/10 w-full overflow-hidden min-w-0";
   const exerciseCardClass = "p-2 bg-white rounded-lg border flex items-center justify-between gap-2 transition-shadow duration-150 hover:shadow-lg";
+  void exerciseCardClass;
   const iconButtonClass = "h-4 w-4";
 
   // Helpers
@@ -680,19 +746,21 @@ export default function ClientPrograms({ api }: Props) {
 
 
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden">
       <div className="px-1 flex-1 flex flex-col">
         {/* LIST VIEW */}
         {!viewingProgramId ? (
           <div>
             <div className="flex items-center justify-between mb-2">
               <div />
-              <div className="flex items-center gap-2">
-                <Button onClick={addProgram}>
-                  <Plus className="mr-0 h-4 w-4" />
-                  Crear Programa
-                </Button>
-              </div>
+              {!isClient && (
+                <div className="flex items-center gap-2">
+                  <Button onClick={addProgram}>
+                    <Plus className="mr-0 h-4 w-4" />
+                    Crear Programa
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border bg-background">
@@ -749,7 +817,14 @@ export default function ClientPrograms({ api }: Props) {
                         <TableCell className="text-right">{exercisesCount}</TableCell>
                         <TableCell className="text-right pr-4">
                           <div className="flex justify-end gap-2">
-                            <ActionButton onClick={async (e) => { e.stopPropagation(); try { await deleteProgram(idKey); } catch (err) { logError(err); } }} tooltip="Eliminar programa"><Trash className="h-4 w-4" /></ActionButton>
+                            {!isClient && (
+                              <ActionButton
+                                onClick={async (e) => { e.stopPropagation(); try { await deleteProgram(idKey); } catch (err) { logError(err); } }}
+                                tooltip="Eliminar programa"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </ActionButton>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -804,15 +879,17 @@ export default function ClientPrograms({ api }: Props) {
                         <h3 className="text-sm font-semibold">
                           {p.name}
                         </h3>
-                        <ActionButton
-                          tooltip="Editar nombre"
-                          onClick={() => {
-                            setEditingProgramId(p.id ?? p.tempId);
-                            setEditingProgramName(p.name);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </ActionButton>
+                        {!isClient && (
+                          <ActionButton
+                            tooltip="Editar nombre"
+                            onClick={() => {
+                              setEditingProgramId(p.id ?? p.tempId);
+                              setEditingProgramName(p.name);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </ActionButton>
+                        )}
                       </div>
                     )}
 
@@ -827,9 +904,10 @@ export default function ClientPrograms({ api }: Props) {
                       <DropdownMenuContent align="start" className="w-[600px] p-3">
                         <LazyRichTextEditor
                           value={p.description || ''}
-                          onChange={(val) => setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)))}
+                          onChange={isClient ? () => { } : (val) => setPrograms((prev) => prev.map((x) => (x.id === p.id || x.tempId === p.tempId ? { ...x, description: val } : x)))}
                           placeholder="Descripción del programa"
                           className="min-h-[120px]"
+                          readOnly={isClient}
                         />
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -842,7 +920,7 @@ export default function ClientPrograms({ api }: Props) {
 
                 <Card className="p-0 space-y-4 h-full">
                   <div>
-                    <div className="flex flex-col gap-4 px-4 pt-4">
+                    <div className="flex flex-col gap-4 px-4 pt-4 w-full overflow-hidden min-w-0">
                       {(() => {
                         // Defensive: ensure `days` is a proper array of strings; fall back to extracting days from programExercises or ['A']
                         let daysArr: string[] = Array.isArray(p.days) && p.days.length
@@ -857,8 +935,8 @@ export default function ClientPrograms({ api }: Props) {
                             <div
                               key={day}
                               className={dayColumnClass}
-                              onDragOver={(e) => handleDragOverColumn(e, day, p.id ?? p.tempId)}
-                              onDrop={(e) => handleDropToNewDay(e, day, p.id ?? p.tempId)}
+                              onDragOver={!isClient ? ((e) => handleDragOverColumn(e, day, p.id ?? p.tempId)) : undefined}
+                              onDrop={!isClient ? ((e) => handleDropToNewDay(e, day, p.id ?? p.tempId)) : undefined}
                               onDragLeave={() => {
                                 if (dragOverDayColumn?.day === day && dragOverDayColumn?.programId === (p.id ?? p.tempId)) {
                                   setDragOverDayColumn(null);
@@ -874,42 +952,51 @@ export default function ClientPrograms({ api }: Props) {
                               )}
                               <div className="flex items-center justify-between mb-2">
                                 <div
-                                  className="text-sm font-medium pl-2 cursor-move flex-1"
+                                  className={cn("text-sm font-medium pl-2", isClient ? "cursor-default flex-1" : "cursor-move flex-1")}
                                   role="button"
                                   aria-grabbed={draggedDayColumn?.day === day ? 'true' : 'false'}
                                   tabIndex={0}
-                                  draggable
-                                  onDragStart={(e) => handleDayDragStart(e, day, p.id ?? p.tempId)}
-                                  onDragOver={(e) => handleDayDragOver(e, day, p.id ?? p.tempId)}
-                                  onDrop={(e) => handleDayDrop(e, day, p.id ?? p.tempId)}
-                                  onDragEnd={handleDragEnd}
+                                  draggable={!isClient}
+                                  onDragStart={!isClient ? (e) => handleDayDragStart(e, day, p.id ?? p.tempId) : undefined}
+                                  onDragOver={!isClient ? (e) => handleDayDragOver(e, day, p.id ?? p.tempId) : undefined}
+                                  onDrop={!isClient ? (e) => handleDayDrop(e, day, p.id ?? p.tempId) : undefined}
+                                  onDragEnd={!isClient ? handleDragEnd : undefined}
                                 >
                                   {`Día ${day}`}
                                 </div>
                                 <div>
-                                  <ActionButton tooltip="Eliminar día" draggable={false} onMouseDown={(e) => e.stopPropagation()} onClick={() => {
-                                    const key = p.id ?? p.tempId;
-                                    setPrograms((prev) => prev.map((pr) => {
-                                      const k = pr.id ?? pr.tempId;
-                                      if (k !== key) return pr;
-                                      return {
-                                        ...pr,
-                                        days: (pr.days || []).filter((d: string) => d !== day),
-                                        programExercises: (pr.programExercises || []).filter((pe: any) => String(pe.day ?? 'A') !== String(day)),
-                                      };
-                                    }));
-                                    try {
-                                      updateProgramExercisesPositions(key);
-                                    } catch (err) {
-                                      logError('Error normalizing after local delete day', err);
-                                    }
-                                  }} aria-label="Eliminar día">
-                                    <Trash className={iconButtonClass} />
-                                  </ActionButton>
+                                  {!isClient && (
+                                    <ActionButton
+                                      tooltip="Eliminar día"
+                                      draggable={false}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      onClick={() => {
+                                        const key = p.id ?? p.tempId;
+                                        setPrograms((prev) => prev.map((pr) => {
+                                          const k = pr.id ?? pr.tempId;
+                                          if (k !== key) return pr;
+                                          return {
+                                            ...pr,
+                                            days: (pr.days || []).filter((d: string) => d !== day),
+                                            programExercises: (pr.programExercises || []).filter((pe: any) => String(pe.day ?? 'A') !== String(day)),
+                                          };
+                                        }));
+                                        try {
+                                          updateProgramExercisesPositions(key);
+                                        } catch (err) {
+                                          logError('Error normalizing after local delete day', err);
+                                        }
+                                      }}
+                                      aria-label="Eliminar día"
+                                    >
+                                      <Trash className={iconButtonClass} />
+                                    </ActionButton>
+                                  )}
                                 </div>
                               </div>
                               <div className="space-y-2 min-h-[40px]">
-                                <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+                                {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
+                                <div className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0">
                                   {items.map((pe: any) => {
                                     const exercise = pe.exercise || {};
 
@@ -937,7 +1024,7 @@ export default function ClientPrograms({ api }: Props) {
                                     const mediaUrl = file && exercise.id ? (getFilePublicUrl('exercise_videos', exercise.id, file) || undefined) : undefined;
 
                                     return (
-                                      <div key={pe.id || pe.tempId} className="relative w-[260px]">
+                                      <div key={pe.id || pe.tempId} className="relative w-[260px] flex-none">
                                         {dragOverExercise?.peId === (pe.id ?? pe.tempId) && dragOverExercise?.programId === (p.id ?? p.tempId) && (
                                           <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
                                         )}
@@ -946,40 +1033,44 @@ export default function ClientPrograms({ api }: Props) {
                                             role="button"
                                             aria-grabbed={draggedExercise?.peId === (pe.id ?? pe.tempId) ? 'true' : 'false'}
                                             tabIndex={0}
-                                            draggable
-                                            onDragStart={(e) => handleDragStart(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId)}
-                                            onDragOver={(e) => handleDragOver(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId)}
-                                            onDrop={(e) => handleDrop(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId)}
-                                            onDragEnd={handleDragEnd}
-                                            onKeyDown={(e) => { if (e.key === 'Enter') { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }}
-                                            className={cn("overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-move min-w-0", draggedExercise?.peId === (pe.id ?? pe.tempId) && "opacity-50", "bg-white rounded-lg border")}
+                                            draggable={!isClient}
+                                            onDragStart={!isClient ? (e) => handleDragStart(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId) : undefined}
+                                            onDragOver={!isClient ? (e) => handleDragOver(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId) : undefined}
+                                            onDrop={!isClient ? (e) => handleDrop(e, pe.id ?? pe.tempId, day, p.id ?? p.tempId) : undefined}
+                                            onDragEnd={!isClient ? handleDragEnd : undefined}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' && !isClient) { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); } }}
+                                            className={cn("overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0", (draggedExercise?.peId === (pe.id ?? pe.tempId) && "opacity-50"), "bg-white rounded-lg border", isClient ? "cursor-default" : "cursor-move")}
                                           >
                                             <CardHeader className="py-1 px-4 h-auto space-y-0.5">
                                               <div className="flex items-center justify-between gap-2">
                                                 <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">{exercise.name || pe.exercise?.name || 'Ejercicio'}</CardTitle>
-                                                <ActionButton tooltip="Editar ejercicio" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar ejercicio">
-                                                  <Pencil className="h-4 w-4" />
-                                                </ActionButton>
-                                                <ActionButton
-                                                  tooltip="Eliminar ejercicio"
-                                                  onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    try {
-                                                      if (String(pe.tempId || '').startsWith('tpe-')) {
-                                                        setPrograms((prev) => prev.map((pr) => (pr.tempId === p.tempId ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.tempId !== pe.tempId) } : pr)));
-                                                        await updateProgramExercisesPositions(p.id ?? p.tempId);
-                                                        return;
-                                                      }
-                                                      setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === (p.id ?? p.tempId) ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
-                                                      await updateProgramExercisesPositions(p.id ?? p.tempId);
-                                                    } catch (err) {
-                                                      logError('Error deleting program_exercise', err);
-                                                    }
-                                                  }}
-                                                  aria-label="Eliminar ejercicio"
-                                                >
-                                                  <Trash className={iconButtonClass} />
-                                                </ActionButton>
+                                                {!isClient && (
+                                                  <>
+                                                    <ActionButton tooltip="Editar ejercicio" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar ejercicio">
+                                                      <Pencil className="h-4 w-4" />
+                                                    </ActionButton>
+                                                    <ActionButton
+                                                      tooltip="Eliminar ejercicio"
+                                                      onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                          if (String(pe.tempId || '').startsWith('tpe-')) {
+                                                            setPrograms((prev) => prev.map((pr) => (pr.tempId === p.tempId ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.tempId !== pe.tempId) } : pr)));
+                                                            await updateProgramExercisesPositions(p.id ?? p.tempId);
+                                                            return;
+                                                          }
+                                                          setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === (p.id ?? p.tempId) ? { ...pr, programExercises: (pr.programExercises || []).filter((x: any) => x.id !== pe.id) } : pr)));
+                                                          await updateProgramExercisesPositions(p.id ?? p.tempId);
+                                                        } catch (err) {
+                                                          logError('Error deleting program_exercise', err);
+                                                        }
+                                                      }}
+                                                      aria-label="Eliminar ejercicio"
+                                                    >
+                                                      <Trash className={iconButtonClass} />
+                                                    </ActionButton>
+                                                  </>
+                                                )}
                                               </div>
 
                                               <div className="flex flex-col gap-1 min-h-0">
@@ -992,12 +1083,27 @@ export default function ClientPrograms({ api }: Props) {
                                               </div>
                                             </CardHeader>
 
-                                            <div className="relative bg-slate-200 overflow-hidden flex-1">
+                                            <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
                                               {mediaUrl ? (
                                                 isVideo(file) ? (
-                                                  <video src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" controls />
+                                                  <video
+                                                    src={mediaUrl}
+                                                    draggable={false}
+                                                    onDragStart={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => (e.stopPropagation())}
+                                                    className="absolute inset-0 w-full h-full object-cover cursor-auto"
+                                                    controls
+                                                  />
                                                 ) : (
-                                                  <img src={mediaUrl} className="absolute inset-0 w-full h-full object-cover" />
+                                                  <img
+                                                    src={mediaUrl}
+                                                    draggable={false}
+                                                    onDragStart={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onPointerDown={(e) => (e.stopPropagation())}
+                                                    className="absolute inset-0 w-full h-full object-cover cursor-auto"
+                                                  />
                                                 )
                                               ) : (
                                                 <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-100">
@@ -1007,21 +1113,17 @@ export default function ClientPrograms({ api }: Props) {
                                             </div>
 
                                             {(() => {
-                                              const metrics: React.ReactNode[] = [];
-                                              if (typeof pe.sets !== 'undefined' && pe.sets !== null && pe.sets !== '') {
-                                                metrics.push(<div key="sets" className="flex items-center gap-1"><span className="text-muted-foreground">Series:</span> <span className="font-medium text-foreground">{pe.sets}</span></div>);
-                                              }
-                                              if (typeof pe.reps !== 'undefined' && pe.reps !== null && pe.reps !== '') {
-                                                metrics.push(<div key="reps" className="flex items-center gap-2"><span className="text-muted-foreground">Reps:</span> <span className="font-medium text-foreground">{pe.reps}</span></div>);
-                                              }
-                                              if (typeof pe.weight !== 'undefined' && pe.weight !== null && pe.weight !== '') {
-                                                metrics.push(<div key="weight" className="flex items-center gap-1"><span className="text-muted-foreground">kg:</span> <span className="font-medium text-foreground">{pe.weight}</span></div>);
-                                              }
-                                              if (typeof pe.secs !== 'undefined' && pe.secs !== null && pe.secs !== '') {
-                                                metrics.push(<div key="secs" className="flex items-center gap-1"><span className="text-muted-foreground">Secs:</span> <span className="font-medium text-foreground">{pe.secs}</span></div>);
-                                              }
-                                              if (metrics.length === 0) return null;
-                                              return (<div className="px-3 py-1.5 text-xs text-muted-foreground border-t"><div className="flex items-center gap-3 whitespace-nowrap">{metrics}</div></div>);
+                                              const valOrDash = (v: any) => (typeof v !== 'undefined' && v !== null && v !== '' ? v : '-');
+                                              return (
+                                                <div className="px-3 py-1.5 text-xs text-muted-foreground border-t">
+                                                  <div className="flex items-center gap-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1"><span className="text-muted-foreground">Series:</span> <span className="font-medium text-foreground">{valOrDash(pe.sets)}</span></div>
+                                                    <div className="flex items-center gap-2"><span className="text-muted-foreground">Reps:</span> <span className="font-medium text-foreground">{valOrDash(pe.reps)}</span></div>
+                                                    <div className="flex items-center gap-1"><span className="text-muted-foreground">kg:</span> <span className="font-medium text-foreground">{valOrDash(pe.weight)}</span></div>
+                                                    <div className="flex items-center gap-1"><span className="text-muted-foreground">Secs:</span> <span className="font-medium text-foreground">{valOrDash(pe.secs)}</span></div>
+                                                  </div>
+                                                </div>
+                                              );
                                             })()}
                                           </Card>
                                         </div>
@@ -1030,33 +1132,35 @@ export default function ClientPrograms({ api }: Props) {
                                   })}
 
                                   {/* Placeholder card to add a new exercise */}
-                                  <div key="add-placeholder" className="relative w-[260px]">
-                                    {dragOverExercise?.peId === '__end__' && dragOverExercise?.day === day && dragOverExercise?.programId === (p.id ?? p.tempId) && (
-                                      <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
-                                    )}
-                                    <Card
-                                      role="button"
-                                      tabIndex={0}
-                                      onKeyDown={(e) => { if (e.key === 'Enter') { openAddExercisesDialog(p.id ?? p.tempId, day); } }}
-                                      onClick={() => openAddExercisesDialog(p.id ?? p.tempId, day)}
-                                      onDragOver={(e) => handleDragOverEnd(e, day, p.id ?? p.tempId)}
-                                      onDrop={(e) => handleDropEnd(e, day, p.id ?? p.tempId)}
-                                      onDragLeave={() => {
-                                        if (dragOverExercise?.peId === '__end__' && dragOverExercise?.day === day) {
-                                          setDragOverExercise(null);
-                                        }
-                                      }}
-                                      className={cn('overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-pointer bg-slate-200 rounded-lg border')}
-                                    >
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        <div className="flex flex-col items-center gap-2 text-slate-500">
-                                          <Plus className="h-6 w-6" />
-                                          <p className="text-sm">Añadir</p>
+                                  {!isClient && (
+                                    <div key="add-placeholder" className="relative w-[260px] flex-none">
+                                      {dragOverExercise?.peId === '__end__' && dragOverExercise?.day === day && dragOverExercise?.programId === (p.id ?? p.tempId) && (
+                                        <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
+                                      )}
+                                      <Card
+                                        role="button"
+                                        tabIndex={0}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { openAddExercisesDialog(p.id ?? p.tempId, day); } }}
+                                        onClick={() => openAddExercisesDialog(p.id ?? p.tempId, day)}
+                                        onDragOver={(e) => handleDragOverEnd(e, day, p.id ?? p.tempId)}
+                                        onDrop={(e) => handleDropEnd(e, day, p.id ?? p.tempId)}
+                                        onDragLeave={() => {
+                                          if (dragOverExercise?.peId === '__end__' && dragOverExercise?.day === day) {
+                                            setDragOverExercise(null);
+                                          }
+                                        }}
+                                        className={cn('overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-pointer bg-slate-200 rounded-lg border')}
+                                      >
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          <div className="flex flex-col items-center gap-2 text-slate-500">
+                                            <Plus className="h-6 w-6" />
+                                            <p className="text-sm">Añadir</p>
+                                          </div>
                                         </div>
-                                      </div>
 
-                                    </Card>
-                                  </div>
+                                      </Card>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Removed the empty drop zone - functionality now handled by placeholder card */}
@@ -1072,12 +1176,18 @@ export default function ClientPrograms({ api }: Props) {
                           ? p.days.length
                           : ((p.programExercises || []).length ? Array.from(new Set((p.programExercises || []).map((pe: any) => String(pe.day ?? 'A')))).length : 1);
                         return safeLen < 7 ? (
-                          <div className="flex items-center mb-6">
-                            <Button variant="secondary" className="btn-propagate px-4 py-2" onClick={() => addNewDayToProgram(p.id ?? p.tempId)}>
-                              <Plus className="mr-2 h-4 w-4" />
-                              Día
-                            </Button>
-                          </div>
+                          !isClient ? (
+                            <div className="flex items-center mb-6">
+                              <Button
+                                variant="secondary"
+                                className="btn-propagate px-4 py-2"
+                                onClick={() => addNewDayToProgram(p.id ?? p.tempId)}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Día
+                              </Button>
+                            </div>
+                          ) : null
                         ) : null;
                       })()}
                     </div>
@@ -1345,7 +1455,7 @@ export default function ClientPrograms({ api }: Props) {
                             </CardHeader>
 
                             <div
-                              className="relative bg-slate-200 overflow-hidden mt-auto group shrink-media"
+                              className="relative bg-slate-200 overflow-hidden mt-auto group shrink-media cursor-auto"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {pendingUploads.has(ex.id) ? (
@@ -1357,9 +1467,26 @@ export default function ClientPrograms({ api }: Props) {
                                 </div>
                               ) : mediaUrl ? (
                                 isVideo(file) ? (
-                                  <video src={mediaUrl} className="w-full h-auto object-cover aspect-video" controls playsInline />
+                                  <video
+                                    src={mediaUrl}
+                                    draggable={false}
+                                    onDragStart={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => (e.stopPropagation())}
+                                    className="w-full h-auto object-cover aspect-video cursor-auto"
+                                    controls
+                                    playsInline
+                                  />
                                 ) : (
-                                  <img src={mediaUrl} alt={ex.name} className="w-full h-auto object-cover aspect-video" />
+                                  <img
+                                    src={mediaUrl}
+                                    alt={ex.name}
+                                    draggable={false}
+                                    onDragStart={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => (e.stopPropagation())}
+                                    className="w-full h-auto object-cover aspect-video cursor-auto"
+                                  />
                                 )
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-100">
