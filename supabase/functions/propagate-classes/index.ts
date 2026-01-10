@@ -191,17 +191,34 @@ serve(async (req: any) => {
 
         for (const clientId of Object.keys(clientCounts)) {
             try {
-                const q = `id=eq.${clientId}&select=class_credits`;
-                const getRes = await rest('profiles', 'GET', undefined, q);
-                if (!getRes.ok) {
-                    // skip silently
+                // Try to find profile by profile.id first, then fallback to profiles.user = <clientId>
+                let profileId: string | null = null;
+                let current = 0;
+
+                // attempt by id
+                let getRes = await rest('profiles', 'GET', undefined, `id=eq.${clientId}&select=id,class_credits`);
+                if (getRes.ok && getRes.data && (Array.isArray(getRes.data) ? getRes.data.length > 0 : true)) {
+                    const row = Array.isArray(getRes.data) ? getRes.data[0] : getRes.data;
+                    profileId = row.id;
+                    current = (row && typeof row.class_credits === 'number') ? row.class_credits : 0;
+                } else {
+                    // fallback to lookup by user (client may be an auth.user id)
+                    getRes = await rest('profiles', 'GET', undefined, `user=eq.${clientId}&select=id,class_credits`);
+                    if (getRes.ok && getRes.data && (Array.isArray(getRes.data) ? getRes.data.length > 0 : true)) {
+                        const row = Array.isArray(getRes.data) ? getRes.data[0] : getRes.data;
+                        profileId = row.id;
+                        current = (row && typeof row.class_credits === 'number') ? row.class_credits : 0;
+                    }
+                }
+
+                if (!profileId) {
+                    // no matching profile found, skip silently
                     continue;
                 }
-                const row = Array.isArray(getRes.data) ? getRes.data[0] : getRes.data;
-                const current = (row && typeof row.class_credits === 'number') ? row.class_credits : 0;
+
                 const delta = clientCounts[clientId];
                 const newVal = current - delta; // allow negative per product decision
-                const patchRes = await rest('profiles', 'PATCH', { class_credits: newVal }, `id=eq.${clientId}`);
+                const patchRes = await rest('profiles', 'PATCH', { class_credits: newVal }, `id=eq.${profileId}`);
                 if (!patchRes.ok) {
                     // continue on error, but include info
                     clientsUpdated.push({ clientId, ok: false, details: patchRes });
