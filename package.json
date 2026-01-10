@@ -50,7 +50,9 @@
   "vitest": {
     "globals": true,
     "environment": "node",
-    "setupFiles": ["./src/test/setupVitest.ts"]
+    "setupFiles": [
+      "./src/test/setupVitest.ts"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
