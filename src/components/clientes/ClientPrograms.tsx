@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import DOMPurify from 'dompurify';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -79,7 +79,13 @@ export default function ClientPrograms({ api }: Props) {
   // UI: list vs opened program view
   const [viewingProgramId, setViewingProgramId] = useState<string | null>(null);
 
-  // Drag & drop state
+  // ===== DRAG & DROP STATE =====
+  // Optimized drag & drop implementation with:
+  // - useCallback for all handlers to prevent unnecessary re-renders
+  // - requestAnimationFrame to throttle dragover events and prevent layout thrashing
+  // - Refs to access latest drag state without triggering re-renders
+  // - Blue indicator bar shows drop position (maintained from original design)
+  
   const [draggedExercise, setDraggedExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
   const [dragOverExercise, setDragOverExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
   // Column (day) drag & drop state
@@ -93,6 +99,11 @@ export default function ClientPrograms({ api }: Props) {
 
   const draggedDayColumnRef = useRef(draggedDayColumn);
   React.useEffect(() => { draggedDayColumnRef.current = draggedDayColumn; }, [draggedDayColumn]);
+  
+  // Store programs in a ref to avoid recreating handlers on every programs change
+  const programsRef = useRef(programs);
+  React.useEffect(() => { programsRef.current = programs; }, [programs]);
+  
   const dragOverRafRef = useRef<number | null>(null);
   const pendingDragOverRef = useRef<{ peId: string; day: string; programId: string } | null>(null);
 
@@ -284,14 +295,14 @@ export default function ClientPrograms({ api }: Props) {
     });
   }, [exercisesForCompany, exerciseSearchTerm, selectedFilterAnatomy, selectedFilterEquipment]);
 
-  const handleDragStart = (e: React.DragEvent, peId: string, day: string, programId: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, peId: string, day: string, programId: string) => {
     e.dataTransfer.effectAllowed = 'move';
     // Update ref synchronously so immediate dragover events see the current dragged item
     draggedExerciseRef.current = { peId, day, programId };
     setDraggedExercise({ peId, day, programId });
-  };
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent, peId: string, day: string, programId: string) => {
+  const handleDragOver = useCallback((e: React.DragEvent, peId: string, day: string, programId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
@@ -303,23 +314,23 @@ export default function ClientPrograms({ api }: Props) {
       const args = pendingDragOverRef.current;
       pendingDragOverRef.current = null;
       const d = draggedExerciseRef.current;
+      
+      // If no dragged item or dragging within same program but different exercise, show indicator
       if (!d) {
-        setDragOverExercise((prev) => (prev ? null : prev));
+        setDragOverExercise(null);
         return;
       }
 
+      // Only show drop indicator if dragging to a different exercise within the same program
       if (d.peId !== args!.peId && d.programId === args!.programId) {
-        setDragOverExercise((prev) => {
-          if (prev && prev.peId === args!.peId && prev.day === args!.day && prev.programId === args!.programId) return prev;
-          return { peId: args!.peId, day: args!.day, programId: args!.programId };
-        });
+        setDragOverExercise({ peId: args!.peId, day: args!.day, programId: args!.programId });
       } else {
-        setDragOverExercise((prev) => (prev ? null : prev));
+        setDragOverExercise(null);
       }
     });
-  };
+  }, []);
 
-  const handleDrop = (e: React.DragEvent, peId: string, day: string, programId: string) => {
+  const handleDrop = useCallback((e: React.DragEvent, peId: string, day: string, programId: string) => {
     e.preventDefault();
     if (!draggedExercise || draggedExercise.peId === peId) {
       setDraggedExercise(null);
@@ -337,45 +348,42 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
-    // Get the program
-    const program = programs.find((p) => (p.id ?? p.tempId) === programId);
-    if (!program) return;
+    setPrograms((prevPrograms) => {
+      const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
+      if (!program) return prevPrograms;
 
-    let allExercises = [...(program.programExercises || [])];
+      // Filter exercises by day and sort by position
+      const sameDayExercises = (program.programExercises || [])
+        .filter((pe: any) => String(pe.day) === day)
+        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
-    // Find and remove the dragged exercise
-    const draggedIdx = allExercises.findIndex((pe: any) => (pe.id ?? pe.tempId) === draggedPeId);
-    if (draggedIdx === -1) return;
+      const draggedIdx = sameDayExercises.findIndex((pe: any) => (pe.id ?? pe.tempId) === draggedPeId);
+      const dropIdx = sameDayExercises.findIndex((pe: any) => (pe.id ?? pe.tempId) === peId);
 
-    const draggedItem = { ...allExercises[draggedIdx], day };
-    allExercises.splice(draggedIdx, 1);
+      if (draggedIdx === -1 || dropIdx === -1) return prevPrograms;
 
-    // Find the drop target and insert before it
-    const dropTargetIdx = allExercises.findIndex((pe: any) => (pe.id ?? pe.tempId) === peId);
-    if (dropTargetIdx === -1) return;
+      // Reorder within the same day
+      const reordered = [...sameDayExercises];
+      const [draggedItem] = reordered.splice(draggedIdx, 1);
+      reordered.splice(dropIdx, 0, draggedItem);
 
-    allExercises.splice(dropTargetIdx, 0, draggedItem);
+      // Update positions for reordered items
+      const updatedSameDay = reordered.map((pe: any, idx: number) => ({ ...pe, position: idx }));
 
-    // Recalculate positions for all exercises by day
-    const dayPositions: { [key: string]: number } = {};
-    const merged = allExercises.map((pe: any) => {
-      const d = String(pe.day);
-      dayPositions[d] = (dayPositions[d] ?? 0);
-      const newPos = dayPositions[d];
-      dayPositions[d]++;
-      return { ...pe, position: newPos };
+      // Merge with other days' exercises
+      const otherDaysExercises = (program.programExercises || []).filter((pe: any) => String(pe.day) !== day);
+      const allExercises = [...otherDaysExercises, ...updatedSameDay];
+
+      return prevPrograms.map((p) => 
+        (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
+      );
     });
-
-    // Update state without persisting
-    setPrograms((prev) =>
-      prev.map((p) => ((p.id ?? p.tempId) === programId ? { ...p, programExercises: merged } : p)),
-    );
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  };
+  }, [draggedExercise]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     // Cancel any pending rAF work
     if (dragOverRafRef.current) {
       cancelAnimationFrame(dragOverRafRef.current);
@@ -387,7 +395,8 @@ export default function ClientPrograms({ api }: Props) {
     }
     pendingDragOverRef.current = null;
     pendingDragOverColumnRef.current = null;
-    n    // Clear refs synchronously to avoid stale values on the next drag start
+    
+    // Clear refs synchronously to avoid stale values on the next drag start
     draggedExerciseRef.current = null;
     draggedDayColumnRef.current = null;
 
@@ -396,9 +405,9 @@ export default function ClientPrograms({ api }: Props) {
     setDraggedDayColumn(null);
     setDragOverDayColumn(null);
     setDragOverDayColumnSide(null);
-  };
+  }, []);
 
-  const handleDragOverColumn = (e: React.DragEvent, day: string, programId: string) => {
+  const handleDragOverColumn = useCallback((e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
@@ -436,7 +445,8 @@ export default function ClientPrograms({ api }: Props) {
       const side = y < rect.height / 2 ? 'top' : 'bottom';
 
       // Only show the preview if the insertion would actually change the order
-      const program = programs.find((p) => (p.id ?? p.tempId) === pending.programId);
+      // Use ref to access latest programs without causing handler recreation
+      const program = programsRef.current.find((p) => (p.id ?? p.tempId) === pending.programId);
       if (!program) {
         setDragOverDayColumn(null);
         setDragOverDayColumnSide(null);
@@ -463,17 +473,15 @@ export default function ClientPrograms({ api }: Props) {
         setDragOverDayColumn(null);
         setDragOverDayColumnSide(null);
       } else {
-        setDragOverDayColumn((prev) => {
-          if (prev && prev.day === pending.day && prev.programId === pending.programId) return prev;
-          return { day: pending.day, programId: pending.programId };
-        });
+        setDragOverDayColumn({ day: pending.day, programId: pending.programId });
         setDragOverDayColumnSide(side);
       }
     });
-  };
+  }, []);
 
-  const handleDropToNewDay = async (e: React.DragEvent, targetDay: string, programId: string) => {
+  const handleDropToNewDay = useCallback(async (e: React.DragEvent, targetDay: string, programId: string) => {
     e.preventDefault();
+    
     // Handle column (day) reorder
     if (draggedDayColumn) {
       const srcDay = draggedDayColumn.day;
@@ -485,53 +493,48 @@ export default function ClientPrograms({ api }: Props) {
         return;
       }
 
-      const program = programs.find((p) => (p.id ?? p.tempId) === programId);
-      if (!program) {
-        setDraggedDayColumn(null);
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
+      setPrograms((prevPrograms) => {
+        const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
+        if (!program) return prevPrograms;
 
-      const days = [...(program.days || ['A'])];
-      const draggedIdx = days.findIndex((d) => d === srcDay);
-      const dropIdx = days.findIndex((d) => d === dstDay);
-      if (draggedIdx === -1 || dropIdx === -1) {
-        setDraggedDayColumn(null);
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
+        const days = [...(program.days || ['A'])];
+        const draggedIdx = days.findIndex((d) => d === srcDay);
+        const dropIdx = days.findIndex((d) => d === dstDay);
+        if (draggedIdx === -1 || dropIdx === -1) return prevPrograms;
 
-      // Build groups of exercises per day in the current order
-      const groups = days.map((d) =>
-        (program.programExercises || [])
-          .filter((pe: any) => String(pe.day ?? 'A') === String(d))
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0)),
-      );
+        // Build groups of exercises per day in the current order
+        const groups = days.map((d) =>
+          (program.programExercises || [])
+            .filter((pe: any) => String(pe.day ?? 'A') === String(d))
+            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0)),
+        );
 
-      // Remove the dragged group and compute insert index based on top/bottom
-      const groupsWithout = [...groups];
-      const [removedGroup] = groupsWithout.splice(draggedIdx, 1);
-      const daysWithout = days.filter((_, i) => i !== draggedIdx);
-      const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === dstDay);
-      let insertIdx = targetIdxAfterRemoval;
-      if (dragOverDayColumnSide === 'bottom') insertIdx = targetIdxAfterRemoval + 1;
-      if (insertIdx < 0) insertIdx = 0;
-      groupsWithout.splice(insertIdx, 0, removedGroup);
+        // Remove the dragged group and compute insert index based on top/bottom
+        const groupsWithout = [...groups];
+        const [removedGroup] = groupsWithout.splice(draggedIdx, 1);
+        const daysWithout = days.filter((_, i) => i !== draggedIdx);
+        const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === dstDay);
+        let insertIdx = targetIdxAfterRemoval;
+        if (dragOverDayColumnSide === 'bottom') insertIdx = targetIdxAfterRemoval + 1;
+        if (insertIdx < 0) insertIdx = 0;
+        groupsWithout.splice(insertIdx, 0, removedGroup);
 
-      // Reassign day letters (A, B, C, ...) based on new order and reindex positions
-      const newProgramExercises: any[] = [];
-      const newDays = groupsWithout.map((_, idx) => String.fromCharCode('A'.charCodeAt(0) + idx));
-      groupsWithout.forEach((grp, idx) => {
-        grp.forEach((pe: any, pos: number) => {
-          newProgramExercises.push({ ...pe, day: newDays[idx], position: pos });
+        // Reassign day letters (A, B, C, ...) based on new order and reindex positions
+        const newProgramExercises: any[] = [];
+        const newDays = groupsWithout.map((_, idx) => String.fromCharCode('A'.charCodeAt(0) + idx));
+        groupsWithout.forEach((grp, idx) => {
+          grp.forEach((pe: any, pos: number) => {
+            newProgramExercises.push({ ...pe, day: newDays[idx], position: pos });
+          });
         });
+
+        return prevPrograms.map((p) => 
+          (p.id ?? p.tempId) === programId ? { ...p, programExercises: newProgramExercises, days: newDays } : p
+        );
       });
 
-      setPrograms((prev) => prev.map((p) => ((p.id ?? p.tempId) === programId ? { ...p, programExercises: newProgramExercises, days: newDays } : p)));
       try {
-        await updateProgramExercisesPositions(programId, newProgramExercises);
+        await updateProgramExercisesPositions(programId);
       } catch (err) {
         logError('Error normalizing after day reorder', err);
       }
@@ -542,6 +545,7 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
+    // Handle exercise move to different day
     if (!draggedExercise) {
       setDraggedExercise(null);
       setDragOverExercise(null);
@@ -566,93 +570,68 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
-    // Get the program
-    const program = programs.find((p) => (p.id ?? p.tempId) === programId);
-    if (!program) return;
+    setPrograms((prevPrograms) => {
+      const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
+      if (!program) return prevPrograms;
 
-    // Determine insertion position in target day
-    let insertPosition = 0;
+      // Find the dragged exercise
+      const draggedItem = (program.programExercises || []).find((pe: any) => (pe.id ?? pe.tempId) === draggedPeId);
+      if (!draggedItem) return prevPrograms;
 
-    // If dragOverExercise is set and it's a real exercise (not __end__), insert before it
-    if (dragOverExercise?.day === targetDay && dragOverExercise?.peId !== '__end__') {
-      const targetDayItems = (program.programExercises || [])
-        .filter((pe: any) => String(pe.day) === targetDay)
-        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+      // Remove dragged item from its current position
+      const withoutDragged = (program.programExercises || []).filter((pe: any) => (pe.id ?? pe.tempId) !== draggedPeId);
 
-      const insertBeforeIdx = targetDayItems.findIndex((it: any) => (it.id ?? it.tempId) === dragOverExercise.peId);
-      if (insertBeforeIdx !== -1) {
-        insertPosition = insertBeforeIdx;
+      // Determine insertion position in target day
+      let insertPosition = 0;
+      if (dragOverExercise?.day === targetDay && dragOverExercise?.peId !== '__end__') {
+        const targetDayItems = withoutDragged
+          .filter((pe: any) => String(pe.day) === targetDay)
+          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        const insertBeforeIdx = targetDayItems.findIndex((it: any) => (it.id ?? it.tempId) === dragOverExercise.peId);
+        insertPosition = insertBeforeIdx !== -1 ? insertBeforeIdx : targetDayItems.length;
       } else {
+        const targetDayItems = withoutDragged.filter((pe: any) => String(pe.day) === targetDay);
         insertPosition = targetDayItems.length;
       }
-    } else {
-      // Insert at the end
-      const targetDayItems = (program.programExercises || [])
+
+      // Update dragged item with new day
+      const updatedDraggedItem = { ...draggedItem, day: targetDay };
+
+      // Recalculate positions for source day (shift down after removal)
+      const sourceDayUpdated = withoutDragged
+        .filter((pe: any) => String(pe.day) === draggedDay)
+        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+        .map((pe: any, idx: number) => ({ ...pe, position: idx }));
+
+      // Recalculate positions for target day (insert at position)
+      const targetDayItems = withoutDragged
         .filter((pe: any) => String(pe.day) === targetDay)
         .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-      insertPosition = targetDayItems.length;
-    }
+      targetDayItems.splice(insertPosition, 0, updatedDraggedItem);
+      const targetDayUpdated = targetDayItems.map((pe: any, idx: number) => ({ ...pe, position: idx }));
 
-    // Build new programExercises array
-    const merged = (program.programExercises || []).map((pe: any) => {
-      if ((pe.id ?? pe.tempId) === draggedPeId) {
-        // This will be handled separately
-        return null;
-      }
-      return pe;
-    }).filter(Boolean) as any[];
+      // Merge with other days (unchanged)
+      const otherDays = withoutDragged.filter((pe: any) => String(pe.day) !== draggedDay && String(pe.day) !== targetDay);
+      const allExercises = [...otherDays, ...sourceDayUpdated, ...targetDayUpdated];
 
-    // Insert the dragged item at the correct position in target day
-    const draggedItem = (program.programExercises || []).find((pe: any) => (pe.id ?? pe.tempId) === draggedPeId);
-    if (!draggedItem) return;
-
-    // Create new dragged item with updated day and position
-    const updatedDraggedItem = { ...draggedItem, day: targetDay, position: insertPosition };
-
-    // Rebuild all items with correct positions
-    const finalMerged = merged.map((pe: any) => {
-      if (String(pe.day) === targetDay) {
-        // In target day - adjust position if needed
-        const currentPos = pe.position || 0;
-        if (currentPos >= insertPosition) {
-          return { ...pe, position: currentPos + 1 };
-        }
-      } else if (String(pe.day) === draggedDay) {
-        // In source day - shift positions down for items after the dragged one
-        const sourceDayItems = merged
-          .filter((p: any) => String(p.day) === draggedDay)
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-        const draggedIdx = sourceDayItems.findIndex((p: any) => (p.id ?? p.tempId) === draggedPeId);
-        const currentIdx = sourceDayItems.findIndex((p: any) => (p.id ?? p.tempId) === (pe.id ?? pe.tempId));
-
-        if (draggedIdx !== -1 && currentIdx > draggedIdx) {
-          return { ...pe, position: (pe.position || 0) - 1 };
-        }
-      }
-      return pe;
+      return prevPrograms.map((p) => 
+        (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
+      );
     });
-
-    // Add the dragged item back with new position
-    finalMerged.push(updatedDraggedItem);
-
-    setPrograms((prev) =>
-      prev.map((p) => ((p.id ?? p.tempId) === programId ? { ...p, programExercises: finalMerged } : p)),
-    );
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  };
+  }, [draggedDayColumn, dragOverDayColumnSide, draggedExercise, dragOverExercise, updateProgramExercisesPositions]);
 
-  const handleDragOverEnd = (e: React.DragEvent, day: string, programId: string) => {
+  const handleDragOverEnd = useCallback((e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (draggedExercise) {
       setDragOverExercise({ peId: '__end__', day, programId });
     }
-  };
+  }, [draggedExercise]);
 
-  const handleDropEnd = async (e: React.DragEvent, day: string, programId: string) => {
+  const handleDropEnd = useCallback(async (e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     if (!draggedExercise) {
       setDraggedExercise(null);
@@ -671,31 +650,31 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
-    // Get the program and items
-    const program = programs.find((p) => (p.id ?? p.tempId) === programId);
-    if (!program) return;
+    setPrograms((prevPrograms) => {
+      const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
+      if (!program) return prevPrograms;
 
-    const items = (program.programExercises || [])
-      .filter((pe: any) => String(pe.day) === day)
-      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+      const items = (program.programExercises || [])
+        .filter((pe: any) => String(pe.day) === day)
+        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
-    const draggedIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === draggedPeId);
-    if (draggedIdx === -1) return;
+      const draggedIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === draggedPeId);
+      if (draggedIdx === -1) return prevPrograms;
 
-    // Move to the end
-    const newItems = [...items];
-    const draggedItem = newItems.splice(draggedIdx, 1)[0];
-    newItems.push(draggedItem);
+      // Move to the end
+      const newItems = [...items];
+      const [draggedItem] = newItems.splice(draggedIdx, 1);
+      newItems.push(draggedItem);
 
-    // Update positions
-    const merged = (program.programExercises || []).map((pe: any) => {
-      const match = newItems.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
-      return match ? { ...pe, position: newItems.indexOf(match) } : pe;
+      // Update positions
+      const updatedItems = newItems.map((pe: any, idx: number) => ({ ...pe, position: idx }));
+      const otherDays = (program.programExercises || []).filter((pe: any) => String(pe.day) !== day);
+      const merged = [...otherDays, ...updatedItems];
+
+      return prevPrograms.map((p) => 
+        (p.id ?? p.tempId) === programId ? { ...p, programExercises: merged } : p
+      );
     });
-
-    setPrograms((prev) =>
-      prev.map((p) => ((p.id ?? p.tempId) === programId ? { ...p, programExercises: merged } : p)),
-    );
 
     // Persist the changes
     try {
@@ -706,10 +685,10 @@ export default function ClientPrograms({ api }: Props) {
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  };
+  }, [draggedExercise, updateProgramExercisesPositions]);
 
   // Day column drag handlers
-  const handleDayDragStart = (e: React.DragEvent, day: string, programId: string) => {
+  const handleDayDragStart = useCallback((e: React.DragEvent, day: string, programId: string) => {
     e.dataTransfer.effectAllowed = 'move';
     if (draggedExercise) return; // ignore if an exercise drag is active
     // Some browsers require setting data to enable drop
@@ -717,15 +696,15 @@ export default function ClientPrograms({ api }: Props) {
     // Update ref synchronously so immediate dragover events see the current dragged column
     draggedDayColumnRef.current = { day, programId };
     setDraggedDayColumn({ day, programId });
-  };
-  const handleDayDragOver = (e: React.DragEvent, day: string, programId: string) => {
+  }, [draggedExercise]);
+  const handleDayDragOver = useCallback((e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
     if (!draggedDayColumn || draggedDayColumn.programId !== programId) return;
     setDragOverDayColumn({ day, programId });
-  };
-  const handleDayDrop = (e: React.DragEvent, day: string, programId: string) => {
+  }, [draggedDayColumn]);
+  const handleDayDrop = useCallback((e: React.DragEvent, day: string, programId: string) => {
     return handleDropToNewDay(e, day, programId);
-  };
+  }, [handleDropToNewDay]);
 
   const programTabTriggerClass = "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 cursor-pointer select-none";
   void programTabTriggerClass;
