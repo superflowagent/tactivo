@@ -2,11 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LoginView } from '@/components/views/LoginView';
+import { LandingView } from '@/components/views/LandingView';
 import { Panel } from '@/components/Panel';
 import ClienteView from '@/components/views/ClienteView';
 import PasswordResetView from '@/components/views/PasswordResetView';
 import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect';
 import AcceptInviteView from '@/components/views/AcceptInviteView';
+import { useEffect } from 'react';
 
 export type ViewType =
   | 'calendario'
@@ -25,7 +27,8 @@ function App() {
         <HashPasswordResetRedirect />
 
         <Routes>
-          <Route path="/" element={<LoginView />} />
+          <Route path="/" element={<LandingView />} />
+          <Route path="/login" element={<LoginView />} />
           <Route
             path="/:companyName/panel"
             element={

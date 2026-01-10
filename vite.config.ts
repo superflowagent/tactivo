@@ -5,7 +5,13 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vite.dev/config/
 export default defineConfig({
-  server: { host: 'localhost', hmr: { host: 'localhost' } },
+  server: { 
+    host: 'localhost', 
+    hmr: { host: 'localhost' },
+    proxy: {
+      // Ensure client-side routing works
+    }
+  },
   plugins: [
     react(),
     ...(process.env.ANALYZE === 'true'
