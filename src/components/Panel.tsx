@@ -11,7 +11,7 @@ const ClasesView = lazy(() => import('@/components/views/ClasesView').then(m => 
 const ProfesionalesView = lazy(() => import('@/components/views/ProfesionalesView').then(m => ({ default: m.ProfesionalesView })));
 const AjustesView = lazy(() => import('@/components/views/AjustesView').then(m => ({ default: m.AjustesView })));
 const EjerciciosView = lazy(() => import('@/components/views/EjerciciosView').then(m => ({ default: m.EjerciciosView })));
-const ProgramasView = lazy(() => import('@/components/views/ProgramasView').then(m => ({ default: m.ProgramasView })));
+const ProgramasView = lazy(() => import('@/components/views/ProgramasViewNew').then(m => ({ default: m.ProgramasView })));
 
 
 
@@ -85,12 +85,7 @@ export function Panel() {
     }
   }, [companyName]);
 
-  // If the user is a client, force the view to 'calendario' and prevent switching
-  useEffect(() => {
-    if (user?.role === 'client') {
-      setCurrentView('calendario');
-    }
-  }, [user]);
+
 
   const viewTitles: Record<ViewType, string> = {
     calendario: 'Calendario',

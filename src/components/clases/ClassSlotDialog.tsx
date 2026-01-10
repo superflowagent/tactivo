@@ -466,20 +466,28 @@ export function ClassSlotDialog({
                                 />
                                 {clientSearch && (
                                     <div className="absolute left-0 mt-1 w-1/2 border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 z-50 bg-background pointer-events-auto">
-                                        {clientes
-                                            .filter((cliente) => {
-                                                const normalizedSearch = clientSearch
-                                                    .normalize('NFD')
-                                                    .replace(/[\u0300-\u036f]/g, '')
-                                                    .toLowerCase();
-                                                const normalizedClientName = (cliente.name + ' ' + cliente.last_name)
-                                                    .normalize('NFD')
-                                                    .replace(/[\u0300-\u036f]/g, '')
-                                                    .toLowerCase();
-                                                return normalizedClientName.includes(normalizedSearch);
-                                            })
-                                            .filter((cliente) => !selectedClients.includes(cliente.user))
-                                            .map((cliente) => {
+                                        {(() => {
+                                            const normalizedSearch = clientSearch
+                                                .normalize('NFD')
+                                                .replace(/[\u0300-\u036f]/g, '')
+                                                .toLowerCase();
+                                            const filtered = clientes
+                                                .filter((cliente) => {
+                                                    const normalizedClientName = (cliente.name + ' ' + cliente.last_name)
+                                                        .normalize('NFD')
+                                                        .replace(/[\u0300-\u036f]/g, '')
+                                                        .toLowerCase();
+                                                    return normalizedClientName.includes(normalizedSearch);
+                                                })
+                                                .filter((cliente) => !selectedClients.includes(cliente.user));
+
+                                            if (filtered.length === 0) {
+                                                return (
+                                                    <div className="px-2 py-1 text-sm text-black">Sin resultados</div>
+                                                );
+                                            }
+
+                                            return filtered.map((cliente) => {
                                                 const photoUrl =
                                                     cliente.photoUrl ||
                                                     cliente.photo ||
@@ -528,7 +536,8 @@ export function ClassSlotDialog({
                                                         </div>
                                                     </button>
                                                 );
-                                            })}
+                                            });
+                                        })()}
                                     </div>
                                 )}
                             </div>

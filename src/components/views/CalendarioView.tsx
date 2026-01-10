@@ -25,6 +25,15 @@ import { parseDbDatetimeAsLocal } from '@/lib/utils';
 import { formatDateWithOffset } from '@/lib/date';
 import { getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 // user_cards removed, load professionals from profiles directly
 import './calendario.css';
 
@@ -43,6 +52,10 @@ export function CalendarioView() {
   const [company, setCompany] = useState<Company | null>(null);
   // Client credits state (only used when logged in as a client)
   const [clientCredits, setClientCredits] = useState<number | null>(null);
+  // The profile id for the logged in user (used to match events where client is a profile id)
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
+  // Alert for unavailable scheduling functionality
+  const [scheduleUnavailableOpen, setScheduleUnavailableOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Vista seleccionada ('Mes' | 'Semana' | 'Día' | 'Lista')
@@ -63,9 +76,11 @@ export function CalendarioView() {
       const fetcher = await import('@/lib/supabase');
       const profile = await fetcher.fetchProfileByUserId(user.id);
       setClientCredits(profile?.class_credits ?? 0);
+      setMyProfileId(profile?.id ?? null);
     } catch (err) {
       logError('Error cargando créditos del usuario:', err);
       setClientCredits(0);
+      setMyProfileId(null);
     }
   }, [isClient, user?.id]);
 
@@ -256,11 +271,23 @@ export function CalendarioView() {
 
     // Mostrar solo mis eventos si es cliente
     if (showMyEvents && isClient && user?.id) {
-      filtered = filtered.filter((event) => (event.extendedProps?.clientUserIds || []).includes(user.id));
+      filtered = filtered.filter((event) => {
+        const clientUserIds = event.extendedProps?.clientUserIds || [];
+        const clientProfileIds = event.extendedProps?.client || [];
+        // Match if any of:
+        // - clientUserIds includes the auth user id (common case when profile.user is set)
+        // - clientProfileIds includes the user's profile id (covers profiles without linked user)
+        // - clientProfileIds includes the auth user id (defensive: some data may use user id as profile id)
+        return (
+          clientUserIds.includes(user.id) ||
+          (myProfileId && clientProfileIds.includes(myProfileId)) ||
+          clientProfileIds.includes(user.id)
+        );
+      });
     }
 
     setFilteredEvents(filtered);
-  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id]);
+  }, [events, searchQuery, selectedProfessional, showMyEvents, isClient, user?.id, myProfileId]);
 
   // Load company, events and professionals when the companyId changes only
   useEffect(() => {
@@ -371,8 +398,8 @@ export function CalendarioView() {
     setDialogOpen(true);
   };
 
-  const handleSave = () => {
-    loadEvents();
+  const handleSave = (force: boolean = false) => {
+    loadEvents(force);
   };
 
   const handleClearFilters = () => {
@@ -429,7 +456,7 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button onClick={isClient ? () => { } : handleAdd} className="w-full sm:hidden">
+      <Button onClick={isClient ? () => setScheduleUnavailableOpen(true) : handleAdd} className="w-full sm:hidden">
         <CalendarPlus className="mr-0 h-4 w-4" />
         {isClient ? 'Agendar cita' : 'Crear Evento'}
       </Button>
@@ -478,20 +505,6 @@ export function CalendarioView() {
           </div>
         )}
 
-        {/* Selector de vista: Mes / Semana / Día / Lista */}
-        <div className="w-full sm:w-40">
-          <Select value={selectedView} onValueChange={setSelectedView}>
-            <SelectTrigger className="section-search">
-              <SelectValue placeholder="Vista" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Mes">Mes</SelectItem>
-              <SelectItem value="Semana">Semana</SelectItem>
-              <SelectItem value="Día">Día</SelectItem>
-              <SelectItem value="Lista">Lista</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
 
         {(searchQuery || selectedProfessional !== 'all') && (
           <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
@@ -512,8 +525,20 @@ export function CalendarioView() {
           </div>
         )}
 
+        <AlertDialog open={scheduleUnavailableOpen} onOpenChange={setScheduleUnavailableOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Funcionalidad no disponible</AlertDialogTitle>
+              <AlertDialogDescription>Está funcionalidad aún no está disponible</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setScheduleUnavailableOpen(false)}>Aceptar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <div className="hidden sm:block flex-1" />
-        <Button onClick={isClient ? () => { } : handleAdd} className="hidden sm:flex">
+        <Button onClick={isClient ? () => setScheduleUnavailableOpen(true) : handleAdd} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
           {isClient ? 'Agendar cita' : 'Crear Evento'}
         </Button>
@@ -578,7 +603,7 @@ export function CalendarioView() {
 
                   {selectedView === 'Lista' && (
                     <div className="calendar-list-slot mt-0">
-                      <CalendarioList events={filteredEvents} onRowClick={handleEventClick} onDeleteComplete={() => loadEvents()} canDelete={!isClient} />
+                      <CalendarioList events={filteredEvents} onRowClick={handleEventClick} onDeleteComplete={() => loadEvents(true)} canDelete={!isClient} />
                     </div>
                   )}
                 </div>
