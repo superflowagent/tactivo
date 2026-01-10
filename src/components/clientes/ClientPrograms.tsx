@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -1073,7 +1073,7 @@ export default function ClientPrograms({ api }: Props) {
                                                 )}
                                               </div>
 
-                                              <div className="flex flex-col gap-1 min-h-0">
+                                              <div className="flex flex-col gap-1 min-h-[40px]">
                                                 {exerciseEquipment.length > 0 && (
                                                   <ExerciseBadgeGroup items={exerciseEquipment} color="blue" maxVisible={2} />
                                                 )}
