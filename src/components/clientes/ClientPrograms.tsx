@@ -381,7 +381,7 @@ export default function ClientPrograms({ api }: Props) {
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  }, [draggedExercise]);
+  }, [draggedExercise, setPrograms]);
 
   const handleDragEnd = useCallback(() => {
     // Cancel any pending rAF work
@@ -621,7 +621,7 @@ export default function ClientPrograms({ api }: Props) {
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  }, [draggedDayColumn, dragOverDayColumnSide, draggedExercise, dragOverExercise, updateProgramExercisesPositions]);
+  }, [draggedDayColumn, dragOverDayColumnSide, draggedExercise, dragOverExercise, updateProgramExercisesPositions, setPrograms]);
 
   const handleDragOverEnd = useCallback((e: React.DragEvent, day: string, programId: string) => {
     e.preventDefault();
@@ -685,7 +685,7 @@ export default function ClientPrograms({ api }: Props) {
 
     setDraggedExercise(null);
     setDragOverExercise(null);
-  }, [draggedExercise, updateProgramExercisesPositions]);
+  }, [draggedExercise, updateProgramExercisesPositions, setPrograms]);
 
   // Day column drag handlers
   const handleDayDragStart = useCallback((e: React.DragEvent, day: string, programId: string) => {
