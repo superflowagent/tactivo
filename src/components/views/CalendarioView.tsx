@@ -399,7 +399,9 @@ export function CalendarioView() {
   };
 
   const handleSave = (force: boolean = false) => {
+    // Refresh events and client credits (so "Clases restantes" updates when a client signs/un-signs)
     loadEvents(force);
+    loadClientCredits();
   };
 
   const handleClearFilters = () => {

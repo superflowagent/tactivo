@@ -85,7 +85,7 @@ export default function ClientPrograms({ api }: Props) {
   // - requestAnimationFrame to throttle dragover events and prevent layout thrashing
   // - Refs to access latest drag state without triggering re-renders
   // - Blue indicator bar shows drop position (maintained from original design)
-  
+
   const [draggedExercise, setDraggedExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
   const [dragOverExercise, setDragOverExercise] = useState<{ peId: string; day: string; programId: string } | null>(null);
   // Column (day) drag & drop state
@@ -99,11 +99,11 @@ export default function ClientPrograms({ api }: Props) {
 
   const draggedDayColumnRef = useRef(draggedDayColumn);
   React.useEffect(() => { draggedDayColumnRef.current = draggedDayColumn; }, [draggedDayColumn]);
-  
+
   // Store programs in a ref to avoid recreating handlers on every programs change
   const programsRef = useRef(programs);
   React.useEffect(() => { programsRef.current = programs; }, [programs]);
-  
+
   const dragOverRafRef = useRef<number | null>(null);
   const pendingDragOverRef = useRef<{ peId: string; day: string; programId: string } | null>(null);
 
@@ -314,7 +314,7 @@ export default function ClientPrograms({ api }: Props) {
       const args = pendingDragOverRef.current;
       pendingDragOverRef.current = null;
       const d = draggedExerciseRef.current;
-      
+
       // If no dragged item or dragging within same program but different exercise, show indicator
       if (!d) {
         setDragOverExercise(null);
@@ -374,7 +374,7 @@ export default function ClientPrograms({ api }: Props) {
       const otherDaysExercises = (program.programExercises || []).filter((pe: any) => String(pe.day) !== day);
       const allExercises = [...otherDaysExercises, ...updatedSameDay];
 
-      return prevPrograms.map((p) => 
+      return prevPrograms.map((p) =>
         (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
       );
     });
@@ -395,7 +395,7 @@ export default function ClientPrograms({ api }: Props) {
     }
     pendingDragOverRef.current = null;
     pendingDragOverColumnRef.current = null;
-    
+
     // Clear refs synchronously to avoid stale values on the next drag start
     draggedExerciseRef.current = null;
     draggedDayColumnRef.current = null;
@@ -481,7 +481,7 @@ export default function ClientPrograms({ api }: Props) {
 
   const handleDropToNewDay = useCallback(async (e: React.DragEvent, targetDay: string, programId: string) => {
     e.preventDefault();
-    
+
     // Handle column (day) reorder
     if (draggedDayColumn) {
       const srcDay = draggedDayColumn.day;
@@ -528,7 +528,7 @@ export default function ClientPrograms({ api }: Props) {
           });
         });
 
-        return prevPrograms.map((p) => 
+        return prevPrograms.map((p) =>
           (p.id ?? p.tempId) === programId ? { ...p, programExercises: newProgramExercises, days: newDays } : p
         );
       });
@@ -614,7 +614,7 @@ export default function ClientPrograms({ api }: Props) {
       const otherDays = withoutDragged.filter((pe: any) => String(pe.day) !== draggedDay && String(pe.day) !== targetDay);
       const allExercises = [...otherDays, ...sourceDayUpdated, ...targetDayUpdated];
 
-      return prevPrograms.map((p) => 
+      return prevPrograms.map((p) =>
         (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
       );
     });
@@ -671,7 +671,7 @@ export default function ClientPrograms({ api }: Props) {
       const otherDays = (program.programExercises || []).filter((pe: any) => String(pe.day) !== day);
       const merged = [...otherDays, ...updatedItems];
 
-      return prevPrograms.map((p) => 
+      return prevPrograms.map((p) =>
         (p.id ?? p.tempId) === programId ? { ...p, programExercises: merged } : p
       );
     });
