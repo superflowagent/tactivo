@@ -14,12 +14,12 @@ interface ExerciseBadgeGroupProps {
 }
 
 export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBadgeGroupProps) {
-  if (items.length === 0) return null;
-
   const bgClass =
     color === 'orange'
       ? 'bg-orange-100 text-orange-800 border-orange-200'
       : 'bg-blue-100 text-blue-800 border-blue-200';
+
+  // Guard: keep hooks at top-level to satisfy rules-of-hooks; render null if no items
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const measureRef = useRef<HTMLDivElement | null>(null);
@@ -29,6 +29,7 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
     // Synchronize initial visible count with maxVisible
     setVisibleCount(Math.min(maxVisible, items.length));
   }, [maxVisible, items.length]);
+
 
   useEffect(() => {
     const container = containerRef.current;
@@ -94,6 +95,9 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
       window.removeEventListener('resize', onWin);
     };
   }, [items, maxVisible]);
+
+  // If no items, short-circuit render (hooks have already been called)
+  if (items.length === 0) return null;
 
   const visibleItems = items.slice(0, visibleCount);
   const hiddenItems = items.slice(visibleCount);

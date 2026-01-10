@@ -85,6 +85,7 @@ export function EventDialog({
     const [profilesMap, setProfilesMap] = useState<Record<string, any>>({});
     const [profilesLoading, setProfilesLoading] = useState(false);
     const [clientCredits, setClientCredits] = useState<number | null>(null);
+    const [myProfileId, setMyProfileId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [company, setCompany] = useState<any>(null);
@@ -398,9 +399,13 @@ export function EventDialog({
                 const profile = await fetcher.fetchProfileByUserId(user.id);
                 if (!mounted) return;
                 setClientCredits(profile?.class_credits ?? 0);
+                setMyProfileId(profile?.id ?? null);
             } catch (err) {
                 logError('Error cargando créditos del usuario:', err);
-                if (mounted) setClientCredits(0);
+                if (mounted) {
+                    setClientCredits(0);
+                    setMyProfileId(null);
+                }
             }
         })();
         return () => {
@@ -474,7 +479,8 @@ export function EventDialog({
                 if (insertErr) throw insertErr;
             }
 
-            onSave();
+            // Force reload so the calendar UI shows the new/updated event immediately
+            onSave(true);
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
         } catch (err) {
@@ -495,7 +501,8 @@ export function EventDialog({
             });
             if (delErr) throw delErr;
 
-            onSave();
+            // Force a reload of events after delete so calendar UI updates immediately
+            onSave(true);
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
             setShowDeleteDialog(false);
@@ -507,7 +514,10 @@ export function EventDialog({
         }
     };
 
-    const isSignedUp = !!(user && selectedClients.includes(user.id));
+    const isSignedUp = !!(
+        user &&
+        (selectedClients.includes(user.id) || (myProfileId && selectedClients.includes(myProfileId)))
+    );
 
     const minutesUntilStart = useMemo(() => {
         if (!fecha) return Infinity;
@@ -570,9 +580,14 @@ export function EventDialog({
             return;
         }
 
+        // When updating a persisted event, prefer the auth user id (auth.uid())
+        // because server-side checks compare against the calling user's uid. For
+        // new (unsaved) events use the profile id if available for consistency.
+        const meId = event?.id ? user.id : (myProfileId ?? user.id);
+
         if (!event?.id) {
-            if (!selectedClients.includes(user.id)) {
-                setSelectedClients((prev) => [...prev, user.id]);
+            if (!selectedClients.includes(meId)) {
+                setSelectedClients((prev) => [...prev, meId]);
             }
             return;
         }
@@ -580,9 +595,11 @@ export function EventDialog({
         try {
             setLoading(true);
 
-            const newClients = selectedClients.includes(user.id)
-                ? selectedClients
-                : [...selectedClients, user.id];
+            // When calling the RPC for an existing event prefer the auth user id
+            // (auth.uid()) so server-side checks that assert "clients may only add
+            // themselves" see the expected value.
+            const meId = user.id;
+            const newClients = selectedClients.includes(meId) ? selectedClients : [...selectedClients, meId];
 
             const { error: updErr } = await supabase.rpc('update_event_json', {
                 p_payload: { id: event.id, changes: { client: newClients } },
@@ -590,7 +607,8 @@ export function EventDialog({
             if (updErr) throw updErr;
 
             setSelectedClients(newClients);
-            onSave();
+            // Force reload so UI updates immediately to reflect signup
+            onSave(true);
         } catch (err: any) {
             logError('Error apuntando al cliente al evento:', err);
 
@@ -602,6 +620,7 @@ export function EventDialog({
                         const fetcher = await import('@/lib/supabase');
                         const profile = await fetcher.fetchProfileByUserId(user.id);
                         setClientCredits(profile?.class_credits ?? 0);
+                        setMyProfileId(profile?.id ?? null);
                     }
                 } catch {
                     // ignore
@@ -617,15 +636,21 @@ export function EventDialog({
     const handleUnsign = async () => {
         if (!user?.id) return;
 
+        // Remove both possible id forms locally (profile id or auth user id)
+        const meUserId = user.id;
+        const meProfileIdLocal = myProfileId ?? null;
+
         if (!event?.id) {
-            setSelectedClients((prev) => prev.filter((id) => id !== user.id));
+            setSelectedClients((prev) => prev.filter((id) => id !== meUserId && id !== meProfileIdLocal));
             return;
         }
 
         try {
             setLoading(true);
 
-            const newClients = selectedClients.filter((id) => id !== user.id);
+            // For remote events, remove both possible representations so the RPC
+            // payload matches whatever format is present in the event (user or profile id)
+            const newClients = selectedClients.filter((id) => id !== meUserId && id !== meProfileIdLocal);
 
             const { error: updErr } = await supabase.rpc('update_event_json', {
                 p_payload: { id: event.id, changes: { client: newClients } },
@@ -633,7 +658,8 @@ export function EventDialog({
             if (updErr) throw updErr;
 
             setSelectedClients(newClients);
-            onSave();
+            // Force reload so UI updates immediately to reflect un-signup
+            onSave(true);
         } catch (err: any) {
             logError('Error borrando cliente del evento:', err);
             alert('Error al borrarme del evento');
@@ -984,20 +1010,28 @@ export function EventDialog({
                                             />
                                             {clientSearch && (
                                                 <div className="absolute left-0 mt-1 w-1/2 border rounded-lg p-2 max-h-48 overflow-y-auto space-y-1 z-50 bg-background pointer-events-auto">
-                                                    {clientes
-                                                        .filter((cliente) => {
-                                                            const normalizedSearch = clientSearch
-                                                                .normalize('NFD')
-                                                                .replace(/[\u0300-\u036f]/g, '')
-                                                                .toLowerCase();
-                                                            const normalizedClientName = (cliente.name + ' ' + cliente.last_name)
-                                                                .normalize('NFD')
-                                                                .replace(/[\u0300-\u036f]/g, '')
-                                                                .toLowerCase();
-                                                            return normalizedClientName.includes(normalizedSearch);
-                                                        })
-                                                        .filter((cliente) => !selectedClients.includes(cliente.user))
-                                                        .map((cliente) => {
+                                                    {(() => {
+                                                        const normalizedSearch = clientSearch
+                                                            .normalize('NFD')
+                                                            .replace(/[\u0300-\u036f]/g, '')
+                                                            .toLowerCase();
+                                                        const filtered = clientes
+                                                            .filter((cliente) => {
+                                                                const normalizedClientName = (cliente.name + ' ' + cliente.last_name)
+                                                                    .normalize('NFD')
+                                                                    .replace(/[\u0300-\u036f]/g, '')
+                                                                    .toLowerCase();
+                                                                return normalizedClientName.includes(normalizedSearch);
+                                                            })
+                                                            .filter((cliente) => !selectedClients.includes(cliente.user));
+
+                                                        if (filtered.length === 0) {
+                                                            return (
+                                                                <div className="px-2 py-1 text-sm text-black">Sin resultados</div>
+                                                            );
+                                                        }
+
+                                                        return filtered.map((cliente) => {
                                                             const photoUrl =
                                                                 cliente.photoUrl ||
                                                                 cliente.photo ||
@@ -1057,7 +1091,8 @@ export function EventDialog({
                                                                     </div>
                                                                 </button>
                                                             );
-                                                        })}
+                                                        });
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>
@@ -1361,7 +1396,15 @@ export function EventDialog({
                                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                                             Cancelar
                                         </Button>
-                                        <Button type="submit" form="event-form" disabled={loading || isClientView}>
+                                        <Button
+                                            type="submit"
+                                            form="event-form"
+                                            disabled={
+                                                loading ||
+                                                isClientView ||
+                                                (formData.type === 'vacation' && selectedProfessionals.length === 0)
+                                            }
+                                        >
                                             {loading ? 'Guardando...' : 'Guardar'}
                                         </Button>
                                     </div>
