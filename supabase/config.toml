@@ -66,11 +66,7 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/password-reset/index.ts"
 
-# Disable platform-level JWT verification for send-invite-test
-[functions."send-invite-test"]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/send-invite-test/index.ts"
+# send-invite-test moved to functions/examples/ (development/test helper)
 
 # Disable platform-level JWT verification for upload-company-logo (we perform token validation in the function)
 [functions."upload-company-logo"]
@@ -85,11 +81,7 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/propagate-classes/index.ts"
 
-# Added by scripts/new-edge-function.js
-[functions."test-fn"]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/test-fn/index.ts"
+# test-fn moved to functions/examples/ (development/test helper)
 
 # Register-user function: create company + professional profile + send reset
 [functions."register-user"]
