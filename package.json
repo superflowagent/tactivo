@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "preview": "vite preview",
     "test": "vitest",
+    "test:int": "node ./scripts/integration-tests/class_credits.test.js",
     "new:function": "node ./scripts/new-edge-function.js"
   },
   "dependencies": {
