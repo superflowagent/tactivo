@@ -2,7 +2,7 @@
 // Created automatically
 
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// Removed framer-motion import (unused) to avoid TS build error in CI
 
 export function LandingViewOld() {
   const navigate = useNavigate();
