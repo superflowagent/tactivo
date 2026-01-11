@@ -413,7 +413,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
         exercise,
         position: i,
         day: resolvedDay,
-        notes: null,
+        // Default notes copied from the exercise description when available
+        notes: (exercise && exercise.description) ? exercise.description : null,
         reps: null,
         sets: null,
         weight: null,

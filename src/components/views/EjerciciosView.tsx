@@ -9,6 +9,8 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import DOMPurify from 'dompurify';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import ExerciseDialog from '@/components/ejercicios/ExerciseDialog';
 import { ExerciseBadgeGroup } from '@/components/ejercicios/ExerciseBadgeGroup';
-import { Pencil, Plus, ChevronDown, Trash } from 'lucide-react';
+import { Pencil, Plus, ChevronDown, Trash, HelpCircle } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { normalizeForSearch } from "@/lib/stringUtils";
 
@@ -610,7 +612,21 @@ export function EjerciciosView() {
                   <CardHeader className="py-2 px-4 min-h-20">
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
-                        {exercise.name}
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{exercise.name}</span>
+                          <TooltipProvider delayDuration={150}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="text-muted-foreground cursor-default" aria-label="Descripción del ejercicio">
+                                  <HelpCircle className="h-4 w-4" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                <div className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm" dangerouslySetInnerHTML={{ __html: (exercise.description && String(exercise.description).trim()) ? DOMPurify.sanitize(exercise.description, { ALLOWED_TAGS: ['b','strong','i','em','ul','ol','li','br','p'], ALLOWED_ATTR: [] }) : 'Sin descripción' }} />
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
                       </CardTitle>
                       <ExerciseDialog
                         exercise={exercise}
