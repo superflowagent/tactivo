@@ -8,7 +8,6 @@ import ClienteView from '@/components/views/ClienteView';
 import PasswordResetView from '@/components/views/PasswordResetView';
 import HashPasswordResetRedirect from '@/components/HashPasswordResetRedirect';
 import AcceptInviteView from '@/components/views/AcceptInviteView';
-import { useEffect } from 'react';
 
 export type ViewType =
   | 'calendario'
