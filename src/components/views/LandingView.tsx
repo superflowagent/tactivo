@@ -6,7 +6,8 @@ export function LandingView() {
         src="/landing/dist/"
         title="Tactivo Landing"
         style={{ border: 0, height: '100%', width: '100%' }}
-        sandbox="allow-scripts allow-same-origin allow-popups"
+        sandbox="allow-scripts allow-popups"
+        onLoad={() => console.log('Landing iframe loaded')}
       />
     </div>
   );
