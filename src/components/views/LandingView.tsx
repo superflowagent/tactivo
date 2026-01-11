@@ -1,14 +1,10 @@
 export function LandingView() {
-  // Render the static landing inside an iframe to avoid location-based redirect loops
+  // Show the app logo as a simple placeholder for the landing page to avoid iframe/CORS issues
   return (
-    <div className="min-h-screen h-screen w-full bg-white">
-      <iframe
-        src="/landing/dist/"
-        title="Tactivo Landing"
-        style={{ border: 0, height: '100%', width: '100%' }}
-        sandbox="allow-scripts allow-popups"
-        onLoad={() => console.log('Landing iframe loaded')}
-      />
+    <div className="min-h-screen h-screen w-full bg-white flex items-center justify-center">
+      <a href="/" aria-label="Tactivo home">
+        <img src="/favicon.svg" alt="Tactivo" style={{ width: 160, height: 160 }} />
+      </a>
     </div>
   );
 }
