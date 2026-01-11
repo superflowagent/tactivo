@@ -5,8 +5,8 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 // https://vite.dev/config/
 export default defineConfig({
-  server: { 
-    host: 'localhost', 
+  server: {
+    host: 'localhost',
     hmr: { host: 'localhost' },
     proxy: {
       // Ensure client-side routing works
@@ -16,13 +16,13 @@ export default defineConfig({
     react(),
     ...(process.env.ANALYZE === 'true'
       ? [
-          visualizer({
-            filename: 'dist/bundle-analysis.html',
-            open: false,
-            gzipSize: true,
-            brotliSize: true,
-          }),
-        ]
+        visualizer({
+          filename: 'dist/bundle-analysis.html',
+          open: false,
+          gzipSize: true,
+          brotliSize: true,
+        }),
+      ]
       : []),
   ],
   resolve: {
