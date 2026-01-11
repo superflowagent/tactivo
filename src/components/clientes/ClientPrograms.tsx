@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash, Plus, ChevronDown, ArrowLeft, Pencil } from 'lucide-react';
+import { Trash, Plus, ChevronDown, ArrowLeft, Pencil, HelpCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from '@/components/ui/dropdown-menu';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import ActionButton from '@/components/ui/ActionButton';
@@ -1029,7 +1029,25 @@ export default function ClientPrograms({ api }: Props) {
                                           >
                                             <CardHeader className="py-1 px-4 h-auto space-y-0.5">
                                               <div className="flex items-center justify-between gap-2">
-                                                <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">{exercise.name || pe.exercise?.name || 'Ejercicio'}</CardTitle>
+                                                <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="flex-1 line-clamp-2">{exercise.name || pe.exercise?.name || 'Ejercicio'}</span>
+                                                    {!isClient && pe.notes ? (
+                                                      <TooltipProvider delayDuration={150}>
+                                                        <Tooltip>
+                                                          <TooltipTrigger asChild>
+                                                            <span className="text-muted-foreground cursor-default">
+                                                              <HelpCircle className="h-4 w-4" />
+                                                            </span>
+                                                          </TooltipTrigger>
+                                                          <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                            <div className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(pe.notes || '', { ALLOWED_TAGS: ['b','strong','i','em','ul','ol','li','br','p'], ALLOWED_ATTR: [] }) }} />
+                                                          </TooltipContent>
+                                                        </Tooltip>
+                                                      </TooltipProvider>
+                                                    ) : null}
+                                                  </div>
+                                                </CardTitle>
                                                 {!isClient && (
                                                   <>
                                                     <ActionButton tooltip="Editar ejercicio" onClick={() => { setEditingProgramExercise(pe); setShowEditProgramExerciseDialog(true); }} aria-label="Editar ejercicio">

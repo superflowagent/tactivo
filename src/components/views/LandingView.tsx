@@ -12,7 +12,7 @@ export function LandingView() {
             <div className="flex items-center">
               <h1 className="text-2xl font-bold text-gray-900">Tactivo</h1>
             </div>
-            
+
             <nav className="hidden md:flex space-x-8">
               <a href="#features" className="text-gray-700 hover:text-gray-900">Features</a>
               <a href="#benefits" className="text-gray-700 hover:text-gray-900">Benefits</a>
@@ -39,23 +39,23 @@ export function LandingView() {
               Trusted by 1M+ users
             </span>
           </div>
-          
+
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Turn Scattered Data Into<br />Smart Decisions
           </h1>
-          
+
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             One simple dashboard to track your SaaS growth, MRR,<br />
             churn and user behavior—without the chaos.
           </p>
-          
+
           <button
             onClick={() => navigate('/login')}
             className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors inline-flex items-center"
           >
             Get Started For Free
           </button>
-          
+
           <p className="text-gray-500 mt-4">
             💳 No credit card required
           </p>
