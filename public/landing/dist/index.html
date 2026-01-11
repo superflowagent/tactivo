@@ -1,33 +1,65 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"/><link rel="icon" href="/favicon.svg"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#000000"/><meta name="description" content="Turn Scattered Data Into Smart Decisions with Tactivo — a simple dashboard to track your SaaS growth, MRR, churn and user behavior."/><meta name="keywords" content="Tactivo, SaaS analytics, dashboard, MRR, churn"/><meta property="og:title" content="Tactivo — Turn Scattered Data Into Smart Decisions"/><meta property="og:type" content="website"/><meta property="og:url" content="/"/><meta property="og:description" content="Tactivo: One dashboard to track your SaaS growth and user behavior without the chaos."/><meta name="robots" content="index, follow"/><meta property="og:locale" content="en_EN"/><meta property="og:site_name" content="Tactivo"/><meta property="og:url" content="/"/><meta property="twitter:title" content="Tactivo — Turn Scattered Data Into Smart Decisions"/><meta property="twitter:description" content="Tactivo: One dashboard to track your SaaS growth and user behavior without the chaos."/><meta property="twitter:site" content="/"/><title>Landy - React Template</title>
-  <script>
-    // Prevent Lock API SecurityErrors in sandboxed iframe contexts that block auth clients (e.g. Supabase)
-    try {
-      (function () {
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description"
+        content="Turn Scattered Data Into Smart Decisions with Tactivo — a simple dashboard to track your SaaS growth, MRR, churn and user behavior." />
+    <meta name="keywords" content="Tactivo, SaaS analytics, dashboard, MRR, churn" />
+    <meta property="og:title" content="Tactivo — Turn Scattered Data Into Smart Decisions" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="/" />
+    <meta property="og:description"
+        content="Tactivo: One dashboard to track your SaaS growth and user behavior without the chaos." />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:locale" content="en_EN" />
+    <meta property="og:site_name" content="Tactivo" />
+    <meta property="og:url" content="/" />
+    <meta property="twitter:title" content="Tactivo — Turn Scattered Data Into Smart Decisions" />
+    <meta property="twitter:description"
+        content="Tactivo: One dashboard to track your SaaS growth and user behavior without the chaos." />
+    <meta property="twitter:site" content="/" />
+    <title>Landy - React Template</title>
+    <script>
+        // Prevent Lock API SecurityErrors in sandboxed iframe contexts that block auth clients (e.g. Supabase)
         try {
-          if (navigator && navigator.locks && typeof navigator.locks.request === 'function') {
-            const _origLockRequest = navigator.locks.request.bind(navigator.locks);
-            navigator.locks.request = async function (name, callback) {
-              try {
-                return await _origLockRequest(name, callback);
-              } catch (e) {
-                // Fallback: call callback directly if locks API is denied
-                console.warn('navigator.locks.request blocked in iframe, using fallback', e);
+            (function () {
                 try {
-                  return await callback();
-                } catch (err) {
-                  // swallow - nothing we can do here
-                  return null;
+                    if (navigator && navigator.locks && typeof navigator.locks.request === 'function') {
+                        const _origLockRequest = navigator.locks.request.bind(navigator.locks);
+                        navigator.locks.request = async function (name, callback) {
+                            try {
+                                return await _origLockRequest(name, callback);
+                            } catch (e) {
+                                // Fallback: call callback directly if locks API is denied
+                                console.warn('navigator.locks.request blocked in iframe, using fallback', e);
+                                try {
+                                    return await callback();
+                                } catch (err) {
+                                    // swallow - nothing we can do here
+                                    return null;
+                                }
+                            }
+                        };
+                    }
+                } catch (e) {
+                    // accessing navigator.locks may itself throw in some sandboxed contexts
+                    console.warn('Cannot patch navigator.locks in this context', e);
                 }
-              }
-            };
-          }
+            })();
         } catch (e) {
-          // accessing navigator.locks may itself throw in some sandboxed contexts
-          console.warn('Cannot patch navigator.locks in this context', e);
+            // ignore
         }
-      })();
-    } catch (e) {
-      // ignore
-    }
-  </script>
-  <script defer="defer" src="/landing/dist/static/js/main.7cf8bf02.js"></script><link href="/landing/dist/static/css/main.37ddbf14.css" rel="stylesheet"></head><body><noscript>You need to enable JavaScript to run this app.</noscript><div id="root"></div></body></html>
+    </script>
+    <script defer="defer" src="/landing/dist/static/js/main.7cf8bf02.js"></script>
+    <link href="/landing/dist/static/css/main.37ddbf14.css" rel="stylesheet">
+</head>
+
+<body><noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+</body>
+
+</html>
