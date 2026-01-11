@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { HelpCircle } from 'lucide-react';
 
 interface Props {
     open: boolean;
@@ -76,7 +78,21 @@ export default function ProgramExerciseDialog({ open, onOpenChange, programExerc
                     </div>
 
                     <div>
-                        <Label>Notas</Label>
+                        <div className="flex items-center gap-2">
+                            <Label>Notas</Label>
+                            <TooltipProvider delayDuration={150}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="text-muted-foreground cursor-default" aria-label="Notas del ejercicio en el programa">
+                                            <HelpCircle className="h-4 w-4" />
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                        Modificar las notas del ejercicio en el programa no afectará a la descripción original del ejercicio.
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                         <Textarea value={local.notes ?? ''} onChange={(e) => setLocal((s: any) => ({ ...s, notes: e.target.value }))} />
                     </div>
 
