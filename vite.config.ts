@@ -8,6 +8,12 @@ export default defineConfig({
   server: {
     host: 'localhost',
     hmr: { host: 'localhost' },
+    // Allow the sandboxed landing iframe (origin 'null') to load dev assets during local testing
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
     proxy: {
       // Ensure client-side routing works
     }
