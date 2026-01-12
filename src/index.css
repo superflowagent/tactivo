@@ -22,6 +22,15 @@
     --primary: 217 91% 60%;
     /* hsl(217, 91%, 60%) */
 
+    /* Primary gradient used as a highlight */
+    --primary-gradient: linear-gradient(90deg, #6366F1 0%, #A78BFA 100%);
+
+    /* Gold */
+    --gold: 45 74% 52%;
+    /* hsl(45, 74%, 52%) */
+    --gold-foreground: 0 0% 100%;
+    /* white for legibility on gold */
+
     /* Destructive (red) */
     --destructive: 0 84.2% 60.2%;
     /* hsl(0, 84.2%, 60.2%) */
@@ -85,6 +94,27 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+  }
+
+  /* Reserve layout space for the vertical scrollbar to avoid jumps when it appears/disappears */
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  /* Fallback for browsers that don't support scrollbar-gutter:
+     force a persistent vertical scrollbar to prevent layout shift on dropdowns/overlays */
+  @supports not (scrollbar-gutter: stable) {
+
+    /* Use overflow on html to ensure gutter space is reserved in more browsers */
+    html {
+      overflow-y: scroll;
+    }
+  }
+
+  /* Strong fix: force a persistent vertical scrollbar on the root element only.
+     Applying this to both html and body can create duplicate scrollbars in some browsers, so restrict it to `html` to avoid double scrollbars. */
+  html {
+    overflow-y: scroll !important;
   }
 
   .ProseMirror {
@@ -226,6 +256,38 @@
       box-shadow: none !important;
       transform: none !important;
       filter: none !important;
+    }
+  }
+
+  /* Typewriter caret and helper classes */
+  .typewriter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .typewriter-text {
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+  }
+
+  .typewriter-caret {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background-color: currentColor;
+    animation: typewriter-blink 1s step-end infinite;
+    margin-left: 0.15rem;
+  }
+
+  @keyframes typewriter-blink {
+    50% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
     }
   }
 

@@ -18,6 +18,10 @@ export default defineConfig({
       // Ensure client-side routing works
     }
   },
+  optimizeDeps: {
+    // Exclude packages that cause the dep optimizer to mis-handle ESM/CJS resolution
+    exclude: ['date-fns'],
+  },
   plugins: [
     react(),
     ...(process.env.ANALYZE === 'true'
