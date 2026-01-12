@@ -25,15 +25,7 @@ import { parseDbDatetimeAsLocal } from '@/lib/utils';
 import { formatDateWithOffset } from '@/lib/date';
 import { getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog';
+import { AppointmentSlotsDialog } from '@/components/eventos/AppointmentSlotsDialog';
 // user_cards removed, load professionals from profiles directly
 import './calendario.css';
 
@@ -42,6 +34,10 @@ export function CalendarioView() {
   const isClient = user?.role === 'client';
   const [events, setEvents] = useState<any[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
+  // Keep the full list of calendar events (including vacations) for logic such as
+  // availability calculations; UI for clients will hide vacation rows while the
+  // dialog will still receive the full list.
+  const [allCalendarEvents, setAllCalendarEvents] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [clickedDateTime, setClickedDateTime] = useState<string | null>(null);
@@ -54,14 +50,29 @@ export function CalendarioView() {
   const [clientCredits, setClientCredits] = useState<number | null>(null);
   // The profile id for the logged in user (used to match events where client is a profile id)
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
-  // Alert for unavailable scheduling functionality
-  const [scheduleUnavailableOpen, setScheduleUnavailableOpen] = useState(false);
+  // Dialog to show appointment slots (for clients)
+  const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
   const isMobile = useIsMobile();
 
   // Vista seleccionada ('Mes' | 'Semana' | 'Día' | 'Lista')
   const [selectedView, setSelectedView] = useState<string>(isMobile ? 'Día' : 'Semana');
   const calendarRef = useRef<any>(null);
 
+  // Normalize client field variants (some RPCs return client_user_ids / clientUserIds / clients etc.)
+  const getClientIdsFromEvent = (ev: any) => {
+    if (!ev) return [];
+    if (Array.isArray(ev.client)) return ev.client;
+    if (ev.client) return [ev.client];
+    if (Array.isArray(ev.client_user_ids)) return ev.client_user_ids;
+    if (ev.client_user_ids) return [ev.client_user_ids];
+    if (Array.isArray(ev.clientUserIds)) return ev.clientUserIds;
+    if (ev.clientUserIds) return [ev.clientUserIds];
+    if (Array.isArray(ev.clients)) return ev.clients;
+    if (ev.clients) return [ev.clients];
+    if (Array.isArray(ev.clientIds)) return ev.clientIds;
+    if (ev.clientIds) return [ev.clientIds];
+    return [];
+  };
 
   // Avoid frequent reloads (e.g., when returning from another tab)
   // by tracking last load time and ignoring reload attempts that happen
@@ -138,7 +149,35 @@ export function CalendarioView() {
         p_company: cid,
       });
       if (error) throw error;
-      const records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+      let records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+
+      // DEV/WORKAROUND: If RPC omitted vacation rows, fetch them directly and merge.
+      // Observed: some vacations may not be returned by `get_events_for_company` but still exist
+      // in the `events` table (seen during local debugging). To avoid showing incorrect
+      // availability to clients, explicitly fetch vacations for the near future and merge.
+      try {
+        const nowIso = new Date().toISOString();
+        const oneYearIso = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: vacRows, error: vacErr } = await supabase
+          .from('events')
+          .select('*')
+          .eq('company', cid)
+          .eq('type', 'vacation')
+          .gte('datetime', nowIso)
+          .lte('datetime', oneYearIso);
+        if (!vacErr && Array.isArray(vacRows) && vacRows.length > 0) {
+          // Find vacations that are not present in RPC results and append them
+          const existingIds = new Set(records.map((r: any) => r.id));
+          const missing = vacRows.filter((v: any) => !existingIds.has(v.id));
+          if (missing.length > 0) {
+            records = [...records, ...missing];
+            // sort again by datetime after merge
+            records.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+          }
+        }
+      } catch (e) {
+        // ignore fallback failures, RPC data is primary
+      }
       // Sort by datetime
       records.sort(
         (a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
@@ -152,11 +191,7 @@ export function CalendarioView() {
           : event.professional
             ? [event.professional]
             : [];
-        const clients = Array.isArray(event.client)
-          ? event.client
-          : event.client
-            ? [event.client]
-            : [];
+        const clients = getClientIdsFromEvent(event);
         pros.forEach((id: string) => allIds.add(id));
         clients.forEach((id: string) => allIds.add(id));
       });
@@ -175,7 +210,7 @@ export function CalendarioView() {
         let borderColor = '';
 
         const expandedClients = (
-          Array.isArray(event.client) ? event.client : event.client ? [event.client] : []
+          getClientIdsFromEvent(event)
         )
           .map((id: string) => profileMap[id])
           .filter(Boolean);
@@ -196,9 +231,37 @@ export function CalendarioView() {
           .join(', ');
 
         // Determinar título y color según tipo
+        // Debug: if a specific event is missing client resolution, log helpful diagnostics in development
+        if (process.env.NODE_ENV === 'development' && event.id === '8ccbeb2d-a345-444d-97a5-4cadf128741d' && (!expandedClients || expandedClients.length === 0)) {
+          // eslint-disable-next-line no-console
+          console.debug('Calendario: missing expandedClients for event', {
+            id: event.id,
+            rawClientFields: getClientIdsFromEvent(event),
+            profileMapKeys: Object.keys(profileMap),
+            rawEvent: event,
+          });
+        }
+
         if (event.type === 'appointment') {
-          const expandedClient = expandedClients[0];
-          title = expandedClient ? `${expandedClient.name} ${expandedClient.last_name}` : 'Cita';
+          // For appointments show the client name to professionals (first client if multiple), otherwise keep the existing "Cita - Nombre Apellido" format when there's exactly one client
+          const expandedClient = expandedClients.length === 1 ? expandedClients[0] : null;
+          const isProfessional = user?.role === 'professional';
+          if (isProfessional) {
+            // Prefer expanded client data; if absent, fall back to any precomputed clientNames on the raw event
+            if (expandedClients.length > 0) {
+              const c = expandedClients[0];
+              title = `${c.name} ${c.last_name}`;
+            } else if (clientNames) {
+              title = clientNames.split(', ')[0];
+            } else if (event.client && typeof event.client === 'string') {
+              // If client is a single id but couldn't be resolved, show placeholder 'Cita'
+              title = 'Cita';
+            } else {
+              title = 'Cita';
+            }
+          } else {
+            title = expandedClient ? `Cita - ${expandedClient.name} ${expandedClient.last_name}` : 'Cita';
+          }
           backgroundColor = 'hsl(var(--appointment-color))';
           borderColor = 'hsl(var(--appointment-color))';
         } else if (event.type === 'class') {
@@ -211,9 +274,26 @@ export function CalendarioView() {
           borderColor = 'hsl(var(--vacation-color))';
         }
 
-        const startDate = parseDbDatetimeAsLocal(event.datetime) || new Date(event.datetime);
+        // Normalize incoming datetime strings so that values without explicit timezone
+        // offset are interpreted as local wall-clock times consistently. This ensures
+        // vacation events behave the same as appointments/classes irrespective of
+        // how the DB stored the datetime (with or without offset).
+        const normalizeDatetime = (dt: any) => {
+          if (!dt) return dt;
+          const s = String(dt);
+          // If contains explicit timezone (Z or +hh:mm), leave as-is
+          if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) return s;
+          // Otherwise parse into a Date using local interpretation and reformat with offset
+          try {
+            const parsed = new Date(s);
+            return formatDateWithOffset(parsed);
+          } catch (e) {
+            return s;
+          }
+        };
+        const startDate = new Date(normalizeDatetime(event.datetime));
         const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000);
-        const clientIds = Array.isArray(event.client) ? event.client : event.client ? [event.client] : [];
+        const clientIds = getClientIdsFromEvent(event);
         const clientUserIds = expandedClients.map((c: any) => c.user || c.id).filter(Boolean);
 
         return {
@@ -238,13 +318,25 @@ export function CalendarioView() {
         };
       });
 
-      setEvents(calendarEvents);
-      setFilteredEvents(calendarEvents);
+      // Preserve the full set (including vacations) for components which need them
+      setAllCalendarEvents(calendarEvents);
+
+      // For client users, hide 'vacation' events from the calendar UI but keep them
+      // in the full dataset so the appointment dialog can still block those times.
+      const eventsForDisplay = isClient
+        ? calendarEvents.filter((e: any) => {
+          const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
+          return t !== 'vacation';
+        })
+        : calendarEvents;
+
+      setEvents(eventsForDisplay);
+      setFilteredEvents(eventsForDisplay);
       loadClientCredits();
     } catch (err) {
       logError('Error cargando eventos:', err);
     }
-  }, [companyId, loadClientCredits]);
+  }, [companyId, loadClientCredits, user?.role]);
 
   const filterEvents = useCallback(() => {
     let filtered = [...events];
@@ -345,11 +437,7 @@ export function CalendarioView() {
 
       // Enrich with profiles
       const ids = [
-        ...(Array.isArray(eventData.client)
-          ? eventData.client
-          : eventData.client
-            ? [eventData.client]
-            : []),
+        ...getClientIdsFromEvent(eventData),
         ...(Array.isArray(eventData.professional)
           ? eventData.professional
           : eventData.professional
@@ -396,6 +484,24 @@ export function CalendarioView() {
     setClickedDateTime(null);
     setSelectedEvent(null);
     setDialogOpen(true);
+  };
+
+  // Open appointment dialog for clients after fetching latest professionals and events
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const handleOpenAppointmentDialog = async () => {
+    if (!isClient) return;
+    try {
+      setAppointmentLoading(true);
+      // Ensure we have the freshest data before showing slots
+      await loadProfessionals();
+      await loadEvents(true); // force reload
+      setAppointmentDialogOpen(true);
+    } catch (err) {
+      logError('Error opening appointment dialog:', err);
+      setAppointmentDialogOpen(true); // still open dialog to surface any messages
+    } finally {
+      setAppointmentLoading(false);
+    }
   };
 
   const handleSave = (force: boolean = false) => {
@@ -458,9 +564,9 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button onClick={isClient ? () => setScheduleUnavailableOpen(true) : handleAdd} className="w-full sm:hidden">
+      <Button onClick={isClient ? handleOpenAppointmentDialog : handleAdd} disabled={isClient && appointmentLoading} className="w-full sm:hidden">
         <CalendarPlus className="mr-0 h-4 w-4" />
-        {isClient ? 'Agendar cita' : 'Crear Evento'}
+        {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
       </Button>
 
       {/* Filtros */}
@@ -527,22 +633,20 @@ export function CalendarioView() {
           </div>
         )}
 
-        <AlertDialog open={scheduleUnavailableOpen} onOpenChange={setScheduleUnavailableOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Funcionalidad no disponible</AlertDialogTitle>
-              <AlertDialogDescription>Está funcionalidad aún no está disponible</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setScheduleUnavailableOpen(false)}>Aceptar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <AppointmentSlotsDialog
+          open={appointmentDialogOpen}
+          onOpenChange={setAppointmentDialogOpen}
+          company={company}
+          // Pass the full set of events (including vacations) so the dialog can
+          // correctly block slots even if vacations are hidden from the calendar UI
+          events={allCalendarEvents}
+          professionals={professionals}
+        />
 
         <div className="hidden sm:block flex-1" />
-        <Button onClick={isClient ? () => setScheduleUnavailableOpen(true) : handleAdd} className="hidden sm:flex">
+        <Button onClick={isClient ? handleOpenAppointmentDialog : handleAdd} disabled={isClient && appointmentLoading} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
-          {isClient ? 'Agendar cita' : 'Crear Evento'}
+          {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
         </Button>
       </div>
 

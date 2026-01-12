@@ -484,7 +484,7 @@ export function EventDialog({
             }
 
             // Force reload so the calendar UI shows the new/updated event immediately
-            onSave();
+            onSave(true);
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
         } catch (err) {
@@ -506,7 +506,7 @@ export function EventDialog({
             if (delErr) throw delErr;
 
             // Force a reload of events after delete so calendar UI updates immediately
-            onSave();
+            onSave(true);
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
             setShowDeleteDialog(false);
@@ -612,7 +612,7 @@ export function EventDialog({
 
             setSelectedClients(newClients);
             // Force reload so UI updates immediately to reflect signup
-            onSave();
+            onSave(true);
         } catch (err: any) {
             logError('Error apuntando al cliente al evento:', err);
 
@@ -663,7 +663,7 @@ export function EventDialog({
 
             setSelectedClients(newClients);
             // Force reload so UI updates immediately to reflect un-signup
-            onSave();
+            onSave(true);
         } catch (err: any) {
             logError('Error borrando cliente del evento:', err);
             alert('Error al borrarme del evento');

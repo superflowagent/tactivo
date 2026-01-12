@@ -101,7 +101,7 @@ serve(async (req: any) => {
 
     const body = await req.json().catch(() => ({}));
     // Required fields: company, user (optional — may be assigned later), name
-    const { company, user, name, email, phone } = body || {};
+    const { company, user, name, last_name, dni, email, phone } = body || {};
     if (!company) return jsonResponse({ error: 'company is required' }, 400);
     if (!name && !email) return jsonResponse({ error: 'name or email is required' }, 400);
 
@@ -121,6 +121,8 @@ serve(async (req: any) => {
     const newProfile: any = { company, role: 'client' };
     if (user) newProfile.user = user;
     if (name) newProfile.name = name;
+    if (last_name) newProfile.last_name = last_name;
+    if (dni) newProfile.dni = dni;
     if (email) newProfile.email = email;
     if (phone) newProfile.phone = phone;
 
