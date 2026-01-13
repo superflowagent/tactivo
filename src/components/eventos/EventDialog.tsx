@@ -96,6 +96,12 @@ export function EventDialog({
     const profilesLoadingRef = useRef(false);
     const clientSearchRef = useRef<HTMLInputElement | null>(null);
 
+    // Helpers
+    const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
+    const validateUuidArray = (arr: any) => Array.isArray(arr) && arr.every(isUuid);
+    const sanitizeUuidArray = (arr: any) => (Array.isArray(arr) ? arr.filter(isUuid) : []);
+
+
     // Helper: robust datetime parser for DB/RPC values
     const safeParseDatetime = (raw: any): Date | null => {
         if (!raw) return null;
@@ -426,6 +432,18 @@ export function EventDialog({
         }
     }, [event, open, initialDateTime, loadClientes, loadProfesionales, loadCompany, isClientView]);
 
+    // Auto-select the first available professional for new events
+    useEffect(() => {
+        // Only run when dialog is open and we're creating a new event (no existing event)
+        if (!open) return;
+        if (event) return; // editing an existing event — do not override
+        if (isClientView) return; // clients shouldn't set professionals
+
+        if (profesionales && profesionales.length > 0 && (selectedProfessionals || []).length === 0) {
+            setSelectedProfessionals([profesionales[0].user]);
+        }
+    }, [open, event, profesionales, selectedProfessionals, isClientView]);
+
     useEffect(() => {
         if (!isClientView || !user?.id || !open) return;
         let mounted = true;
@@ -703,12 +721,21 @@ export function EventDialog({
             const meId = user.id;
             const newClients = selectedClients.includes(meId) ? selectedClients : [...selectedClients, meId];
 
+            // Sanitize client IDs before sending to the RPC to avoid server errors
+            const cleaned = sanitizeUuidArray(newClients);
+            if (cleaned.length !== newClients.length) {
+                console.debug('handleSignUp: detected non-UUID client ids', { newClients, cleaned });
+                alert('Algunos clientes seleccionados no son válidos y no se pueden añadir. Revisa la lista de clientes.');
+                setLoading(false);
+                return;
+            }
+
             const { error: updErr } = await supabase.rpc('update_event_json', {
-                p_payload: { id: event.id, changes: { client: newClients } },
+                p_payload: { id: event.id, changes: { client: cleaned } },
             });
             if (updErr) throw updErr;
 
-            setSelectedClients(newClients);
+            setSelectedClients(cleaned);
             // Force reload so UI updates immediately to reflect signup
             onSave(true);
         } catch (err: any) {
@@ -754,12 +781,21 @@ export function EventDialog({
             // payload matches whatever format is present in the event (user or profile id)
             const newClients = selectedClients.filter((id) => id !== meUserId && id !== meProfileIdLocal);
 
+            // Sanitize client IDs before sending to the RPC to avoid server errors
+            const cleaned = sanitizeUuidArray(newClients);
+            if (cleaned.length !== newClients.length) {
+                console.debug('handleUnsign: detected non-UUID client ids', { newClients, cleaned });
+                alert('Algunos clientes en la lista no son válidos y no se han modificado. Revisa la lista de clientes.');
+                setLoading(false);
+                return;
+            }
+
             const { error: updErr } = await supabase.rpc('update_event_json', {
-                p_payload: { id: event.id, changes: { client: newClients } },
+                p_payload: { id: event.id, changes: { client: cleaned } },
             });
             if (updErr) throw updErr;
 
-            setSelectedClients(newClients);
+            setSelectedClients(cleaned);
             // Force reload so UI updates immediately to reflect un-signup
             onSave(true);
         } catch (err: any) {
