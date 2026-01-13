@@ -190,6 +190,15 @@ export function ClassSlotDialog({
         }
     }, [open, loadClientes, loadProfesionales, loadCompany]);
 
+    // Auto-select the first available professional when creating a new class template
+    useEffect(() => {
+        if (!open) return;
+        if (slot) return; // editing an existing template — don't override
+        if (profesionales && profesionales.length > 0 && selectedProfessionals.length === 0) {
+            setSelectedProfessionals([profesionales[0].user]);
+        }
+    }, [open, slot, profesionales, selectedProfessionals]);
+
     useEffect(() => {
         if (!open) return;
 
@@ -507,7 +516,7 @@ export function ClassSlotDialog({
                                                                 setShowMaxAssistantsDialog(true);
                                                                 return;
                                                             }
-                                                            setSelectedClients((prev) => [...prev, cliente.user]);
+                                                            setSelectedClients((prev) => [...prev, cliente.id ?? cliente.user]);
                                                             setClientSearch('');
                                                         }}
                                                         className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2"
