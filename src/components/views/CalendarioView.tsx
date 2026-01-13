@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CalendarPlus, AlertTriangle, Dumbbell } from 'lucide-react';
+import { CalendarPlus, AlertTriangle, Dumbbell, ShoppingCart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
 import type { Event } from '@/types/event';
@@ -26,6 +26,16 @@ import { formatDateWithOffset } from '@/lib/date';
 import { getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
 import { AppointmentSlotsDialog } from '@/components/eventos/AppointmentSlotsDialog';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 // user_cards removed, load professionals from profiles directly
 import './calendario.css';
 
@@ -52,6 +62,8 @@ export function CalendarioView() {
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   // Dialog to show appointment slots (for clients)
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+  // Dialog to show purchase message for bonos
+  const [showBonosDialog, setShowBonosDialog] = useState(false);
   const isMobile = useIsMobile();
 
   // Vista seleccionada ('Mes' | 'Semana' | 'Día' | 'Lista')
@@ -149,6 +161,15 @@ export function CalendarioView() {
         p_company: cid,
       });
       if (error) throw error;
+      // DEV: log RPC payload for diagnostics
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('Calendario: RPC get_events_for_company returned', { count: Array.isArray(rpcRecords) ? rpcRecords.length : rpcRecords ? 1 : 0, sample: (Array.isArray(rpcRecords) ? rpcRecords.slice(0, 3) : rpcRecords ? [rpcRecords] : []) });
+        } catch (e) {
+          // ignore diagnostic failures
+        }
+      }
       let records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
 
       // DEV/WORKAROUND: If RPC omitted vacation rows, fetch them directly and merge.
@@ -177,6 +198,21 @@ export function CalendarioView() {
         }
       } catch (e) {
         // ignore fallback failures, RPC data is primary
+      }
+
+      // DEV: if RPC returned no records at all, attempt a raw select to help debug.
+      if (process.env.NODE_ENV === 'development' && (!records || records.length === 0)) {
+        try {
+          const { data: rawRows, error: rawErr } = await supabase
+            .from('events')
+            .select('id,type,datetime,duration')
+            .eq('company', cid)
+            .limit(20);
+          // eslint-disable-next-line no-console
+          console.debug('Calendario: raw events select returned', { rawErr, rawSample: rawRows && rawRows.length ? rawRows.slice(0, 5) : [] });
+        } catch (err) {
+          // ignore
+        }
       }
       // Sort by datetime
       records.sort(
@@ -280,9 +316,23 @@ export function CalendarioView() {
         // how the DB stored the datetime (with or without offset).
         const normalizeDatetime = (dt: any) => {
           if (!dt) return dt;
-          const s = String(dt);
-          // If contains explicit timezone (Z or +hh:mm), leave as-is
+          let s = String(dt);
+
+          // Some DBs / formatters may return offsets like '+00' (no minutes). Convert
+          // '+HH' to '+HH:00' so the Date parser accepts it as an explicit TZ offset.
+          // e.g. '2026-01-13T11:30:00+00' -> '2026-01-13T11:30:00+00:00'
+          if (/[+-]\d{2}$/.test(s)) {
+            const fixed = s.replace(/([+-]\d{2})$/, '$1:00');
+            if (process.env.NODE_ENV === 'development' && fixed !== s) {
+              // eslint-disable-next-line no-console
+              console.debug('Calendario: normalized offset format', { raw: s, fixed });
+            }
+            s = fixed;
+          }
+
+          // If contains explicit timezone (Z or +hh:mm), leave as-is (we have normalized +HH above)
           if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) return s;
+
           // Otherwise parse into a Date using local interpretation and reformat with offset
           try {
             const parsed = new Date(s);
@@ -321,14 +371,61 @@ export function CalendarioView() {
       // Preserve the full set (including vacations) for components which need them
       setAllCalendarEvents(calendarEvents);
 
-      // For client users, hide 'vacation' events from the calendar UI but keep them
-      // in the full dataset so the appointment dialog can still block those times.
+      // DEV: log what we computed for quick diagnosis
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const typeCounts: Record<string, number> = {};
+          calendarEvents.forEach((ce: any) => {
+            const t = ce._rawEvent?.type || ce.extendedProps?.type || ce.type || 'unknown';
+            typeCounts[t] = (typeCounts[t] || 0) + 1;
+          });
+
+          // eslint-disable-next-line no-console
+          console.debug('Calendario: computed calendarEvents', {
+            calendarCount: calendarEvents.length,
+            typeCounts,
+            sample: calendarEvents.slice(0, 5).map((c: any) => ({ id: c.id, type: c._rawEvent?.type || c.extendedProps?.type || c.type, start: c.start?.toISOString?.(), end: c.end?.toISOString?.() })),
+            isClient,
+            userRole: user?.role,
+            myProfileId,
+          });
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      // For client users, show only classes and appointments where the client is a participant.
+      // Vacations are already hidden earlier. This enforces that clients don't see others' appointments.
       const eventsForDisplay = isClient
         ? calendarEvents.filter((e: any) => {
           const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
-          return t !== 'vacation';
+          if (t === 'vacation') return false; // already hidden but keep defensive
+          if (t === 'class') return true;
+
+          if (t === 'appointment') {
+            // Determine if the auth user or their profile id is listed as a client on the event
+            const clientUserIds = e.extendedProps?.clientUserIds || [];
+            const clientProfileIds = e.extendedProps?.client || [];
+
+            if (user?.id && clientUserIds.includes(user.id)) return true;
+            if (myProfileId && clientProfileIds.includes(myProfileId)) return true;
+            if (user?.id && clientProfileIds.includes(user.id)) return true; // defensive
+
+            return false; // appointment exists but not for this client
+          }
+
+          return false; // default: don't show other event types to clients
         })
         : calendarEvents;
+
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('Calendario: eventsForDisplay', { displayCount: eventsForDisplay.length, sample: eventsForDisplay.slice(0, 5).map((e: any) => ({ id: e.id, title: e.title })) });
+        } catch (e) {
+          // ignore
+        }
+      }
 
       setEvents(eventsForDisplay);
       setFilteredEvents(eventsForDisplay);
@@ -621,7 +718,7 @@ export function CalendarioView() {
         )}
 
         {isClient && (
-          <div className="flex items-center gap-3 sm:ml-4">
+          <div className="flex items-center gap-4">
             <div className="flex items-center text-sm font-medium">
               Clases restantes: <span className="font-bold ml-1">{clientCredits ?? 0}</span>
               {(clientCredits ?? 0) <= 0 && (
@@ -630,6 +727,11 @@ export function CalendarioView() {
                 </span>
               )}
             </div>
+
+            <Button variant="outline" onClick={() => setShowBonosDialog(true)}>
+              <ShoppingCart className="h-4 w-4" />
+              Adquirir bonos
+            </Button>
           </div>
         )}
 
@@ -643,6 +745,18 @@ export function CalendarioView() {
           professionals={professionals}
         />
 
+        <AlertDialog open={showBonosDialog} onOpenChange={setShowBonosDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Próximamente</AlertDialogTitle>
+              <AlertDialogDescription>Funcionalidad disponible próximamente</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Entendido</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <div className="hidden sm:block flex-1" />
         <Button onClick={isClient ? handleOpenAppointmentDialog : handleAdd} disabled={isClient && appointmentLoading} className="hidden sm:flex">
           <CalendarPlus className="mr-0 h-4 w-4" />
@@ -653,6 +767,37 @@ export function CalendarioView() {
       <Card className="flex-1">
         <CardContent className="pt-6 flex-1 min-h-0">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
+            {/* DEV: quick visible dump of events to help debug rendering issues */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="p-4 mb-4 bg-muted rounded-md text-sm text-muted-foreground">
+                <div className="font-medium mb-2">DEV: Eventos a renderizar ({filteredEvents.length})</div>
+                <ul>
+                  {filteredEvents.slice(0, 10).map((e: any) => {
+                    const start = e.start;
+                    const validStart = start && start instanceof Date && !isNaN(start.getTime());
+                    return (
+                      <li key={e.id}>
+                        {e.title} — {validStart ? start.toISOString() : `invalid start (raw: ${e._rawEvent?.datetime ?? 'none'})`}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {/* DEV: Log any events with invalid start for deeper inspection */}
+                <script>
+                  {(() => {
+                    try {
+                      const invalid = filteredEvents.filter((e: any) => !(e.start instanceof Date) || isNaN(e.start.getTime()));
+                      if (invalid.length > 0) {
+                        // eslint-disable-next-line no-console
+                        console.debug('Calendario: invalid event starts', invalid.map((i: any) => ({ id: i.id, rawDatetime: i._rawEvent?.datetime, start: i.start })));
+                      }
+                    } catch (err) {
+                      // ignore
+                    }
+                  })()}
+                </script>
+              </div>
+            )}
             {/* Render calendar even if no company row exists: use defaults when company is null */}
             {(() => {
               const openTime = company?.open_time || '08:00';

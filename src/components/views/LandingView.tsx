@@ -1,11 +1,10 @@
+
+import React, { Suspense } from 'react';
 import { motion } from 'motion/react';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
 import CalendarPreview from '@/components/ui/CalendarPreview';
-import Typewriter from '@/components/ui/typewriter';
-import FeaturesSection from '@/components/views/FeaturesSection';
 
-const FEATURES_PHRASES = ['Funcionalidades'];
 
 export function LandingView() {
   return (
@@ -24,7 +23,7 @@ export function LandingView() {
       <HeroHighlight containerClassName="w-full">
         <div className="w-full min-h-[520px] flex flex-col lg:flex-row">
           {/* Left half: title and subtitle aligned to the right (towards center) */}
-          <div className="w-full lg:w-1/2 flex items-center justify-end py-12 pl-12 pr-8">
+          <div className="w-full lg:w-1/2 flex items-center justify-center py-12 px-8 lg:pl-64">
             <motion.div
               initial={{
                 opacity: 0,
@@ -46,30 +45,23 @@ export function LandingView() {
                 </span>
               </h2>
 
-              <h1 className="mt-3 text-2xl md:text-3xl lg:text-4xl font-bold text-neutral-900 dark:text-white leading-relaxed lg:leading-snug">
-                el software de gestión para fisioterapeutas<br />
+              <h1 className="mt-3 text-2xl md:text-3xl lg:text-4xl font-bold text-neutral-900 dark:text-white leading-relaxed lg:leading-relaxed">
+                el software de gestión<br />
+                para fisioterapeutas<br />
                 <Highlight className="text-black dark:text-white">que te libera.</Highlight>
               </h1>
             </motion.div>
           </div>
 
           {/* Right half: calendar preview aligned to the left (towards center) */}
-          <div className="hidden lg:flex w-1/2 items-center justify-start pl-8 pr-12">
+          <div className="hidden lg:flex w-1/2 items-center justify-start pl-12 pr-48">
             <CalendarPreview />
           </div>
         </div>
       </HeroHighlight>
 
-      <div className="w-full py-8 mt-6 lg:mt-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <h3 className="text-2xl md:text-3xl font-bold text-neutral-900 dark:text-white mb-6">
-            <Typewriter phrases={["Funcionalidades"]} typingSpeed={80} deletingSpeed={40} loop={false} />
-          </h3>
-        </div>
 
-        {/* Full width features section */}
-        <FeaturesSection />
-      </div>
+
 
     </div>
   );
