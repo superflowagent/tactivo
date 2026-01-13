@@ -96,6 +96,31 @@ export function EventDialog({
     const profilesLoadingRef = useRef(false);
     const clientSearchRef = useRef<HTMLInputElement | null>(null);
 
+    // Helper: robust datetime parser for DB/RPC values
+    const safeParseDatetime = (raw: any): Date | null => {
+        if (!raw) return null;
+        let s = String(raw);
+        if (/[+-]\d{2}$/.test(s)) s = s.replace(/([+-]\d{2})$/, '$1:00');
+        if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) {
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) return d;
+        }
+        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if (m) {
+            const y = parseInt(m[1], 10);
+            const mo = parseInt(m[2], 10) - 1;
+            const day = parseInt(m[3], 10);
+            const hh = parseInt(m[4], 10);
+            const mm = parseInt(m[5], 10);
+            const ss = m[6] ? parseInt(m[6], 10) : 0;
+            const d = new Date(y, mo, day, hh, mm, ss);
+            if (!isNaN(d.getTime())) return d;
+        }
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d;
+        return null;
+    };
+
     // Callback functions - BEFORE useEffect
     const loadCompany = useCallback(async () => {
         if (!companyId) return;
@@ -343,13 +368,20 @@ export function EventDialog({
                 }
             })();
 
-            if (event.datetime) {
-                const date = new Date(event.datetime);
-                setFecha(date);
-                const hours = date.getHours().toString().padStart(2, '0');
-                const mins = date.getMinutes().toString().padStart(2, '0');
-                setHora(hours);
-                setMinutos(mins);
+                    if (event.datetime) {
+                const date = safeParseDatetime(event.datetime);
+                if (date) {
+                    setFecha(date);
+                    const hours = date.getHours().toString().padStart(2, '0');
+                    const mins = date.getMinutes().toString().padStart(2, '0');
+                    setHora(hours);
+                    setMinutos(mins);
+                } else {
+                    // Invalid datetime from DB/RPC; fallback to undefined so UI doesn't crash
+                    // eslint-disable-next-line no-console
+                    if (process.env.NODE_ENV === 'development') console.debug('EventDialog: could not parse event.datetime', { id: event.id, raw: event.datetime });
+                    setFecha(undefined);
+                }
             }
 
             if (event.type === 'vacation' && event.duration) {
@@ -470,17 +502,79 @@ export function EventDialog({
                 return out;
             };
 
+            if (process.env.NODE_ENV === 'development' && data.type === 'vacation') {
+                // DEV: log the exact payload we're about to send for vacations
+                // to help diagnose timezone persistence issues
+                // eslint-disable-next-line no-console
+                console.debug('vacation-save-payload', data);
+            }
+
+            const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
+            const validateUuidArray = (arr: any) => Array.isArray(arr) && arr.every(isUuid);
+
             if (event?.id) {
                 const payload = sanitize(data);
+
+                // Validate client/professional IDs on update too (was only done on insert)
+                if (payload.client && !validateUuidArray(payload.client)) {
+                    alert('Algunos clientes seleccionados no existen como perfiles. Por favor, crea o selecciona un perfil de cliente antes de guardar la clase.');
+                    return;
+                }
+                if (payload.professional && !validateUuidArray(payload.professional)) {
+                    alert('Profesionales inválidos detectados. Por favor selecciona profesionales desde la lista.');
+                    return;
+                }
+
                 const { error: updateErr } = await supabase.rpc('update_event_json', {
                     p_payload: { id: event.id, changes: payload },
                 });
                 if (updateErr) throw updateErr;
             } else {
+                // Validate clients: ensure each client id is a UUID (avoid accidental emails/raw strings)
+                const invalidClients = (selectedClients || []).filter((c) => !isUuid(c));
+                if (invalidClients.length > 0) {
+                    alert('Algunos clientes seleccionados no existen como perfiles. Por favor, crea o selecciona un perfil de cliente antes de guardar la clase.');
+                    return;
+                }
+
                 const dataWithCompany = sanitize({ ...data, company: companyId });
+                if (dataWithCompany.client && !validateUuidArray(dataWithCompany.client)) {
+                    alert('Algunos clientes seleccionados no existen como perfiles. Por favor, crea o selecciona un perfil de cliente antes de guardar la clase.');
+                    return;
+                }
+                if (dataWithCompany.professional && !validateUuidArray(dataWithCompany.professional)) {
+                    alert('Profesionales inválidos detectados. Por favor selecciona profesionales desde la lista.');
+                    return;
+                }
+
+                if (process.env.NODE_ENV === 'development') console.debug('insert-event-payload', dataWithCompany);
+
                 const rpcPayload: any = { p_payload: dataWithCompany };
                 const { error: insertErr } = await supabase.rpc('insert_event_json', rpcPayload);
                 if (insertErr) throw insertErr;
+
+                // DEV: after insert, read the recently inserted vacation rows for this company
+                // within a small window around the payload datetime to see how the server stored it
+                if (process.env.NODE_ENV === 'development' && data.type === 'vacation') {
+                    try {
+                        const dt = data.datetime;
+                        const windowStart = new Date(dt);
+                        windowStart.setHours(windowStart.getHours() - 2);
+                        const windowEnd = new Date(dt);
+                        windowEnd.setHours(windowEnd.getHours() + 2);
+                        const { data: rows, error: selErr } = await supabase
+                            .from('events')
+                            .select('id,type,datetime,duration,professional,company')
+                            .eq('company', companyId)
+                            .gte('datetime', windowStart.toISOString())
+                            .lte('datetime', windowEnd.toISOString())
+                            .order('datetime', { ascending: true });
+                        // eslint-disable-next-line no-console
+                        console.debug('vacation-insert-check', { payloadDatetime: dt, rows, selErr: selErr || null });
+                    } catch (e) {
+                        // ignore dev check errors
+                    }
+                }
             }
 
             // Force reload so the calendar UI shows the new/updated event immediately
@@ -551,7 +645,11 @@ export function EventDialog({
             ? 'Clase inminente'
             : null;
 
-    const eventHasPassed = event?.datetime ? new Date(event.datetime).getTime() < Date.now() : false;
+    const eventHasPassed = (() => {
+        if (!event?.datetime) return false;
+        const d = (typeof safeParseDatetime === 'function') ? safeParseDatetime(event.datetime) : new Date(event.datetime);
+        return d ? d.getTime() < Date.now() : false;
+    })();
 
     const eventIsDirty = useMemo(() => {
         const init = initialEventRef.current;

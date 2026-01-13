@@ -4,7 +4,6 @@ export function LandingNavbar() {
   const [open, setOpen] = useState(false);
 
   const links = [
-    { title: 'Características', href: '#features' },
     { title: 'Quiénes somos', href: '#about' },
     { title: 'Testimonios', href: '#testimonials' },
     { title: 'Precios', href: '#pricing' },

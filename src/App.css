@@ -1,10 +1,10 @@
 /* Global app styles */
 
-/* UI tweaks for client read-only modal */
-.cursor-default input[placeholder='Buscar cliente...'] {
-  display: none !important;
-}
+/* Removed overly-broad rules that hid client search inputs and absolute overlays.
+   These selectors were applying whenever any ancestor had the `cursor-default` class,
+   which caused the "Buscar cliente..." input inside the "Crear Evento" modal to be hidden
+   / unclickable in some situations.
 
-.cursor-default .absolute.z-50 {
-  display: none !important;
-}
+   If we still need to enforce read-only modal behavior for clients, scope it to a
+   dedicated class (e.g. `.client-readonly-modal`) and apply that class explicitly only
+   to the appropriate modal container. */

@@ -129,9 +129,59 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
                     // overlaps when a candidate ends exactly at the start of an event
                     // (i.e., touching endpoints should NOT be considered overlapping).
                     const EPS_MS = 1000; // 1 second tolerance
+                    // Helper: parse DB datetime strings WITHOUT timezone as local wall-clock
+                    const parseDbDatetimeStringToLocal = (raw: any) => {
+                        if (!raw) return null;
+                        let s = String(raw);
+                        // Normalize offset-only representations like '+00' -> '+00:00' so Date parser accepts them
+                        if (/[+-]\d{2}$/.test(s)) {
+                            const fixed = s.replace(/([+-]\d{2})$/, '$1:00');
+                            if (process.env.NODE_ENV === 'development' && fixed !== s) {
+                                // eslint-disable-next-line no-console
+                                console.debug('AppointmentSlotsDialog: normalized offset format', { raw: s, fixed });
+                            }
+                            s = fixed;
+                        }
+
+                        // If string contains explicit timezone (Z or +hh:mm), use Date parsing
+                        if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) return new Date(s);
+
+                        // Try to parse YYYY-MM-DDTHH:mm[:ss] as local time
+                        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):?(\d{2})(?::?(\d{2}))?$/);
+                        if (m) {
+                            const year = parseInt(m[1], 10);
+                            const month = parseInt(m[2], 10) - 1;
+                            const day = parseInt(m[3], 10);
+                            const hour = parseInt(m[4], 10);
+                            const minute = parseInt(m[5], 10);
+                            const second = m[6] ? parseInt(m[6], 10) : 0;
+                            return new Date(year, month, day, hour, minute, second);
+                        }
+
+                        // Fallback to Date constructor
+                        return new Date(s);
+                    };
+
                     const overlappingEvents = (events || []).filter((ev: any) => {
-                        const evStart = ev.start instanceof Date ? ev.start : new Date(ev.start);
-                        const evEnd = ev.end instanceof Date ? ev.end : new Date(ev.end);
+                        // Prefer raw values from DB for precise behavior (especially for vacations)
+                        const rawDt = ev._rawEvent?.datetime ?? ev.datetime ?? null;
+                        const rawDur = ev._rawEvent?.duration ?? ev.duration ?? 0;
+
+                        let evStart: Date | null = null;
+                        let evEnd: Date | null = null;
+
+                        if (rawDt) {
+                            const parsed = parseDbDatetimeStringToLocal(rawDt);
+                            if (parsed && !isNaN(parsed.getTime())) {
+                                evStart = parsed;
+                                evEnd = new Date(parsed.getTime() + (rawDur || 0) * 60000);
+                            }
+                        }
+
+                        // Fallback to already-normalized Date objects when raw parsing fails
+                        if (!evStart) evStart = ev.start instanceof Date ? ev.start : new Date(ev.start);
+                        if (!evEnd) evEnd = ev.end instanceof Date ? ev.end : new Date(ev.end);
+
                         const candMs = candidate.getTime();
                         const candEndMs = candidateEnd.getTime();
                         const evStartMs = evStart.getTime();
@@ -141,6 +191,44 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
                         // AND candidate ends strictly after event start by at least EPS_MS
                         return candMs < evEndMs && candEndMs > evStartMs + EPS_MS;
                     });
+
+                    // DEV: diagnostics for all events to detect parsing/timezone mismatches
+                    if (process.env.NODE_ENV === 'development') {
+                        try {
+                            (events || []).forEach((ev: any) => {
+                                const t = ev._rawEvent?.type || ev.extendedProps?.type || ev.type;
+                                const rawDt = ev._rawEvent?.datetime ?? ev.datetime ?? null;
+                                const rawDur = ev._rawEvent?.duration ?? ev.duration ?? null;
+
+                                // parsed from raw DB fields using the same local-wall-clock parser
+                                const parsedStart = rawDt ? parseDbDatetimeStringToLocal(rawDt) : null;
+                                const parsedEnd = parsedStart ? new Date(parsedStart.getTime() + (rawDur || 0) * 60000) : null;
+
+                                const evStart = ev.start instanceof Date ? ev.start : new Date(ev.start);
+                                const evEnd = ev.end instanceof Date ? ev.end : new Date(ev.end);
+
+                                const deltaStart = parsedStart && evStart ? parsedStart.getTime() - evStart.getTime() : null;
+                                const deltaEnd = parsedEnd && evEnd ? parsedEnd.getTime() - evEnd.getTime() : null;
+
+                                // eslint-disable-next-line no-console
+                                console.debug('event-parse-diagnostic', {
+                                    id: ev.id || ev._rawEvent?.id,
+                                    type: t,
+                                    rawDatetime: rawDt,
+                                    rawDuration: rawDur,
+                                    parsedStartIso: parsedStart?.toISOString?.(),
+                                    parsedEndIso: parsedEnd?.toISOString?.(),
+                                    evStartIso: evStart?.toISOString?.(),
+                                    evEndIso: evEnd?.toISOString?.(),
+                                    deltaStart,
+                                    deltaEnd,
+                                    professionals: getEventProfessionals(ev),
+                                });
+                            });
+                        } catch (e) {
+                            // ignore dev diagnostics errors
+                        }
+                    }
 
 
 
@@ -155,6 +243,26 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
                         const pros = getEventProfessionals(ev);
                         return pros && pros.length > 0;
                     });
+
+                    // DEV: log availability diagnostics for this candidate
+                    if (process.env.NODE_ENV === 'development') {
+                        try {
+                            const availProfIds = (Array.isArray(professionals) ? professionals : []).map((p:any) => String(p.id || p.user || p.user_id));
+                            const overlappingSummary = overlappingWithProfessionals.map((ev:any) => ({ id: ev.id || ev._rawEvent?.id, type: ev._rawEvent?.type || ev.type, professionals: getEventProfessionals(ev) }));
+                            // eslint-disable-next-line no-console
+                            console.debug('AppointmentSlotsDialog: candidate-debug', {
+                                candidate: candidate.toISOString(),
+                                candidateEnd: candidateEnd.toISOString(),
+                                overlappingCount: overlappingEvents.length,
+                                overlappingWithProfessionalsCount: overlappingWithProfessionals.length,
+                                overlappingSummary,
+                                availableProfessionalsCount: availProfIds.length,
+                                availableProfessionals: availProfIds,
+                            });
+                        } catch (e) {
+                            // ignore
+                        }
+                    }
 
 
 
@@ -211,7 +319,7 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[80vh]">
+            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
                 <DialogHeader>
                     <DialogTitle>Agendar cita</DialogTitle>
                     <DialogDescription>
@@ -222,7 +330,7 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
                     )}
                 </DialogHeader>
 
-                <div className="space-y-3 my-4 overflow-y-auto max-h-[60vh]">
+                <div className="space-y-3 overflow-y-auto flex-1 px-1 mt-4 pb-4 max-h-[60vh]">
                     {loading && <div className="text-sm text-muted-foreground">Calculando huecos…</div>}
 
                     {!loading && slots.length === 0 && (
@@ -277,7 +385,7 @@ export function AppointmentSlotsDialog({ open, onOpenChange, company, events, pr
                     ))}
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="mt-4">
                     <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
                 </DialogFooter>
             </DialogContent>
