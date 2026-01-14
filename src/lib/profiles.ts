@@ -1,6 +1,15 @@
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
 
+// Utility: remove undefined/null fields from RPC payloads to avoid server-side ambiguity
+const cleanRpcPayload = (obj: any) => {
+    const out: any = {};
+    for (const [k, v] of Object.entries(obj || {})) {
+        if (v !== undefined && v !== null) out[k] = v;
+    }
+    return out;
+};
+
 export async function getProfilesByRole(companyId: string, role: string) {
     if (!companyId) return [];
 

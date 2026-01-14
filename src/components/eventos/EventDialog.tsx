@@ -211,10 +211,12 @@ export function EventDialog({
                         : event.professional
                             ? [event.professional]
                             : [];
+                    // Capture values that may be mutated / become undefined across await points
+                    const eventCompany = event.company;
                     if (eventProfessionals.length > 0) {
                         const ids = Array.from(new Set(eventProfessionals));
                         // Use helper that tries both RPCs and fallbacks to safe SELECTs to avoid overload ambiguity
-                        const profMap = await getProfilesByIds(ids, (isUuid(event.company) ? event.company : isUuid(company?.id) ? company.id : undefined));
+                        const profMap = await getProfilesByIds(ids, (isUuid(eventCompany) ? eventCompany : isUuid(company?.id) ? company.id : undefined));
                         profResults = Object.values(profMap || {});
                     }
 
@@ -222,7 +224,8 @@ export function EventDialog({
                 } else {
                     if (idsToLoad.length > 0) {
                         const ids = idsToLoad;
-                        const profMap = await getProfilesByIds(ids, (isUuid(event?.company) ? event.company : isUuid(company?.id) ? company.id : undefined));
+                        const eventCompany = event?.company;
+                        const profMap = await getProfilesByIds(ids, (isUuid(eventCompany) ? eventCompany : isUuid(company?.id) ? company.id : undefined));
                         results = Object.values(profMap || {});
                     } else {
                         results = [];
