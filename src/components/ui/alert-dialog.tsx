@@ -88,9 +88,9 @@ const AlertDialogContent = React.forwardRef<
         {...contentProps}
       >
         {shouldInjectDesc ? (
-          <AlertDialogPrimitive.Description id={descId} className="sr-only">
+          <AlertDialogDescription id={descId} className="sr-only">
             Confirmación requerida
-          </AlertDialogPrimitive.Description>
+          </AlertDialogDescription>
         ) : null}
         {(props as any).children}
       </AlertDialogPrimitive.Content>
