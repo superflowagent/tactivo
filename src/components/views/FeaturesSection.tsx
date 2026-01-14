@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import FeaturePreviewAgenda from './FeaturePreviewAgenda';
 
 export function FeaturesSection() {
   const features = [
@@ -42,27 +43,32 @@ export function FeaturesSection() {
 
   return (
     <section aria-labelledby="funcionalidades" className="w-full py-16">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
         <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6">
           Funcionalidades
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {features.map((f) => (
-            <Card key={f.title} className="w-full">
-              <div className="flex flex-col sm:flex-row items-start sm:items-stretch w-full sm:min-h-[20rem]">
-                <div className="w-full sm:w-[40%] p-6 flex flex-col justify-center">
+            <Card key={f.title} className="w-full group cursor-pointer relative overflow-hidden">
+              <span className="absolute inset-0 rounded-xl pointer-events-none bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0)_75%)] opacity-0 transition-opacity duration-300 group-hover:opacity-20" />
+
+              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-stretch w-full sm:min-h-[20rem]">
+                <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">
                   <CardHeader className="p-0">
                     <CardTitle className="text-lg">{f.title}</CardTitle>
                     <CardDescription>{f.description}</CardDescription>
                   </CardHeader>
                 </div>
 
-                <div className="w-full sm:w-[60%] p-6 flex-none flex items-center">
-                  {/* Placeholder for Preview - to implement later */}
-                  <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
-                    <span className="text-muted-foreground">Preview (placeholder)</span>
-                  </div>
+                <div className="w-full sm:w-[66%] p-6 flex-none flex items-center">
+                  {f.title === 'Agenda autónoma' ? (
+                    <FeaturePreviewAgenda />
+                  ) : (
+                    <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
+                      <span className="text-muted-foreground">Preview (placeholder)</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
