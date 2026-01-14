@@ -242,3 +242,21 @@
     min-height: 64px;
   }
 }
+
+/* Evitar que los campos de filtro obliguen al contenedor a cambiar de anchura */
+.section-search {
+  min-width: 0; /* permite que inputs/selects en flex se encojan sin forzar reflows */
+}
+
+/* Aislar el calendario para que cambios externos (popover, overlays) no afecten su layout */
+.calendar-wrapper {
+  width: 100%;
+  min-width: 0;
+  contain: layout;
+}
+
+/* Asegurar que FullCalendar use todo el ancho disponible y no cause desplazamientos */
+.calendar-wrapper .fc {
+  width: 100%;
+  min-width: 0;
+}
