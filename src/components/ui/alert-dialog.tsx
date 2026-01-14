@@ -55,17 +55,21 @@ const AlertDialogContent = React.forwardRef<
     return false;
   };
 
-  const missingDescription = !hasDescription(props.children);
-  const hasExplicitAriaDesc = Boolean((props as any)['aria-describedby']);
+  const missingDescription = !hasDescription((props as any).children);
+  const hasExplicitAriaDesc = (props as any)['aria-describedby'] !== undefined && (props as any)['aria-describedby'] !== null;
   const shouldInjectDesc = missingDescription && !hasExplicitAriaDesc;
   const generatedId = React.useId();
   const descId = `alert-desc-${generatedId}`;
 
+  // Build content props so user-provided props do not override an injected aria-describedby
+  const contentProps: any = { ...props };
+  if (shouldInjectDesc && (contentProps['aria-describedby'] === undefined || contentProps['aria-describedby'] === null)) {
+    contentProps['aria-describedby'] = descId;
+  }
+
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
-      {/* Inject a visually-hidden description when none is provided to satisfy accessibility checks */}
-      {shouldInjectDesc ? <span id={descId} className="sr-only" aria-hidden /> : null}
       <AlertDialogPrimitive.Content
         ref={setRefs}
         tabIndex={-1}
@@ -81,9 +85,15 @@ const AlertDialogContent = React.forwardRef<
           'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state-closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] rounded-lg',
           className
         )}
-        {...(shouldInjectDesc ? { 'aria-describedby': descId } : {})}
-        {...props}
-      />
+        {...contentProps}
+      >
+        {shouldInjectDesc ? (
+          <AlertDialogPrimitive.Description id={descId} className="sr-only">
+            Confirmación requerida
+          </AlertDialogPrimitive.Description>
+        ) : null}
+        {(props as any).children}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   );
 });

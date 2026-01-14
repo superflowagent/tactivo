@@ -306,7 +306,7 @@ export function CalendarioView() {
             try {
               const parsed = new Date(s);
               return formatDateWithOffset(parsed);
-            } catch (e) {
+            } catch {
               return s;
             }
           };

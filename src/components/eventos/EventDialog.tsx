@@ -373,7 +373,6 @@ export function EventDialog({
                     setMinutos(mins);
                 } else {
                     // Invalid datetime from DB/RPC; fallback to undefined so UI doesn't crash
-                    // eslint-disable-next-line no-console
                     if (process.env.NODE_ENV === 'development') console.debug('EventDialog: could not parse event.datetime', { id: event.id, raw: event.datetime });
                     setFecha(undefined);
                 }
@@ -419,7 +418,7 @@ export function EventDialog({
             setDias(1);
             setHorasVacaciones(0);
         }
-    }, [event, open, initialDateTime, loadClientes, loadProfesionales, loadCompany, isClientView]);
+    }, [event, open, initialDateTime, loadClientes, loadProfesionales, loadCompany, isClientView, company?.id]);
 
     // Auto-select the first available professional for new events
     useEffect(() => {
@@ -431,7 +430,7 @@ export function EventDialog({
         if (profesionales && profesionales.length > 0 && (selectedProfessionals || []).length === 0) {
             setSelectedProfessionals([profesionales[0].user]);
         }
-    }, [open, event, profesionales, selectedProfessionals, isClientView, company?.id]);
+    }, [open, event, profesionales, selectedProfessionals, isClientView, company?.id, company, company?.id]);
 
     useEffect(() => {
         if (!isClientView || !user?.id || !open) return;
