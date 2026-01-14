@@ -15,6 +15,7 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
@@ -520,6 +521,9 @@ export function AppointmentSlotsDialog({
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Reservar cita</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirma la reserva de esta cita y selecciona el profesional si procede.
+              </AlertDialogDescription>
             </AlertDialogHeader>
 
             <div className="space-y-3">
