@@ -193,10 +193,15 @@
 }
 
 /* Forzar sin scroll interno */
+/* Evitar tanto scroll vertical como horizontal que aparece cuando se abre el dropdown */
 .fc .fc-scroller {
   overflow-y: hidden !important;
+  overflow-x: hidden !important;
 }
 
+/* También asegurar que las secciones de scroll grid no causen overflow horizontal */
+.fc .fc-scrollgrid,
+.fc .fc-scrollgrid-section,
 .fc .fc-timegrid-body {
   overflow: hidden !important;
 }
