@@ -24,8 +24,28 @@ BEGIN
     RAISE EXCEPTION 'company is required';
   END IF;
 
-  -- Only professionals of the company can insert events
-  IF NOT public.is_professional_of_company(v_company) THEN
+  -- Allow insert when the caller is a professional of the company
+  -- or when the caller is a client creating an appointment for themself
+  IF NOT (
+    public.is_professional_of_company(v_company)
+    OR (
+      v_type = 'appointment'
+      AND (
+        -- auth.uid() may match an element of v_client (profile id or user id)
+        (auth.uid() IS NOT NULL AND auth.uid() = ANY(v_client))
+        OR EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE p.user = auth.uid()
+            AND p.company = v_company
+            AND p.role = 'client'
+            AND (
+              p.id = ANY(v_client)
+              OR p.user = ANY(v_client)
+            )
+        )
+      )
+    )
+  ) THEN
     RAISE EXCEPTION 'permission denied';
   END IF;
 
