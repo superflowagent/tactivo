@@ -56,14 +56,18 @@ const AlertDialogContent = React.forwardRef<
   };
 
   const missingDescription = !hasDescription((props as any).children);
-  const hasExplicitAriaDesc = (props as any)['aria-describedby'] !== undefined && (props as any)['aria-describedby'] !== null;
+  const hasExplicitAriaDesc =
+    (props as any)['aria-describedby'] !== undefined && (props as any)['aria-describedby'] !== null;
   const shouldInjectDesc = missingDescription && !hasExplicitAriaDesc;
   const generatedId = React.useId();
   const descId = `alert-desc-${generatedId}`;
 
   // Build content props so user-provided props do not override an injected aria-describedby
   const contentProps: any = { ...props };
-  if (shouldInjectDesc && (contentProps['aria-describedby'] === undefined || contentProps['aria-describedby'] === null)) {
+  if (
+    shouldInjectDesc &&
+    (contentProps['aria-describedby'] === undefined || contentProps['aria-describedby'] === null)
+  ) {
     contentProps['aria-describedby'] = descId;
   }
 
@@ -88,7 +92,7 @@ const AlertDialogContent = React.forwardRef<
       try {
         const existing = document.getElementById(descId);
         if (existing) document.body.removeChild(existing);
-      } catch { }
+      } catch {}
     };
   }, [shouldInjectDesc, descId]);
 
@@ -103,7 +107,7 @@ const AlertDialogContent = React.forwardRef<
           e.preventDefault();
           try {
             (document.activeElement as HTMLElement | null)?.blur();
-          } catch { }
+          } catch {}
           localRef.current?.focus();
         }}
         className={cn(

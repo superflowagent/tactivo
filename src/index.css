@@ -115,18 +115,13 @@
   }
 
   /* Fallback for browsers that don't support scrollbar-gutter:
-     force a persistent vertical scrollbar to prevent layout shift on dropdowns/overlays */
+     force a persistent vertical scrollbar to prevent layout shift on dropdowns/overlays. */
   @supports not (scrollbar-gutter: stable) {
+
     /* Use overflow on html to ensure gutter space is reserved in more browsers */
     html {
       overflow-y: scroll;
     }
-  }
-
-  /* Strong fix: force a persistent vertical scrollbar on the root element only.
-     Applying this to both html and body can create duplicate scrollbars in some browsers, so restrict it to `html` to avoid double scrollbars. */
-  html {
-    overflow-y: scroll !important;
   }
 
   .ProseMirror {
@@ -234,6 +229,7 @@
 
   /* Hover visuals only on devices that support hover (desktop) */
   @media (hover: hover) and (pointer: fine) {
+
     .action-icon:hover,
     .action-icon:focus-visible {
       background-color: hsl(var(--sidebar-accent));
@@ -244,6 +240,7 @@
 
     /* Allow opting out of hover color changes (useful when icon must keep a color like red) */
     @media (hover: hover) and (pointer: fine) {
+
       .no-hover-color.action-icon:hover,
       .no-hover-color.action-icon:focus-visible {
         color: #dc2626 !important;
@@ -254,6 +251,7 @@
 
   /* Disable hover visuals on touch devices (mobile) - apply broadly to buttons and interactive elements */
   @media (hover: none) and (pointer: coarse) {
+
     .action-icon:hover,
     .action-icon:focus-visible,
     button:hover,

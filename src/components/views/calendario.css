@@ -193,15 +193,10 @@
 }
 
 /* Forzar sin scroll interno */
-/* Evitar tanto scroll vertical como horizontal que aparece cuando se abre el dropdown */
 .fc .fc-scroller {
   overflow-y: hidden !important;
-  overflow-x: hidden !important;
 }
 
-/* También asegurar que las secciones de scroll grid no causen overflow horizontal */
-.fc .fc-scrollgrid,
-.fc .fc-scrollgrid-section,
 .fc .fc-timegrid-body {
   overflow: hidden !important;
 }
@@ -241,21 +236,4 @@
   .calendar-list-slot {
     min-height: 64px;
   }
-}
-
-/* Evitar que los campos de filtro obliguen al contenedor a cambiar de anchura */
-.section-search {
-  min-width: 0; /* permite que inputs/selects en flex se encojan sin forzar reflows */
-}
-
-/* Aislar el calendario para que cambios externos (popover, overlays) no afecten su layout */
-.calendar-wrapper {
-  width: 100%;
-  min-width: 0;
-}
-
-/* Asegurar que FullCalendar use todo el ancho disponible y no cause desplazamientos */
-.calendar-wrapper .fc {
-  width: 100%;
-  min-width: 0;
 }

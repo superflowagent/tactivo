@@ -63,7 +63,7 @@ export default function CalendarPreview() {
   const [selectedProfessional, setSelectedProfessional] = useState('all');
 
   const professionals = [
-    { id: 'all', name: 'Todos' },
+    { id: 'all', name: 'Profesionales' },
     { id: 'victor', name: 'Víctor Romero' },
     { id: 'jorge', name: 'Jorge Polo' },
   ];

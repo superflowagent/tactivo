@@ -8,7 +8,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -67,7 +73,7 @@ export function computeAppointmentSlots({
 }): Slot[] {
   const intervalMs = interval * 60000;
   const results: Slot[] = [];
-  const duration = (durationOverride ?? (company?.default_appointment_duration ?? 30)) as number;
+  const duration = (durationOverride ?? company?.default_appointment_duration ?? 30) as number;
 
   const roundUpToIntervalLocal = (d: Date, intervalMin: number) => {
     const ms = intervalMin * 60000;
@@ -132,13 +138,16 @@ export function computeAppointmentSlots({
 
   const availableProfessionals = Array.isArray(professionals) ? professionals : [];
   let availableProfessionalsForCompany = company?.id
-    ? availableProfessionals.filter((p: any) => String(p.company) === String(company.id) || !p.company)
+    ? availableProfessionals.filter(
+        (p: any) => String(p.company) === String(company.id) || !p.company
+      )
     : availableProfessionals;
 
   // If a professionalId filter was provided, restrict to that single professional (unless 'all')
   if (professionalId && professionalId !== 'all') {
     availableProfessionalsForCompany = availableProfessionalsForCompany.filter(
-      (p: any) => String(p.id) === String(professionalId) || String(p.user) === String(professionalId)
+      (p: any) =>
+        String(p.id) === String(professionalId) || String(p.user) === String(professionalId)
     );
   }
 
@@ -216,12 +225,12 @@ export function computeAppointmentSlots({
     const profs =
       availableProfessionalsForCompany && availableProfessionalsForCompany.length > 0
         ? availableProfessionalsForCompany.filter((p) => {
-          const busy = overlappingWithProfessionals.some((ev: any) => {
-            const pros = getEventProfessionalsLocal(ev);
-            return profMatchesAny(p, pros);
-          });
-          return !busy;
-        })
+            const busy = overlappingWithProfessionals.some((ev: any) => {
+              const pros = getEventProfessionalsLocal(ev);
+              return profMatchesAny(p, pros);
+            });
+            return !busy;
+          })
         : [];
 
     if (
@@ -238,7 +247,11 @@ export function computeAppointmentSlots({
         results.push({ start: new Date(candidate), end: candidateEnd, professional: p });
       });
     } else {
-      results.push({ start: new Date(candidate), end: candidateEnd, availableProfessionals: profs });
+      results.push({
+        start: new Date(candidate),
+        end: candidateEnd,
+        availableProfessionals: profs,
+      });
     }
 
     candidate = new Date(candidate.getTime() + intervalMs);
@@ -263,7 +276,6 @@ export function AppointmentSlotsDialog({
   const [selectedProfForConfirm, setSelectedProfForConfirm] = useState<string | null>(null);
   const [reserving, setReserving] = useState(false);
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
-
 
   const capitalize = (s: string) =>
     s && s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
@@ -296,8 +308,6 @@ export function AppointmentSlotsDialog({
     return `${hh}:${mm}`;
   };
 
-
-
   const [selectedProfessional, setSelectedProfessional] = useState<string | 'all'>('all');
 
   useEffect(() => {
@@ -322,7 +332,6 @@ export function AppointmentSlotsDialog({
       setLoading(false);
     }
   }, [open, company, events, professionals, selectedProfessional]);
-
 
   const openConfirm = (s: Slot) => {
     setSlotToConfirm(s);
@@ -353,7 +362,9 @@ export function AppointmentSlotsDialog({
 
     try {
       const datetime = slotToConfirm.start;
-      const duration = Math.round((slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000);
+      const duration = Math.round(
+        (slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000
+      );
 
       // Prefer profile id if available for client
       let clientArr: string[] = [];
@@ -417,7 +428,10 @@ export function AppointmentSlotsDialog({
 
             {/* Professional filter dropdown visible for all users (slightly lower and left to avoid close button) */}
             <div className="flex-shrink-0 mt-6 mr-6 w-48">
-              <Select value={selectedProfessional} onValueChange={(v) => setSelectedProfessional(v as any)}>
+              <Select
+                value={selectedProfessional}
+                onValueChange={(v) => setSelectedProfessional(v as any)}
+              >
                 <SelectTrigger className="section-search">
                   <SelectValue placeholder="Profesional" />
                 </SelectTrigger>
@@ -462,45 +476,69 @@ export function AppointmentSlotsDialog({
                       (() => {
                         const p = s.professional;
                         return (
-                          <div key={p.user || p.id} className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max">
+                          <div
+                            key={p.user || p.id}
+                            className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max"
+                          >
                             {p.photo || p.photo_path ? (
                               <img
                                 src={
-                                  getFilePublicUrl('profile_photos', p.user || p.id, p.photo || p.photo_path || null) || ''
+                                  getFilePublicUrl(
+                                    'profile_photos',
+                                    p.user || p.id,
+                                    p.photo || p.photo_path || null
+                                  ) || ''
                                 }
                                 alt={`${p.name} ${p.last_name}`}
                                 className="h-6 w-6 rounded object-cover flex-shrink-0"
                               />
                             ) : (
                               <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                {(p.name || '')?.charAt(0)}{(p.last_name || '')?.charAt(0)}
+                                {(p.name || '')?.charAt(0)}
+                                {(p.last_name || '')?.charAt(0)}
                               </div>
                             )}
-                            <span className="whitespace-nowrap">{p.name} {p.last_name}</span>
+                            <span className="whitespace-nowrap">
+                              {p.name} {p.last_name}
+                            </span>
                           </div>
                         );
                       })()
                     ) : s.availableProfessionals && s.availableProfessionals.length > 0 ? (
                       <div className="flex items-center gap-2">
                         {s.availableProfessionals.slice(0, 2).map((p) => (
-                          <div key={p.user || p.id} className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max">
+                          <div
+                            key={p.user || p.id}
+                            className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max"
+                          >
                             {p.photo || p.photo_path ? (
                               <img
-                                src={getFilePublicUrl('profile_photos', p.user || p.id, p.photo || p.photo_path || null) || ''}
+                                src={
+                                  getFilePublicUrl(
+                                    'profile_photos',
+                                    p.user || p.id,
+                                    p.photo || p.photo_path || null
+                                  ) || ''
+                                }
                                 alt={`${p.name} ${p.last_name}`}
                                 className="h-6 w-6 rounded object-cover flex-shrink-0"
                               />
                             ) : (
                               <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                {(p.name || '')?.charAt(0)}{(p.last_name || '')?.charAt(0)}
+                                {(p.name || '')?.charAt(0)}
+                                {(p.last_name || '')?.charAt(0)}
                               </div>
                             )}
-                            <span className="whitespace-nowrap">{p.name} {p.last_name}</span>
+                            <span className="whitespace-nowrap">
+                              {p.name} {p.last_name}
+                            </span>
                           </div>
                         ))}
 
                         {s.availableProfessionals.length > 2 && (
-                          <div className="text-sm text-muted-foreground">+{s.availableProfessionals.length - 2} más</div>
+                          <div className="text-sm text-muted-foreground">
+                            +{s.availableProfessionals.length - 2} más
+                          </div>
                         )}
                       </div>
                     ) : null}
@@ -528,9 +566,17 @@ export function AppointmentSlotsDialog({
 
             <div className="space-y-3">
               <div className="text-sm">
-                <div className="font-medium">{slotToConfirm ? formatSlotDate(slotToConfirm.start) : ''}</div>
+                <div className="font-medium">
+                  {slotToConfirm ? formatSlotDate(slotToConfirm.start) : ''}
+                </div>
                 <div className="text-muted-foreground">
-                  Duración: {slotToConfirm ? Math.round((slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000) : ''} min
+                  Duración:{' '}
+                  {slotToConfirm
+                    ? Math.round(
+                        (slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000
+                      )
+                    : ''}{' '}
+                  min
                 </div>
               </div>
 
@@ -542,85 +588,139 @@ export function AppointmentSlotsDialog({
                   <div className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max">
                     {slotToConfirm.professional.photo || slotToConfirm.professional.photo_path ? (
                       <img
-                        src={getFilePublicUrl('profile_photos', slotToConfirm.professional.user || slotToConfirm.professional.id, slotToConfirm.professional.photo || slotToConfirm.professional.photo_path || null) || ''}
+                        src={
+                          getFilePublicUrl(
+                            'profile_photos',
+                            slotToConfirm.professional.user || slotToConfirm.professional.id,
+                            slotToConfirm.professional.photo ||
+                              slotToConfirm.professional.photo_path ||
+                              null
+                          ) || ''
+                        }
                         alt={`${slotToConfirm.professional.name} ${slotToConfirm.professional.last_name}`}
                         className="h-6 w-6 rounded object-cover flex-shrink-0"
                       />
                     ) : (
                       <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                        {String(slotToConfirm.professional.name || '')?.charAt(0)}{String(slotToConfirm.professional.last_name || '')?.charAt(0)}
+                        {String(slotToConfirm.professional.name || '')?.charAt(0)}
+                        {String(slotToConfirm.professional.last_name || '')?.charAt(0)}
                       </div>
                     )}
-                    <span className="whitespace-nowrap">{slotToConfirm.professional.name} {slotToConfirm.professional.last_name}</span>
+                    <span className="whitespace-nowrap">
+                      {slotToConfirm.professional.name} {slotToConfirm.professional.last_name}
+                    </span>
                   </div>
-                ) : slotToConfirm?.availableProfessionals && slotToConfirm.availableProfessionals.length > 1 ? (
+                ) : slotToConfirm?.availableProfessionals &&
+                  slotToConfirm.availableProfessionals.length > 1 ? (
                   <div>
                     {/* show selected chip if chosen */}
                     {selectedProfForConfirm ? (
                       (() => {
-                        const p = slotToConfirm.availableProfessionals.find((x: any) => String(x.user || x.id) === String(selectedProfForConfirm));
+                        const p = slotToConfirm.availableProfessionals.find(
+                          (x: any) => String(x.user || x.id) === String(selectedProfForConfirm)
+                        );
                         if (p) {
                           return (
                             <div className="flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm mb-2">
                               {p.photo || p.photo_path ? (
                                 <img
-                                  src={getFilePublicUrl('profile_photos', p.user || p.id, p.photo || p.photo_path || null) || ''}
+                                  src={
+                                    getFilePublicUrl(
+                                      'profile_photos',
+                                      p.user || p.id,
+                                      p.photo || p.photo_path || null
+                                    ) || ''
+                                  }
                                   alt={`${p.name} ${p.last_name}`}
                                   className="h-6 w-6 rounded object-cover flex-shrink-0"
                                 />
                               ) : (
                                 <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                  {String(p.name || '')?.charAt(0)}{String(p.last_name || '')?.charAt(0)}
+                                  {String(p.name || '')?.charAt(0)}
+                                  {String(p.last_name || '')?.charAt(0)}
                                 </div>
                               )}
-                              <span className="truncate">{p.name} {p.last_name}</span>
+                              <span className="truncate">
+                                {p.name} {p.last_name}
+                              </span>
                             </div>
                           );
                         }
                         return null;
                       })()
                     ) : (
-                      <div className="text-sm text-muted-foreground mb-2">Selecciona un profesional</div>
+                      <div className="text-sm text-muted-foreground mb-2">
+                        Selecciona un profesional
+                      </div>
                     )}
 
-                    <Select value={selectedProfForConfirm ?? ''} onValueChange={(v) => setSelectedProfForConfirm(v as any)}>
-                      <SelectTrigger className="section-search"><SelectValue placeholder="Selecciona un profesional" /></SelectTrigger>
+                    <Select
+                      value={selectedProfForConfirm ?? ''}
+                      onValueChange={(v) => setSelectedProfForConfirm(v as any)}
+                    >
+                      <SelectTrigger className="section-search">
+                        <SelectValue placeholder="Selecciona un profesional" />
+                      </SelectTrigger>
                       <SelectContent>
                         {slotToConfirm.availableProfessionals.map((p: any) => (
                           <SelectItem key={p.user || p.id} value={p.user || p.id}>
                             <div className="flex items-center gap-2">
                               {p.photo || p.photo_path ? (
                                 <img
-                                  src={getFilePublicUrl('profile_photos', p.user || p.id, p.photo || p.photo_path || null) || ''}
+                                  src={
+                                    getFilePublicUrl(
+                                      'profile_photos',
+                                      p.user || p.id,
+                                      p.photo || p.photo_path || null
+                                    ) || ''
+                                  }
                                   alt={`${p.name} ${p.last_name}`}
                                   className="h-6 w-6 rounded object-cover flex-shrink-0"
                                 />
                               ) : (
                                 <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                                  {p.name?.charAt(0)}{p.last_name?.charAt(0)}
+                                  {p.name?.charAt(0)}
+                                  {p.last_name?.charAt(0)}
                                 </div>
                               )}
-                              <span>{p.name} {p.last_name}</span>
+                              <span>
+                                {p.name} {p.last_name}
+                              </span>
                             </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                ) : slotToConfirm?.availableProfessionals && slotToConfirm.availableProfessionals.length === 1 ? (
+                ) : slotToConfirm?.availableProfessionals &&
+                  slotToConfirm.availableProfessionals.length === 1 ? (
                   <div className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md text-sm max-w-max">
-                    {slotToConfirm.availableProfessionals[0].photo || slotToConfirm.availableProfessionals[0].photo_path ? (
+                    {slotToConfirm.availableProfessionals[0].photo ||
+                    slotToConfirm.availableProfessionals[0].photo_path ? (
                       <img
-                        src={getFilePublicUrl('profile_photos', slotToConfirm.availableProfessionals[0].user || slotToConfirm.availableProfessionals[0].id, slotToConfirm.availableProfessionals[0].photo || slotToConfirm.availableProfessionals[0].photo_path || null) || ''}
+                        src={
+                          getFilePublicUrl(
+                            'profile_photos',
+                            slotToConfirm.availableProfessionals[0].user ||
+                              slotToConfirm.availableProfessionals[0].id,
+                            slotToConfirm.availableProfessionals[0].photo ||
+                              slotToConfirm.availableProfessionals[0].photo_path ||
+                              null
+                          ) || ''
+                        }
                         alt={`${slotToConfirm.availableProfessionals[0].name} ${slotToConfirm.availableProfessionals[0].last_name}`}
                         className="h-6 w-6 rounded object-cover flex-shrink-0"
                       />
                     ) : (
                       <div className="h-6 w-6 rounded bg-muted flex items-center justify-center flex-shrink-0 text-xs font-semibold">
-                        {String(slotToConfirm.availableProfessionals[0].name || '')?.charAt(0)}{String(slotToConfirm.availableProfessionals[0].last_name || '')?.charAt(0)}
+                        {String(slotToConfirm.availableProfessionals[0].name || '')?.charAt(0)}
+                        {String(slotToConfirm.availableProfessionals[0].last_name || '')?.charAt(0)}
                       </div>
                     )}
-                    <span className="whitespace-nowrap">{slotToConfirm.availableProfessionals[0].name} {slotToConfirm.availableProfessionals[0].last_name}</span>
+                    <span className="whitespace-nowrap">
+                      {slotToConfirm.availableProfessionals[0].name}{' '}
+                      {slotToConfirm.availableProfessionals[0].last_name}
+                    </span>
                   </div>
                 ) : (
                   <div className="text-muted-foreground">Sin profesional</div>
@@ -630,7 +730,10 @@ export function AppointmentSlotsDialog({
 
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmReserve} className="bg-primary text-primary-foreground">
+              <AlertDialogAction
+                onClick={handleConfirmReserve}
+                className="bg-primary text-primary-foreground"
+              >
                 {reserving ? 'Reservando...' : 'Confirmar'}
               </AlertDialogAction>
             </AlertDialogFooter>
