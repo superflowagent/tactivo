@@ -715,11 +715,10 @@ export function EventDialog({
         try {
             setLoading(true);
 
-            // When calling the RPC for an existing event prefer the auth user id
-            // (auth.uid()) so server-side checks that assert "clients may only add
-            // themselves" see the expected value.
-            const meId = user.id;
-            const newClients = selectedClients.includes(meId) ? selectedClients : [...selectedClients, meId];
+            // When calling the RPC for an existing event prefer the profile id if available
+            // so the server and DB use the canonical profile id representation.
+            const callerId = myProfileId ?? user.id;
+            const newClients = selectedClients.includes(callerId) ? selectedClients : [...selectedClients, callerId];
 
             // Sanitize client IDs before sending to the RPC to avoid server errors
             const cleaned = sanitizeUuidArray(newClients);

@@ -69,11 +69,14 @@ const AlertDialogContent = React.forwardRef<
 
   // In development, ensure an element with the description id exists in the DOM
   // early so Radix's internal DescriptionWarning can reliably detect it even
-  // during strict-mode double renders or timing races. We append a visually
-  // hidden node to document.body and remove it on cleanup.
-  React.useEffect(() => {
+  // during strict-mode double renders or timing races. Use a layout effect so
+  // the helper element is inserted synchronously before Radix runs its checks.
+  React.useLayoutEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
     if (!shouldInjectDesc) return;
+
+    // Avoid creating duplicate helper elements if one already exists
+    if (document.getElementById(descId)) return;
 
     const el = document.createElement('div');
     el.id = descId;
@@ -83,8 +86,9 @@ const AlertDialogContent = React.forwardRef<
 
     return () => {
       try {
-        document.body.removeChild(el);
-      } catch {}
+        const existing = document.getElementById(descId);
+        if (existing) document.body.removeChild(existing);
+      } catch { }
     };
   }, [shouldInjectDesc, descId]);
 
@@ -99,7 +103,7 @@ const AlertDialogContent = React.forwardRef<
           e.preventDefault();
           try {
             (document.activeElement as HTMLElement | null)?.blur();
-          } catch {}
+          } catch { }
           localRef.current?.focus();
         }}
         className={cn(
