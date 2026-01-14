@@ -433,6 +433,16 @@ export function CalendarioView() {
     // keep last load timestamp to avoid noisy reloads on tab visibility changes
   }, [companyId, loadCompany, loadProfessionals, loadEvents]);
 
+  // Listen for external events (e.g., appointments created elsewhere) and reload
+  useEffect(() => {
+    const handler = () => {
+      loadEvents(true);
+      if (isClient) loadClientCredits();
+    };
+    window.addEventListener('tactivo.eventCreated', handler as EventListener);
+    return () => window.removeEventListener('tactivo.eventCreated', handler as EventListener);
+  }, [loadEvents, isClient, loadClientCredits]);
+
   // Load client credits only when client state or user id changes
   useEffect(() => {
     if (isClient && user?.id) {

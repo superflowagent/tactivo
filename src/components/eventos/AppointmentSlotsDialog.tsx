@@ -9,8 +9,22 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 import { getFilePublicUrl, supabase } from '@/lib/supabase';
 import { formatDateWithOffset } from '@/lib/date';
+import { CheckCircle } from 'lucide-react';
+import { error as logError } from '@/lib/logger';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Company } from '@/types/company';
 
 interface Slot {
@@ -243,6 +257,13 @@ export function AppointmentSlotsDialog({
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const { user, companyId } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [slotToConfirm, setSlotToConfirm] = useState<Slot | null>(null);
+  const [selectedProfForConfirm, setSelectedProfForConfirm] = useState<string | null>(null);
+  const [reserving, setReserving] = useState(false);
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+
   const roundUpToInterval = (d: Date, intervalMin: number) => {
     const ms = intervalMin * 60000;
     return new Date(Math.ceil(d.getTime() / ms) * ms);
@@ -330,6 +351,84 @@ export function AppointmentSlotsDialog({
       setLoading(false);
     }
   }, [open, company, events, professionals, selectedProfessional]);
+
+  const findProfessionalById = (id?: string | null) => {
+    if (!id) return null;
+    return (professionals || []).find((p: any) => String(p.id) === String(id) || String(p.user) === String(id)) || null;
+  };
+
+  const openConfirm = (s: Slot) => {
+    setSlotToConfirm(s);
+    if (s.professional) {
+      const id = s.professional.user || s.professional.id || null;
+      setSelectedProfForConfirm(id);
+    } else if (s.availableProfessionals && s.availableProfessionals.length === 1) {
+      const p = s.availableProfessionals[0];
+      setSelectedProfForConfirm(p.user || p.id || null);
+    } else {
+      setSelectedProfForConfirm(null);
+    }
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmReserve = async () => {
+    if (!slotToConfirm) return;
+    if (!company?.id && !companyId) {
+      alert('Compañía no disponible');
+      return;
+    }
+    if (!selectedProfForConfirm) {
+      alert('Por favor selecciona un profesional');
+      return;
+    }
+
+    setReserving(true);
+
+    try {
+      const datetime = slotToConfirm.start;
+      const duration = Math.round((slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000);
+
+      // Prefer profile id if available for client
+      let clientArr: string[] = [];
+      if (user?.id) {
+        try {
+          const fetcher = await import('@/lib/supabase');
+          const profile = await fetcher.fetchProfileByUserId(user.id);
+          clientArr = profile?.id ? [profile.id] : [user.id];
+        } catch {
+          clientArr = [user.id];
+        }
+      }
+
+      const payload: any = {
+        type: 'appointment',
+        datetime: formatDateWithOffset(datetime),
+        duration,
+        professional: [selectedProfForConfirm],
+        client: clientArr,
+        company: company?.id ?? companyId,
+      };
+
+      const { error: insertErr } = await supabase.rpc('insert_event_json', { p_payload: payload });
+      if (insertErr) throw insertErr;
+
+      setShowSuccessAlert(true);
+      setTimeout(() => setShowSuccessAlert(false), 4000);
+
+      setConfirmOpen(false);
+      setSlotToConfirm(null);
+      setSelectedProfForConfirm(null);
+
+      // Close slots dialog and notify calendar to reload
+      onOpenChange(false);
+      window.dispatchEvent(new CustomEvent('tactivo.eventCreated'));
+    } catch (err) {
+      logError('Error creando cita:', err);
+      alert('Error reservando la cita');
+    } finally {
+      setReserving(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -466,8 +565,7 @@ export function AppointmentSlotsDialog({
                 </div>
 
                 <div className="flex-shrink-0">
-                  {/* No reservamos aún; dejamos el botón inactivo por ahora */}
-                  <Button variant="outline" size="sm" disabled>
+                  <Button variant="outline" size="sm" onClick={() => openConfirm(s)}>
                     Reservar
                   </Button>
                 </div>
@@ -475,9 +573,70 @@ export function AppointmentSlotsDialog({
             ))}
         </div>
 
+        {/* Confirm reservation alert dialog */}
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reservar cita</AlertDialogTitle>
+              <AlertDialogDescription>
+                Confirma la siguiente cita antes de reservarla.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+
+            <div className="space-y-3">
+              <div className="text-sm">
+                <div className="font-medium">{slotToConfirm ? formatSlotDate(slotToConfirm.start) : ''}</div>
+                <div className="text-muted-foreground">
+                  Duración: {slotToConfirm ? Math.round((slotToConfirm.end.getTime() - slotToConfirm.start.getTime()) / 60000) : ''} min
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm text-muted-foreground mb-2">Profesional</div>
+                {slotToConfirm?.professional ? (
+                  <div className="font-medium">{slotToConfirm.professional.name} {slotToConfirm.professional.last_name}</div>
+                ) : slotToConfirm?.availableProfessionals && slotToConfirm.availableProfessionals.length > 1 ? (
+                  <Select value={selectedProfForConfirm ?? ''} onValueChange={(v) => setSelectedProfForConfirm(v as any)}>
+                    <SelectTrigger className="section-search"><SelectValue placeholder="Selecciona un profesional" /></SelectTrigger>
+                    <SelectContent>
+                      {slotToConfirm.availableProfessionals.map((p: any) => (
+                        <SelectItem key={p.user || p.id} value={p.user || p.id}>{p.name} {p.last_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : slotToConfirm?.availableProfessionals && slotToConfirm.availableProfessionals.length === 1 ? (
+                  <div className="font-medium">{slotToConfirm.availableProfessionals[0].name} {slotToConfirm.availableProfessionals[0].last_name}</div>
+                ) : (
+                  <div className="text-muted-foreground">Sin profesional</div>
+                )}
+              </div>
+            </div>
+
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmReserve} className="bg-primary text-primary-foreground">
+                {reserving ? 'Reservando...' : 'Confirmar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <DialogFooter className="mt-4">
           <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
+
+        {showSuccessAlert && (
+          <div className="fixed bottom-4 right-4 z-50 w-96">
+            <Alert className="border-green-500 bg-green-50 [&>svg]:top-3.5 [&>svg+div]:translate-y-0">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription>
+                <div className="flex items-start gap-2">
+                  <p className="font-semibold text-green-800">Cita reservada correctamente</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
