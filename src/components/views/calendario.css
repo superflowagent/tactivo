@@ -252,7 +252,6 @@
 .calendar-wrapper {
   width: 100%;
   min-width: 0;
-  contain: layout;
 }
 
 /* Asegurar que FullCalendar use todo el ancho disponible y no cause desplazamientos */
