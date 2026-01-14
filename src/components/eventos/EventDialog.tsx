@@ -98,7 +98,6 @@ export function EventDialog({
 
     // Helpers
     const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
-    const validateUuidArray = (arr: any) => Array.isArray(arr) && arr.every(isUuid);
     const sanitizeUuidArray = (arr: any) => (Array.isArray(arr) ? arr.filter(isUuid) : []);
 
 
@@ -432,7 +431,7 @@ export function EventDialog({
         if (profesionales && profesionales.length > 0 && (selectedProfessionals || []).length === 0) {
             setSelectedProfessionals([profesionales[0].user]);
         }
-    }, [open, event, profesionales, selectedProfessionals, isClientView]);
+    }, [open, event, profesionales, selectedProfessionals, isClientView, company?.id]);
 
     useEffect(() => {
         if (!isClientView || !user?.id || !open) return;
@@ -584,14 +583,14 @@ export function EventDialog({
                         windowStart.setHours(windowStart.getHours() - 2);
                         const windowEnd = new Date(dt);
                         windowEnd.setHours(windowEnd.getHours() + 2);
-                        const { data: rows, error: selErr } = await supabase
+                        await supabase
                             .from('events')
                             .select('id,type,datetime,duration,professional,company')
                             .eq('company', companyId)
                             .gte('datetime', windowStart.toISOString())
                             .lte('datetime', windowEnd.toISOString())
                             .order('datetime', { ascending: true });
-                    } catch (e) {
+                    } catch {
                         // ignore dev check errors
                     }
                 }
