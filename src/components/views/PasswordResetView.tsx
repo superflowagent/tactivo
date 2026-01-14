@@ -287,7 +287,7 @@ export function PasswordResetView() {
           }
           setSuccess(true);
           setLoading(false);
-          setTimeout(() => navigate('/'), 1800);
+          setTimeout(() => navigate('/login'), 1800);
           return;
         }
 
@@ -302,7 +302,7 @@ export function PasswordResetView() {
       }
 
       setSuccess(true);
-      setTimeout(() => navigate('/'), 1800);
+      setTimeout(() => navigate('/login'), 1800);
     } catch (err: any) {
       setError(err?.message || 'Error restableciendo contraseña');
     } finally {

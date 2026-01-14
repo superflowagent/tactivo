@@ -51,9 +51,11 @@
 .fc .fc-button.fc-button-active.fc-dayGridMonth-button,
 .fc .fc-button.fc-button-active.fc-timeGridWeek-button,
 .fc .fc-button.fc-button-active.fc-timeGridDay-button,
+.fc .fc-button.fc-button-active.fc-listWeek-button,
 .fc .fc-button.fc-button-active[class*='dayGridMonth'],
 .fc .fc-button.fc-button-active[class*='timeGridWeek'],
-.fc .fc-button.fc-button-active[class*='timeGridDay'] {
+.fc .fc-button.fc-button-active[class*='timeGridDay'],
+.fc .fc-button.fc-button-active[class*='listWeek'] {
   background-color: hsl(var(--muted-foreground)) !important;
   border-color: hsl(var(--muted-foreground)) !important;
   color: hsl(var(--primary-foreground)) !important;
@@ -62,9 +64,11 @@
 .fc .fc-button.fc-button-active.fc-dayGridMonth-button:hover,
 .fc .fc-button.fc-button-active.fc-timeGridWeek-button:hover,
 .fc .fc-button.fc-button-active.fc-timeGridDay-button:hover,
+.fc .fc-button.fc-button-active.fc-listWeek-button:hover,
 .fc .fc-button.fc-button-active[class*='dayGridMonth']:hover,
 .fc .fc-button.fc-button-active[class*='timeGridWeek']:hover,
-.fc .fc-button.fc-button-active[class*='timeGridDay']:hover {
+.fc .fc-button.fc-button-active[class*='timeGridDay']:hover,
+.fc .fc-button.fc-button-active[class*='listWeek']:hover {
   background-color: hsl(var(--muted-foreground)) !important;
   border-color: hsl(var(--muted-foreground)) !important;
   color: hsl(var(--primary-foreground)) !important;

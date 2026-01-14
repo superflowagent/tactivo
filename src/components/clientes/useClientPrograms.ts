@@ -21,14 +21,21 @@ export const normalizeProgramExercises = (peList: any[], existingDays?: string[]
   const presentDays = Array.from(new Set(pe.map((p) => String(p.day ?? 'A'))));
   let orderedPresentDays: string[] = [];
   if (presentDays.length === 0) {
-    orderedPresentDays = Array.isArray(existingDays) && existingDays.length ? [...existingDays].sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0)) : ['A'];
+    orderedPresentDays =
+      Array.isArray(existingDays) && existingDays.length
+        ? [...existingDays].sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0))
+        : ['A'];
   } else {
     // Force alphabetic ordering of present days to avoid edge cases with unordered letters
-    orderedPresentDays = presentDays.sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0));
+    orderedPresentDays = presentDays.sort(
+      (a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0)
+    );
   }
 
   const dayMap = new Map<string, string>();
-  orderedPresentDays.forEach((old, idx) => dayMap.set(old, String.fromCharCode('A'.charCodeAt(0) + idx)));
+  orderedPresentDays.forEach((old, idx) =>
+    dayMap.set(old, String.fromCharCode('A'.charCodeAt(0) + idx))
+  );
 
   const normalized: any[] = [];
   orderedPresentDays.forEach((oldDay) => {
@@ -65,14 +72,16 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
 
   const setDefaultProgram = () => {
     const tempId = tempProgramId();
-    const defaults = [{
-      tempId,
-      name: 'Programa 1',
-      persisted: false,
-      description: '',
-      programExercises: [],
-      days: ['A'],
-    }];
+    const defaults = [
+      {
+        tempId,
+        name: 'Programa 1',
+        persisted: false,
+        description: '',
+        programExercises: [],
+        days: ['A'],
+      },
+    ];
     setPrograms(defaults);
     setActiveProgramId(tempId);
     initialProgramsRef.current = clonePrograms(defaults);
@@ -86,7 +95,9 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       programExercises: r.programExercises || [],
       days: (r.programExercises || []).length
         ? Array.from(new Set((r.programExercises || []).map((pe: any) => pe.day || 'A')))
-        : (r.days && r.days.length ? r.days : ['A']),
+        : r.days && r.days.length
+          ? r.days
+          : ['A'],
     }));
     return hydrated;
   };
@@ -159,13 +170,21 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       if (!updated || !updated.id) return;
 
       // Update any program_exercises that reference this exercise
-      setPrograms((prev) => prev.map((pr) => ({
-        ...pr,
-        programExercises: (pr.programExercises || []).map((pe: any) => ((pe.exercise && (String(pe.exercise.id) === String(updated.id))) ? { ...pe, exercise: { ...pe.exercise, ...updated } } : pe)),
-      })));
+      setPrograms((prev) =>
+        prev.map((pr) => ({
+          ...pr,
+          programExercises: (pr.programExercises || []).map((pe: any) =>
+            pe.exercise && String(pe.exercise.id) === String(updated.id)
+              ? { ...pe, exercise: { ...pe.exercise, ...updated } }
+              : pe
+          ),
+        }))
+      );
 
       // Update exercisesForCompany cache if present
-      setExercisesForCompany((prev) => (prev || []).map((ex: any) => (ex?.id === updated.id ? updated : ex)));
+      setExercisesForCompany((prev) =>
+        (prev || []).map((ex: any) => (ex?.id === updated.id ? updated : ex))
+      );
     };
 
     window.addEventListener('exercise-updated', handler as EventListener);
@@ -224,7 +243,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
           programExercises: normalized,
           days: daysCompact,
         };
-      }),
+      })
     );
     markOrderUpdated();
   };
@@ -237,12 +256,21 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     if (!programId) return; // nothing to persist for temp programs
 
     // Ensure we have latest normalized list
-    const list = (program.programExercises || []).map((pe: any) => ({ id: pe.id, position: pe.position ?? 0, day: pe.day ?? 'A' }));
+    const list = (program.programExercises || []).map((pe: any) => ({
+      id: pe.id,
+      position: pe.position ?? 0,
+      day: pe.day ?? 'A',
+    }));
     try {
       // Update all that have an id
       const updates = list
         .filter((pe: any) => pe.id)
-        .map((pe: any) => supabase.from('program_exercises').update({ position: pe.position, day: pe.day }).eq('id', pe.id));
+        .map((pe: any) =>
+          supabase
+            .from('program_exercises')
+            .update({ position: pe.position, day: pe.day })
+            .eq('id', pe.id)
+        );
       if (updates.length) {
         const results = await Promise.all(updates);
         for (const r of results) {
@@ -276,7 +304,9 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       alert('El nombre no puede estar vacío');
       return;
     }
-    setPrograms((prev) => prev.map((t) => ((t.id ?? t.tempId) === idKey ? { ...t, name: newName } : t)));
+    setPrograms((prev) =>
+      prev.map((t) => ((t.id ?? t.tempId) === idKey ? { ...t, name: newName } : t))
+    );
     setHasPendingChanges(true);
   };
 
@@ -285,7 +315,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       const filtered = prev.filter((t) => (t.id ?? t.tempId) !== idKey);
       const nextActive =
         activeProgramId === idKey
-          ? filtered[0]?.id ?? filtered[0]?.tempId ?? ''
+          ? (filtered[0]?.id ?? filtered[0]?.tempId ?? '')
           : activeProgramId;
       setActiveProgramId(nextActive);
       return filtered;
@@ -298,15 +328,19 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   const deleteDayFromProgram = async (programKey: string, day: string) => {
     try {
       // Only perform local removal; persistence should happen on global save
-      setPrograms((prev) => prev.map((pr) => {
-        const key = pr.id ?? pr.tempId;
-        if (key !== programKey) return pr;
-        return {
-          ...pr,
-          days: (pr.days || []).filter((d: string) => d !== day),
-          programExercises: (pr.programExercises || []).filter((pe: any) => String(pe.day ?? 'A') !== String(day)),
-        };
-      }));
+      setPrograms((prev) =>
+        prev.map((pr) => {
+          const key = pr.id ?? pr.tempId;
+          if (key !== programKey) return pr;
+          return {
+            ...pr,
+            days: (pr.days || []).filter((d: string) => d !== day),
+            programExercises: (pr.programExercises || []).filter(
+              (pe: any) => String(pe.day ?? 'A') !== String(day)
+            ),
+          };
+        })
+      );
 
       // Recompute positions and days for that program
       await updateProgramExercisesPositions(programKey);
@@ -334,7 +368,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
           return { ...p, programExercises: merged };
         }
         return p;
-      }),
+      })
     );
     try {
       await updateProgramExercisesPositions(programId);
@@ -361,7 +395,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
           return { ...p, programExercises: merged };
         }
         return p;
-      }),
+      })
     );
     try {
       await updateProgramExercisesPositions(programId);
@@ -374,7 +408,11 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     try {
       if (!companyId) return;
       setExercisesLoading(true);
-      const { data: exercisesData, error: exErr } = await supabase.from('exercises').select('*').eq('company', companyId).order('name');
+      const { data: exercisesData, error: exErr } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('company', companyId)
+        .order('name');
       if (exErr) throw exErr;
 
       // Also load anatomy and equipment lists so we can show their names instead of raw ids
@@ -414,7 +452,7 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
         position: i,
         day: resolvedDay,
         // Default notes copied from the exercise description when available
-        notes: (exercise && exercise.description) ? exercise.description : null,
+        notes: exercise && exercise.description ? exercise.description : null,
         reps: null,
         sets: null,
         weight: null,
@@ -426,12 +464,14 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       prev.map((p) => {
         if ((p.id ?? p.tempId) !== programId) return p;
         const existing = p.programExercises || [];
-        const currentForDay = existing.filter((pe: any) => String(pe.day ?? 'A') === String(resolvedDay));
+        const currentForDay = existing.filter(
+          (pe: any) => String(pe.day ?? 'A') === String(resolvedDay)
+        );
         const start = currentForDay.length;
         const mapped = additions.map((a, idx) => ({ ...a, position: start + idx }));
         const nextDays = new Set([...(p.days || []), resolvedDay]);
         return { ...p, programExercises: [...existing, ...mapped], days: Array.from(nextDays) };
-      }),
+      })
     );
     await updateProgramExercisesPositions(programId);
   };
@@ -476,7 +516,14 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
       for (const prog of current.filter((p) => !p.id)) {
         const { data, error } = await supabase
           .from('programs')
-          .insert([{ name: prog.name, profile: profileId, company: companyId, description: prog.description || '' }])
+          .insert([
+            {
+              name: prog.name,
+              profile: profileId,
+              company: companyId,
+              description: prog.description || '',
+            },
+          ])
           .select()
           .single();
         if (error) throw error;
@@ -487,7 +534,10 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
 
       for (const prog of current.filter((p) => p.id)) {
         const initial = existingMap.get(prog.id);
-        if (initial && (initial.name !== prog.name || (initial.description || '') !== (prog.description || ''))) {
+        if (
+          initial &&
+          (initial.name !== prog.name || (initial.description || '') !== (prog.description || ''))
+        ) {
           const { error } = await supabase
             .from('programs')
             .update({ name: prog.name, description: prog.description || '' })
@@ -503,15 +553,25 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
         if (!programId) continue;
 
         const initialPeList = existingMap.get(programId)?.programExercises || [];
-        const currentPeList = (prog.programExercises || []).map((pe: any) => ({ ...pe, program: programId }));
+        const currentPeList = (prog.programExercises || []).map((pe: any) => ({
+          ...pe,
+          program: programId,
+        }));
 
         // Compute only days that have exercises and remap them to a compact sequence (A,B,C...) to avoid gaps
         const { normalized } = normalizeProgramExercises(currentPeList, prog.days);
 
-
-        const deletions = initialPeList.filter((pe: any) => pe.id && !normalized.some((c: any) => c.id === pe.id));
+        const deletions = initialPeList.filter(
+          (pe: any) => pe.id && !normalized.some((c: any) => c.id === pe.id)
+        );
         if (deletions.length) {
-          await supabase.from('program_exercises').delete().in('id', deletions.map((d: any) => d.id));
+          await supabase
+            .from('program_exercises')
+            .delete()
+            .in(
+              'id',
+              deletions.map((d: any) => d.id)
+            );
         }
 
         for (const pe of normalized) {
@@ -519,16 +579,14 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
           const initialPe = initialPeList.find((ipe: any) => ipe.id === pe.id);
           if (
             initialPe &&
-            (
-              exerciseIdOf(initialPe) !== exerciseIdOf(pe) ||
+            (exerciseIdOf(initialPe) !== exerciseIdOf(pe) ||
               String(initialPe.day ?? 'A') !== String(pe.day ?? 'A') ||
               (initialPe.position ?? 0) !== (pe.position ?? 0) ||
               (initialPe.notes ?? '') !== (pe.notes ?? '') ||
               (initialPe.reps ?? null) !== (pe.reps ?? null) ||
               (initialPe.sets ?? null) !== (pe.sets ?? null) ||
               (initialPe.weight ?? null) !== (pe.weight ?? null) ||
-              (initialPe.secs ?? null) !== (pe.secs ?? null)
-            )
+              (initialPe.secs ?? null) !== (pe.secs ?? null))
           ) {
             const { error } = await supabase
               .from('program_exercises')

@@ -30,7 +30,6 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
     setVisibleCount(Math.min(maxVisible, items.length));
   }, [maxVisible, items.length]);
 
-
   useEffect(() => {
     const container = containerRef.current;
     const measure = measureRef.current;
@@ -60,7 +59,7 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
         // If there are more remaining after this one, we must also ensure a place for the +N button
         const remaining = badgeWidths.length - (i + 1);
         const needsPlus = remaining > 0;
-        const predictedWithPlus = predicted + (needsPlus ? (gapPx + plusWidth) : 0);
+        const predictedWithPlus = predicted + (needsPlus ? gapPx + plusWidth : 0);
 
         if (predictedWithPlus <= containerWidth) {
           sum = predicted;
@@ -74,7 +73,8 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
       const finalCount = Math.max(0, Math.min(count || 0, items.length));
 
       // If nothing fits, fall back to showing at least 1 unless container too small
-      const result = finalCount > 0 ? finalCount : (items.length > 0 && badgeWidths[0] <= containerWidth ? 1 : 0);
+      const result =
+        finalCount > 0 ? finalCount : items.length > 0 && badgeWidths[0] <= containerWidth ? 1 : 0;
 
       setVisibleCount(result);
     };
@@ -142,14 +142,26 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
       <div
         ref={measureRef}
         aria-hidden
-        style={{ position: 'absolute', left: -9999, top: -9999, visibility: 'hidden', height: 'auto', overflow: 'visible' }}
+        style={{
+          position: 'absolute',
+          left: -9999,
+          top: -9999,
+          visibility: 'hidden',
+          height: 'auto',
+          overflow: 'visible',
+        }}
       >
         {items.map((item) => (
-          <span key={item.id} className={`measure-badge inline-block text-xs truncate ${bgClass} cursor-default rounded px-2.5 py-0.5`}>
+          <span
+            key={item.id}
+            className={`measure-badge inline-block text-xs truncate ${bgClass} cursor-default rounded px-2.5 py-0.5`}
+          >
             {item.name}
           </span>
         ))}
-        <span className={`measure-plus inline-block px-2.5 py-0.5 text-xs rounded ${bgClass}`}>+99</span>
+        <span className={`measure-plus inline-block px-2.5 py-0.5 text-xs rounded ${bgClass}`}>
+          +99
+        </span>
       </div>
     </>
   );

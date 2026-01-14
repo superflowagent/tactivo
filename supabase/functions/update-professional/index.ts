@@ -120,7 +120,7 @@ serve(async (req: any) => {
       return jsonResponse({ error: 'profile_not_found' }, 404);
     const profile = Array.isArray(gotData) ? gotData[0] : gotData;
 
-    // Authorization check for bearer callers: ensure caller is admin OR editing own profile
+    // Authorization check for bearer callers: allow admin, or professionals in same company, or editing own profile
     if (callerUserId) {
       const callerResp = await restProfiles('GET', undefined, `user=eq.${callerUserId}`);
       if (
@@ -130,14 +130,23 @@ serve(async (req: any) => {
       )
         return jsonResponse({ error: 'caller_profile_missing' }, 403);
       const callerProfile = Array.isArray(callerResp.data) ? callerResp.data[0] : callerResp.data;
+      const sameCompany = String(callerProfile.company) === String(profile.company);
       if (
         !(
           callerProfile.role === 'admin' ||
+          (callerProfile.role === 'professional' && sameCompany) ||
           String(callerProfile.user) === String(targetId) ||
           String(callerProfile.id) === String(targetId)
         )
       ) {
-        return jsonResponse({ error: 'forbidden' }, 403);
+        const authDebug = {
+          caller_role: callerProfile?.role ?? null,
+          caller_company: callerProfile?.company ?? null,
+          target_company: profile?.company ?? null,
+          same_company: sameCompany,
+        };
+        console.warn('update-professional forbidden', authDebug);
+        return jsonResponse({ error: 'forbidden', auth_debug: authDebug }, 403);
       }
     }
 

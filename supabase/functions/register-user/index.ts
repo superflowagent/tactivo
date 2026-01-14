@@ -28,7 +28,9 @@ serve(async (req: any) => {
 
   try {
     const SUPABASE_URL = (globalThis as any).Deno?.env?.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = (globalThis as any).Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY');
+    const SUPABASE_SERVICE_ROLE_KEY = (globalThis as any).Deno?.env?.get(
+      'SUPABASE_SERVICE_ROLE_KEY'
+    );
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
       return jsonResponse({ error: 'Supabase not configured' }, 500);
@@ -104,7 +106,11 @@ serve(async (req: any) => {
     let domain = baseDomain;
     let suffix = 0;
     while (true) {
-      const check = await restCompanies('GET', undefined, `domain=eq.${encodeURIComponent(domain)}`);
+      const check = await restCompanies(
+        'GET',
+        undefined,
+        `domain=eq.${encodeURIComponent(domain)}`
+      );
       if (!check.ok) return jsonResponse({ error: 'failed_check_domain', details: check }, 500);
       if (!check.data || (Array.isArray(check.data) && check.data.length === 0)) break;
       suffix += 1;
@@ -113,7 +119,8 @@ serve(async (req: any) => {
 
     // Create company
     const companyRes = await restCompanies('POST', { name: centro, domain });
-    if (!companyRes.ok) return jsonResponse({ error: 'failed_to_create_company', details: companyRes }, 500);
+    if (!companyRes.ok)
+      return jsonResponse({ error: 'failed_to_create_company', details: companyRes }, 500);
     const company = Array.isArray(companyRes.data) ? companyRes.data[0] : companyRes.data;
 
     // Create auth user (admin endpoint)
@@ -156,7 +163,8 @@ serve(async (req: any) => {
       if (newUserId) profilePayload.user = newUserId;
 
       const profileRes = await restProfiles('POST', profilePayload);
-      if (!profileRes.ok) return jsonResponse({ error: 'failed_to_create_profile', details: profileRes }, 500);
+      if (!profileRes.ok)
+        return jsonResponse({ error: 'failed_to_create_profile', details: profileRes }, 500);
       const profile = Array.isArray(profileRes.data) ? profileRes.data[0] : profileRes.data;
 
       // Attempt to send password reset / recover email

@@ -42,7 +42,7 @@ import { useAuth } from '@/contexts/AuthContext';
 // user_cards removed; fetch profile data directly from `profiles`
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
-import { getProfilesByRole } from '@/lib/profiles';
+import { getProfilesByRole, getProfilesByIds } from '@/lib/profiles';
 
 import { formatDateWithOffset } from '@/lib/date';
 
@@ -50,7 +50,7 @@ interface EventDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     event?: Event | null;
-    onSave: () => void;
+    onSave: (refresh?: boolean) => void;
     initialDateTime?: string | null;
 }
 
@@ -180,6 +180,7 @@ export function EventDialog({
                 ? Array.from(new Set(explicitSelected))
                 : Array.from(new Set([...(eventClients || []), ...(eventProfessionals || [])]));
 
+
         if (!idsToLoad || idsToLoad.length === 0) {
             setProfilesMap({});
             return;
@@ -211,29 +212,18 @@ export function EventDialog({
                             ? [event.professional]
                             : [];
                     if (eventProfessionals.length > 0) {
-                        const profPayload: any = { p_ids: Array.from(new Set(eventProfessionals)) };
-                        if (event.company) profPayload.p_company = event.company;
-                        else if (company) profPayload.p_company = company.id;
-                        const { data: pRes, error: pErr } = await supabase.rpc(
-                            'get_profiles_by_ids_for_professionals',
-                            profPayload
-                        );
-                        if (pErr) throw pErr;
-                        profResults = pRes || [];
+                        const ids = Array.from(new Set(eventProfessionals));
+                        // Use helper that tries both RPCs and fallbacks to safe SELECTs to avoid overload ambiguity
+                        const profMap = await getProfilesByIds(ids, (isUuid(event.company) ? event.company : isUuid(company?.id) ? company.id : undefined));
+                        profResults = Object.values(profMap || {});
                     }
 
                     results = [...clientResults, ...profResults];
                 } else {
                     if (idsToLoad.length > 0) {
-                        const profPayload: any = { p_ids: idsToLoad };
-                        if (event?.company) profPayload.p_company = event.company;
-                        else if (company) profPayload.p_company = company.id;
-                        const { data: profs, error: profErr } = await supabase.rpc(
-                            'get_profiles_by_ids_for_professionals',
-                            profPayload
-                        );
-                        if (profErr) throw profErr;
-                        results = profs || [];
+                        const ids = idsToLoad;
+                        const profMap = await getProfilesByIds(ids, (isUuid(event?.company) ? event.company : isUuid(company?.id) ? company.id : undefined));
+                        results = Object.values(profMap || {});
                     } else {
                         results = [];
                     }
@@ -336,12 +326,9 @@ export function EventDialog({
                     } else {
                         const ids = eventClients;
                         if (ids.length > 0) {
-                            const { data: profs, error: profErr } = await supabase.rpc(
-                                'get_profiles_by_ids_for_professionals',
-                                { p_ids: ids }
-                            );
-                            if (profErr) throw profErr;
-                            results = profs || [];
+                            const ids = eventClients;
+                            const profMap = await getProfilesByIds(ids, (isUuid(event?.company) ? event.company : isUuid(company?.id) ? company.id : undefined));
+                            results = Object.values(profMap || {});
                         }
                     }
 
@@ -374,7 +361,7 @@ export function EventDialog({
                 }
             })();
 
-                    if (event.datetime) {
+            if (event.datetime) {
                 const date = safeParseDatetime(event.datetime);
                 if (date) {
                     setFecha(date);
@@ -523,8 +510,6 @@ export function EventDialog({
             if (process.env.NODE_ENV === 'development' && data.type === 'vacation') {
                 // DEV: log the exact payload we're about to send for vacations
                 // to help diagnose timezone persistence issues
-                // eslint-disable-next-line no-console
-                console.debug('vacation-save-payload', data);
             }
 
             const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
@@ -565,9 +550,25 @@ export function EventDialog({
                     return;
                 }
 
-                if (process.env.NODE_ENV === 'development') console.debug('insert-event-payload', dataWithCompany);
+                // Defensive coercion: ensure client/professional are arrays of UUID strings
+                const coerceToUuidArray = (val: any) => {
+                    if (Array.isArray(val)) return val.filter((x: any) => typeof x === 'string' && isUuid(x));
+                    if (typeof val === 'string' && isUuid(val)) return [val];
+                    return [];
+                };
 
-                const rpcPayload: any = { p_payload: dataWithCompany };
+                const clientArr = coerceToUuidArray(dataWithCompany.client);
+                const profArr = coerceToUuidArray(dataWithCompany.professional);
+
+                // For classes/appointments we must have at least one professional
+                if ((dataWithCompany.type === 'class' || dataWithCompany.type === 'appointment') && profArr.length === 0) {
+                    alert('Por favor asigna al menos un profesional a la clase/cita antes de guardar.');
+                    setLoading(false);
+                    return;
+                }
+
+                const rpcPayload: any = { p_payload: { ...dataWithCompany, client: clientArr, professional: profArr } };
+
                 const { error: insertErr } = await supabase.rpc('insert_event_json', rpcPayload);
                 if (insertErr) throw insertErr;
 
@@ -587,8 +588,6 @@ export function EventDialog({
                             .gte('datetime', windowStart.toISOString())
                             .lte('datetime', windowEnd.toISOString())
                             .order('datetime', { ascending: true });
-                        // eslint-disable-next-line no-console
-                        console.debug('vacation-insert-check', { payloadDatetime: dt, rows, selErr: selErr || null });
                     } catch (e) {
                         // ignore dev check errors
                     }
@@ -622,9 +621,9 @@ export function EventDialog({
             window.dispatchEvent(new CustomEvent('event-dialog-dirty', { detail: { dirty: false } }));
             onOpenChange(false);
             setShowDeleteDialog(false);
-        } catch (err: any) {
+        } catch (err) {
             logError('Error al eliminar evento:', err);
-            alert(`Error al eliminar el evento: ${err?.message || 'Error desconocido'}`);
+            alert(`Error al eliminar el evento: ${(err as any)?.message || 'Error desconocido'}`);
         } finally {
             setLoading(false);
         }
@@ -724,7 +723,7 @@ export function EventDialog({
             // Sanitize client IDs before sending to the RPC to avoid server errors
             const cleaned = sanitizeUuidArray(newClients);
             if (cleaned.length !== newClients.length) {
-                console.debug('handleSignUp: detected non-UUID client ids', { newClients, cleaned });
+
                 alert('Algunos clientes seleccionados no son válidos y no se pueden añadir. Revisa la lista de clientes.');
                 setLoading(false);
                 return;
@@ -738,10 +737,10 @@ export function EventDialog({
             setSelectedClients(cleaned);
             // Force reload so UI updates immediately to reflect signup
             onSave(true);
-        } catch (err: any) {
+        } catch (err) {
             logError('Error apuntando al cliente al evento:', err);
 
-            const msg = (err?.message || err?.error || '').toString().toLowerCase();
+            const msg = (((err as any)?.message || (err as any)?.error) || '').toString().toLowerCase();
             if (msg.includes('insufficient')) {
                 alert('Créditos insuficientes');
                 try {
@@ -784,7 +783,7 @@ export function EventDialog({
             // Sanitize client IDs before sending to the RPC to avoid server errors
             const cleaned = sanitizeUuidArray(newClients);
             if (cleaned.length !== newClients.length) {
-                console.debug('handleUnsign: detected non-UUID client ids', { newClients, cleaned });
+
                 alert('Algunos clientes en la lista no son válidos y no se han modificado. Revisa la lista de clientes.');
                 setLoading(false);
                 return;
@@ -798,7 +797,7 @@ export function EventDialog({
             setSelectedClients(cleaned);
             // Force reload so UI updates immediately to reflect un-signup
             onSave(true);
-        } catch (err: any) {
+        } catch (err) {
             logError('Error borrando cliente del evento:', err);
             alert('Error al borrarme del evento');
         } finally {
@@ -1271,7 +1270,7 @@ export function EventDialog({
                                                         <span className="truncate">
                                                             {prof.name} {prof.last_name}
                                                         </span>
-                                                        {!isClientView && (
+                                                        {!isClientView && selectedProfessionals.length > 1 && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>

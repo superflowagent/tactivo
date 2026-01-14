@@ -20,7 +20,7 @@ import type { Company } from '@/types/company';
 import { EventDialog } from '@/components/eventos/EventDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
-import { normalizeForSearch } from '@/lib/stringUtils'
+import { normalizeForSearch } from '@/lib/stringUtils';
 import { parseDbDatetimeAsLocal } from '@/lib/utils';
 import { formatDateWithOffset } from '@/lib/date';
 import { getFilePublicUrl } from '@/lib/supabase';
@@ -145,295 +145,240 @@ export function CalendarioView() {
     }
   }, [companyId]);
 
-  const loadEvents = useCallback(async (force = false) => {
-    if (!companyId) return;
+  const loadEvents = useCallback(
+    async (force = false) => {
+      if (!companyId) return;
 
-    try {
-      // Avoid reload storm when returning to tab: if last load was less than 10s ago, skip unless forced
-      const last = lastEventsLoadRef.current;
-      const now = Date.now();
-      if (!force && last && now - last < 10000) return;
-      lastEventsLoadRef.current = now;
-
-      // Cargar eventos de la company actual
-      const cid = companyId;
-      const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
-        p_company: cid,
-      });
-      if (error) throw error;
-      // DEV: log RPC payload for diagnostics
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          // eslint-disable-next-line no-console
-          console.debug('Calendario: RPC get_events_for_company returned', { count: Array.isArray(rpcRecords) ? rpcRecords.length : rpcRecords ? 1 : 0, sample: (Array.isArray(rpcRecords) ? rpcRecords.slice(0, 3) : rpcRecords ? [rpcRecords] : []) });
-        } catch (e) {
-          // ignore diagnostic failures
-        }
-      }
-      let records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
-
-      // DEV/WORKAROUND: If RPC omitted vacation rows, fetch them directly and merge.
-      // Observed: some vacations may not be returned by `get_events_for_company` but still exist
-      // in the `events` table (seen during local debugging). To avoid showing incorrect
-      // availability to clients, explicitly fetch vacations for the near future and merge.
       try {
-        const nowIso = new Date().toISOString();
-        const oneYearIso = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-        const { data: vacRows, error: vacErr } = await supabase
-          .from('events')
-          .select('*')
-          .eq('company', cid)
-          .eq('type', 'vacation')
-          .gte('datetime', nowIso)
-          .lte('datetime', oneYearIso);
-        if (!vacErr && Array.isArray(vacRows) && vacRows.length > 0) {
-          // Find vacations that are not present in RPC results and append them
-          const existingIds = new Set(records.map((r: any) => r.id));
-          const missing = vacRows.filter((v: any) => !existingIds.has(v.id));
-          if (missing.length > 0) {
-            records = [...records, ...missing];
-            // sort again by datetime after merge
-            records.sort((a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
-          }
-        }
-      } catch (e) {
-        // ignore fallback failures, RPC data is primary
-      }
+        // Avoid reload storm when returning to tab: if last load was less than 10s ago, skip unless forced
+        const last = lastEventsLoadRef.current;
+        const now = Date.now();
+        if (!force && last && now - last < 10000) return;
+        lastEventsLoadRef.current = now;
 
-      // DEV: if RPC returned no records at all, attempt a raw select to help debug.
-      if (process.env.NODE_ENV === 'development' && (!records || records.length === 0)) {
+        // Cargar eventos de la company actual
+        const cid = companyId;
+        const { data: rpcRecords, error } = await supabase.rpc('get_events_for_company', {
+          p_company: cid,
+        });
+        if (error) throw error;
+
+        let records = Array.isArray(rpcRecords) ? rpcRecords : rpcRecords ? [rpcRecords] : [];
+
+        // DEV/WORKAROUND: If RPC omitted vacation rows, fetch them directly and merge.
+        // Observed: some vacations may not be returned by `get_events_for_company` but still exist
+        // in the `events` table (seen during local debugging). To avoid showing incorrect
+        // availability to clients, explicitly fetch vacations for the near future and merge.
         try {
-          const { data: rawRows, error: rawErr } = await supabase
+          const nowIso = new Date().toISOString();
+          const oneYearIso = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: vacRows, error: vacErr } = await supabase
             .from('events')
-            .select('id,type,datetime,duration')
+            .select('*')
             .eq('company', cid)
-            .limit(20);
-          // eslint-disable-next-line no-console
-          console.debug('Calendario: raw events select returned', { rawErr, rawSample: rawRows && rawRows.length ? rawRows.slice(0, 5) : [] });
-        } catch (err) {
-          // ignore
+            .eq('type', 'vacation')
+            .gte('datetime', nowIso)
+            .lte('datetime', oneYearIso);
+          if (!vacErr && Array.isArray(vacRows) && vacRows.length > 0) {
+            // Find vacations that are not present in RPC results and append them
+            const existingIds = new Set(records.map((r: any) => r.id));
+            const missing = vacRows.filter((v: any) => !existingIds.has(v.id));
+            if (missing.length > 0) {
+              records = [...records, ...missing];
+              // sort again by datetime after merge
+              records.sort(
+                (a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
+              );
+            }
+          }
+        } catch (e) {
+          // ignore fallback failures, RPC data is primary
         }
-      }
-      // Sort by datetime
-      records.sort(
-        (a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
-      );
 
-      // Precompute profile ids to fetch
-      const allIds = new Set<string>();
-      (records || []).forEach((event: any) => {
-        const pros = Array.isArray(event.professional)
-          ? event.professional
-          : event.professional
-            ? [event.professional]
-            : [];
-        const clients = getClientIdsFromEvent(event);
-        pros.forEach((id: string) => allIds.add(id));
-        clients.forEach((id: string) => allIds.add(id));
-      });
+        // DEV: if RPC returned no records at all, attempt a raw select to help debug.
 
-      let profileMap: Record<string, any> = {};
-      if (allIds.size > 0) {
-        const ids = Array.from(allIds);
-        const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
-        profileMap = profilesMap || {};
-      }
+        // Sort by datetime
+        records.sort(
+          (a: any, b: any) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime()
+        );
 
-      // Transformar eventos para FullCalendar
-      const calendarEvents = (records || []).map((event: any) => {
-        let title = '';
-        let backgroundColor = '';
-        let borderColor = '';
-
-        const expandedClients = (
-          getClientIdsFromEvent(event)
-        )
-          .map((id: string) => profileMap[id])
-          .filter(Boolean);
-        const expandedProfessionals = (
-          Array.isArray(event.professional)
+        // Precompute profile ids to fetch
+        const allIds = new Set<string>();
+        (records || []).forEach((event: any) => {
+          const pros = Array.isArray(event.professional)
             ? event.professional
             : event.professional
               ? [event.professional]
-              : []
-        )
-          .map((id: string) => profileMap[id])
-          .filter(Boolean);
+              : [];
+          const clients = getClientIdsFromEvent(event);
+          pros.forEach((id: string) => allIds.add(id));
+          clients.forEach((id: string) => allIds.add(id));
+        });
 
-        // Construir strings con nombres para búsqueda
-        const clientNames = expandedClients.map((c: any) => `${c.name} ${c.last_name}`).join(', ');
-        const professionalNames = expandedProfessionals
-          .map((p: any) => `${p.name} ${p.last_name}`)
-          .join(', ');
-
-        // Determinar título y color según tipo
-        // Debug: if a specific event is missing client resolution, log helpful diagnostics in development
-        if (process.env.NODE_ENV === 'development' && event.id === '8ccbeb2d-a345-444d-97a5-4cadf128741d' && (!expandedClients || expandedClients.length === 0)) {
-          // eslint-disable-next-line no-console
-          console.debug('Calendario: missing expandedClients for event', {
-            id: event.id,
-            rawClientFields: getClientIdsFromEvent(event),
-            profileMapKeys: Object.keys(profileMap),
-            rawEvent: event,
-          });
+        let profileMap: Record<string, any> = {};
+        if (allIds.size > 0) {
+          const ids = Array.from(allIds);
+          const profilesMap = await getProfilesByIds(ids, companyId ?? undefined);
+          profileMap = profilesMap || {};
         }
 
-        if (event.type === 'appointment') {
-          // For appointments show the client name to professionals (first client if multiple), otherwise keep the existing "Cita - Nombre Apellido" format when there's exactly one client
-          const expandedClient = expandedClients.length === 1 ? expandedClients[0] : null;
-          const isProfessional = user?.role === 'professional';
-          if (isProfessional) {
-            // Prefer expanded client data; if absent, fall back to any precomputed clientNames on the raw event
-            if (expandedClients.length > 0) {
-              const c = expandedClients[0];
-              title = `${c.name} ${c.last_name}`;
-            } else if (clientNames) {
-              title = clientNames.split(', ')[0];
-            } else if (event.client && typeof event.client === 'string') {
-              // If client is a single id but couldn't be resolved, show placeholder 'Cita'
-              title = 'Cita';
+        // Transformar eventos para FullCalendar
+        const calendarEvents = (records || []).map((event: any) => {
+          let title = '';
+          let backgroundColor = '';
+          let borderColor = '';
+
+          const expandedClients = getClientIdsFromEvent(event)
+            .map((id: string) => profileMap[id])
+            .filter(Boolean);
+          const expandedProfessionals = (
+            Array.isArray(event.professional)
+              ? event.professional
+              : event.professional
+                ? [event.professional]
+                : []
+          )
+            .map((id: string) => profileMap[id])
+            .filter(Boolean);
+
+          // Construir strings con nombres para búsqueda
+          const clientNames = expandedClients
+            .map((c: any) => `${c.name} ${c.last_name}`)
+            .join(', ');
+          const professionalNames = expandedProfessionals
+            .map((p: any) => `${p.name} ${p.last_name}`)
+            .join(', ');
+
+          // Determinar título y color según tipo
+
+          if (event.type === 'appointment') {
+            // For appointments show the client name to professionals (first client if multiple), otherwise keep the existing "Cita - Nombre Apellido" format when there's exactly one client
+            const expandedClient = expandedClients.length === 1 ? expandedClients[0] : null;
+            const isProfessional = user?.role === 'professional';
+            if (isProfessional) {
+              // Prefer expanded client data; if absent, fall back to any precomputed clientNames on the raw event
+              if (expandedClients.length > 0) {
+                const c = expandedClients[0];
+                title = `${c.name} ${c.last_name}`;
+              } else if (clientNames) {
+                title = clientNames.split(', ')[0];
+              } else if (event.client && typeof event.client === 'string') {
+                // If client is a single id but couldn't be resolved, show placeholder 'Cita'
+                title = 'Cita';
+              } else {
+                title = 'Cita';
+              }
             } else {
-              title = 'Cita';
+              title = expandedClient
+                ? `Cita - ${expandedClient.name} ${expandedClient.last_name}`
+                : 'Cita';
             }
-          } else {
-            title = expandedClient ? `Cita - ${expandedClient.name} ${expandedClient.last_name}` : 'Cita';
+            backgroundColor = 'hsl(var(--appointment-color))';
+            borderColor = 'hsl(var(--appointment-color))';
+          } else if (event.type === 'class') {
+            title = 'Clase';
+            backgroundColor = 'hsl(var(--class-color))';
+            borderColor = 'hsl(var(--class-color))';
+          } else if (event.type === 'vacation') {
+            title = professionalNames || 'Vacaciones';
+            backgroundColor = 'hsl(var(--vacation-color))';
+            borderColor = 'hsl(var(--vacation-color))';
           }
-          backgroundColor = 'hsl(var(--appointment-color))';
-          borderColor = 'hsl(var(--appointment-color))';
-        } else if (event.type === 'class') {
-          title = 'Clase';
-          backgroundColor = 'hsl(var(--class-color))';
-          borderColor = 'hsl(var(--class-color))';
-        } else if (event.type === 'vacation') {
-          title = professionalNames || 'Vacaciones';
-          backgroundColor = 'hsl(var(--vacation-color))';
-          borderColor = 'hsl(var(--vacation-color))';
-        }
 
-        // Normalize incoming datetime strings so that values without explicit timezone
-        // offset are interpreted as local wall-clock times consistently. This ensures
-        // vacation events behave the same as appointments/classes irrespective of
-        // how the DB stored the datetime (with or without offset).
-        const normalizeDatetime = (dt: any) => {
-          if (!dt) return dt;
-          let s = String(dt);
+          // Normalize incoming datetime strings so that values without explicit timezone
+          // offset are interpreted as local wall-clock times consistently. This ensures
+          // vacation events behave the same as appointments/classes irrespective of
+          // how the DB stored the datetime (with or without offset).
+          const normalizeDatetime = (dt: any) => {
+            if (!dt) return dt;
+            let s = String(dt);
 
-          // Some DBs / formatters may return offsets like '+00' (no minutes). Convert
-          // '+HH' to '+HH:00' so the Date parser accepts it as an explicit TZ offset.
-          // e.g. '2026-01-13T11:30:00+00' -> '2026-01-13T11:30:00+00:00'
-          if (/[+-]\d{2}$/.test(s)) {
-            const fixed = s.replace(/([+-]\d{2})$/, '$1:00');
-            if (process.env.NODE_ENV === 'development' && fixed !== s) {
-              // eslint-disable-next-line no-console
-              console.debug('Calendario: normalized offset format', { raw: s, fixed });
+            // Some DBs / formatters may return offsets like '+00' (no minutes). Convert
+            // '+HH' to '+HH:00' so the Date parser accepts it as an explicit TZ offset.
+            // e.g. '2026-01-13T11:30:00+00' -> '2026-01-13T11:30:00+00:00'
+            if (/[+-]\d{2}$/.test(s)) {
+              const fixed = s.replace(/([+-]\d{2})$/, '$1:00');
+              s = fixed;
             }
-            s = fixed;
-          }
 
-          // If contains explicit timezone (Z or +hh:mm), leave as-is (we have normalized +HH above)
-          if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) return s;
+            // If contains explicit timezone (Z or +hh:mm), leave as-is (we have normalized +HH above)
+            if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) return s;
 
-          // Otherwise parse into a Date using local interpretation and reformat with offset
-          try {
-            const parsed = new Date(s);
-            return formatDateWithOffset(parsed);
-          } catch (e) {
-            return s;
-          }
-        };
-        const startDate = new Date(normalizeDatetime(event.datetime));
-        const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000);
-        const clientIds = getClientIdsFromEvent(event);
-        const clientUserIds = expandedClients.map((c: any) => c.user || c.id).filter(Boolean);
+            // Otherwise parse into a Date using local interpretation and reformat with offset
+            try {
+              const parsed = new Date(s);
+              return formatDateWithOffset(parsed);
+            } catch (e) {
+              return s;
+            }
+          };
+          const startDate = new Date(normalizeDatetime(event.datetime));
+          const endDate = new Date(startDate.getTime() + (event.duration || 0) * 60000);
+          const clientIds = getClientIdsFromEvent(event);
+          const clientUserIds = expandedClients.map((c: any) => c.user || c.id).filter(Boolean);
 
-        return {
-          id: event.id,
-          title,
-          start: startDate,
-          end: endDate,
-          backgroundColor,
-          borderColor,
-          extendedProps: {
-            type: event.type,
-            cost: event.cost,
-            paid: event.paid,
-            notes: event.notes,
-            professional: Array.isArray(event.professional) ? event.professional : event.professional ? [event.professional] : [],
-            client: clientIds,
-            clientUserIds, // normalized user ids for robust matching
-            clientNames,
-            professionalNames,
-          },
-          _rawEvent: event,
-        };
-      });
+          return {
+            id: event.id,
+            title,
+            start: startDate,
+            end: endDate,
+            backgroundColor,
+            borderColor,
+            extendedProps: {
+              type: event.type,
+              cost: event.cost,
+              paid: event.paid,
+              notes: event.notes,
+              professional: Array.isArray(event.professional)
+                ? event.professional
+                : event.professional
+                  ? [event.professional]
+                  : [],
+              client: clientIds,
+              clientUserIds, // normalized user ids for robust matching
+              clientNames,
+              professionalNames,
+            },
+            _rawEvent: event,
+          };
+        });
 
-      // Preserve the full set (including vacations) for components which need them
-      setAllCalendarEvents(calendarEvents);
+        // Preserve the full set (including vacations) for components which need them
+        setAllCalendarEvents(calendarEvents);
 
-      // DEV: log what we computed for quick diagnosis
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          const typeCounts: Record<string, number> = {};
-          calendarEvents.forEach((ce: any) => {
-            const t = ce._rawEvent?.type || ce.extendedProps?.type || ce.type || 'unknown';
-            typeCounts[t] = (typeCounts[t] || 0) + 1;
-          });
+        // For client users, show only classes and appointments where the client is a participant.
+        // Vacations are already hidden earlier. This enforces that clients don't see others' appointments.
+        const eventsForDisplay = isClient
+          ? calendarEvents.filter((e: any) => {
+            const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
+            if (t === 'vacation') return false; // already hidden but keep defensive
+            if (t === 'class') return true;
 
-          // eslint-disable-next-line no-console
-          console.debug('Calendario: computed calendarEvents', {
-            calendarCount: calendarEvents.length,
-            typeCounts,
-            sample: calendarEvents.slice(0, 5).map((c: any) => ({ id: c.id, type: c._rawEvent?.type || c.extendedProps?.type || c.type, start: c.start?.toISOString?.(), end: c.end?.toISOString?.() })),
-            isClient,
-            userRole: user?.role,
-            myProfileId,
-          });
-        } catch (e) {
-          // ignore
-        }
+            if (t === 'appointment') {
+              // Determine if the auth user or their profile id is listed as a client on the event
+              const clientUserIds = e.extendedProps?.clientUserIds || [];
+              const clientProfileIds = e.extendedProps?.client || [];
+
+              if (user?.id && clientUserIds.includes(user.id)) return true;
+              if (myProfileId && clientProfileIds.includes(myProfileId)) return true;
+              if (user?.id && clientProfileIds.includes(user.id)) return true; // defensive
+
+              return false; // appointment exists but not for this client
+            }
+
+            return false; // default: don't show other event types to clients
+          })
+          : calendarEvents;
+
+        setEvents(eventsForDisplay);
+        setFilteredEvents(eventsForDisplay);
+        loadClientCredits();
+      } catch (err) {
+        logError('Error cargando eventos:', err);
       }
-
-      // For client users, show only classes and appointments where the client is a participant.
-      // Vacations are already hidden earlier. This enforces that clients don't see others' appointments.
-      const eventsForDisplay = isClient
-        ? calendarEvents.filter((e: any) => {
-          const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
-          if (t === 'vacation') return false; // already hidden but keep defensive
-          if (t === 'class') return true;
-
-          if (t === 'appointment') {
-            // Determine if the auth user or their profile id is listed as a client on the event
-            const clientUserIds = e.extendedProps?.clientUserIds || [];
-            const clientProfileIds = e.extendedProps?.client || [];
-
-            if (user?.id && clientUserIds.includes(user.id)) return true;
-            if (myProfileId && clientProfileIds.includes(myProfileId)) return true;
-            if (user?.id && clientProfileIds.includes(user.id)) return true; // defensive
-
-            return false; // appointment exists but not for this client
-          }
-
-          return false; // default: don't show other event types to clients
-        })
-        : calendarEvents;
-
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          // eslint-disable-next-line no-console
-          console.debug('Calendario: eventsForDisplay', { displayCount: eventsForDisplay.length, sample: eventsForDisplay.slice(0, 5).map((e: any) => ({ id: e.id, title: e.title })) });
-        } catch (e) {
-          // ignore
-        }
-      }
-
-      setEvents(eventsForDisplay);
-      setFilteredEvents(eventsForDisplay);
-      loadClientCredits();
-    } catch (err) {
-      logError('Error cargando eventos:', err);
-    }
-  }, [companyId, loadClientCredits, user?.role]);
+    },
+    [companyId, loadClientCredits, user?.role]
+  );
 
   const filterEvents = useCallback(() => {
     let filtered = [...events];
@@ -501,12 +446,13 @@ export function CalendarioView() {
 
   // Si cambiamos la vista (desde el selector), pedir al calendario que cambie de vista
   useEffect(() => {
-    if (selectedView === 'Lista') return;
-    const viewName = selectedView === 'Mes' ? 'dayGridMonth' : selectedView === 'Día' ? 'timeGridDay' : 'timeGridWeek';
     const api = calendarRef.current?.getApi?.();
-    if (api && typeof api.changeView === 'function') {
-      api.changeView(viewName);
-    }
+    if (!api || typeof api.changeView !== 'function') return;
+
+    if (selectedView === 'Mes') api.changeView('dayGridMonth');
+    else if (selectedView === 'Día') api.changeView('timeGridDay');
+    else if (selectedView === 'Lista') api.changeView('listWeek');
+    else api.changeView('timeGridWeek');
   }, [selectedView]);
 
   const handleDateClick = (arg: any) => {
@@ -661,7 +607,11 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button onClick={isClient ? handleOpenAppointmentDialog : handleAdd} disabled={isClient && appointmentLoading} className="w-full sm:hidden">
+      <Button
+        onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
+        disabled={isClient && appointmentLoading}
+        className="w-full sm:hidden"
+      >
         <CalendarPlus className="mr-0 h-4 w-4" />
         {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
       </Button>
@@ -682,7 +632,7 @@ export function CalendarioView() {
             <SelectContent>
               <SelectItem value="all">Todos los profesionales</SelectItem>
               {professionals.map((prof) => (
-                <SelectItem key={prof.user} value={prof.user}>
+                <SelectItem key={prof.id} value={prof.id}>
                   {prof.name} {prof.last_name}
                 </SelectItem>
               ))}
@@ -709,7 +659,6 @@ export function CalendarioView() {
             </label>
           </div>
         )}
-
 
         {(searchQuery || selectedProfessional !== 'all') && (
           <Button variant="outline" onClick={handleClearFilters} className="w-full sm:w-auto">
@@ -758,7 +707,11 @@ export function CalendarioView() {
         </AlertDialog>
 
         <div className="hidden sm:block flex-1" />
-        <Button onClick={isClient ? handleOpenAppointmentDialog : handleAdd} disabled={isClient && appointmentLoading} className="hidden sm:flex">
+        <Button
+          onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
+          disabled={isClient && appointmentLoading}
+          className="hidden sm:flex"
+        >
           <CalendarPlus className="mr-0 h-4 w-4" />
           {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
         </Button>
@@ -767,63 +720,39 @@ export function CalendarioView() {
       <Card className="flex-1">
         <CardContent className="pt-6 flex-1 min-h-0">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
-            {/* DEV: quick visible dump of events to help debug rendering issues */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="p-4 mb-4 bg-muted rounded-md text-sm text-muted-foreground">
-                <div className="font-medium mb-2">DEV: Eventos a renderizar ({filteredEvents.length})</div>
-                <ul>
-                  {filteredEvents.slice(0, 10).map((e: any) => {
-                    const start = e.start;
-                    const validStart = start && start instanceof Date && !isNaN(start.getTime());
-                    return (
-                      <li key={e.id}>
-                        {e.title} — {validStart ? start.toISOString() : `invalid start (raw: ${e._rawEvent?.datetime ?? 'none'})`}
-                      </li>
-                    );
-                  })}
-                </ul>
-                {/* DEV: Log any events with invalid start for deeper inspection */}
-                <script>
-                  {(() => {
-                    try {
-                      const invalid = filteredEvents.filter((e: any) => !(e.start instanceof Date) || isNaN(e.start.getTime()));
-                      if (invalid.length > 0) {
-                        // eslint-disable-next-line no-console
-                        console.debug('Calendario: invalid event starts', invalid.map((i: any) => ({ id: i.id, rawDatetime: i._rawEvent?.datetime, start: i.start })));
-                      }
-                    } catch (err) {
-                      // ignore
-                    }
-                  })()}
-                </script>
-              </div>
-            )}
+
             {/* Render calendar even if no company row exists: use defaults when company is null */}
             {(() => {
               const openTime = company?.open_time || '08:00';
               const closeTime = company?.close_time || '20:00';
 
               return (
-                <div className={`calendar-wrapper ${selectedView === 'Lista' ? 'calendar--list' : ''}`}>
+                <div
+                  className={`calendar-wrapper ${selectedView === 'Lista' ? 'calendar--list' : ''}`}
+                >
                   <FullCalendarLazy
                     ref={calendarRef}
-                    initialView={selectedView === 'Mes' ? 'dayGridMonth' : selectedView === 'Día' ? 'timeGridDay' : 'timeGridWeek'}
+                    initialView={
+                      selectedView === 'Mes'
+                        ? 'dayGridMonth'
+                        : selectedView === 'Día'
+                          ? 'timeGridDay'
+                          : 'timeGridWeek'
+                    }
                     headerToolbar={{
                       left: isMobile ? 'prev,next' : 'prev,next today',
                       center: 'title',
-                      right: isMobile ? 'today,listButton' : 'dayGridMonth,timeGridWeek,timeGridDay,listButton',
-                    }}
-                    customButtons={{
-                      listButton: {
-                        text: 'Lista',
-                        click: () => setSelectedView('Lista'),
-                      },
+                      right: isMobile
+                        ? 'today,listWeek'
+                        : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
                     }}
                     buttonText={{
                       today: 'Hoy',
                       month: 'Mes',
                       week: 'Semana',
                       day: 'Día',
+                      list: 'Lista',
+                      listWeek: 'Lista',
                     }}
                     slotMinTime={openTime}
                     slotMaxTime={closeTime}
@@ -839,8 +768,10 @@ export function CalendarioView() {
                       const t = arg.view.type;
                       if (t === 'dayGridMonth') setSelectedView('Mes');
                       else if (t === 'timeGridDay') setSelectedView('Día');
+                      else if (typeof t === 'string' && t.startsWith('list')) setSelectedView('Lista');
                       else setSelectedView('Semana');
                     }}
+
                     editable={true}
                     selectable={!isClient}
                     selectMirror={!isClient}
@@ -854,7 +785,12 @@ export function CalendarioView() {
 
                   {selectedView === 'Lista' && (
                     <div className="calendar-list-slot mt-0">
-                      <CalendarioList events={filteredEvents} onRowClick={handleEventClick} onDeleteComplete={() => loadEvents(true)} canDelete={!isClient} />
+                      <CalendarioList
+                        events={filteredEvents}
+                        onRowClick={handleEventClick}
+                        onDeleteComplete={() => loadEvents(true)}
+                        canDelete={!isClient}
+                      />
                     </div>
                   )}
                 </div>
