@@ -15,7 +15,6 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
   AlertDialogAction,
@@ -316,7 +315,7 @@ export function AppointmentSlotsDialog({
         professionalId: selectedProfessional,
       });
       setSlots(results);
-    } catch (err) {
+    } catch {
       setSlots([]);
     } finally {
       setLoading(false);
@@ -450,14 +449,14 @@ export function AppointmentSlotsDialog({
                 className="flex items-center justify-between gap-3 p-2 rounded-md hover:bg-muted"
               >
                 <div className="flex items-center gap-4 w-full">
-                  <div className="flex-1">
+                  <div className="flex-1 pr-6">
                     <div className="font-medium">{formatSlotDate(s.start)}</div>
                     <div className="text-sm text-muted-foreground">
                       Duración: {Math.round((s.end.getTime() - s.start.getTime()) / 60000)} min
                     </div>
                   </div>
 
-                  <div className="flex-1 flex items-center justify-center">
+                  <div className="flex-none w-56 flex items-center justify-start pl-4">
                     {s.professional ? (
                       (() => {
                         const p = s.professional;
