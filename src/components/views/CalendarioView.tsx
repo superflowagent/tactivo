@@ -21,7 +21,6 @@ import { EventDialog } from '@/components/eventos/EventDialog';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { normalizeForSearch } from '@/lib/stringUtils';
-import { parseDbDatetimeAsLocal } from '@/lib/utils';
 import { formatDateWithOffset } from '@/lib/date';
 import { getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
@@ -34,7 +33,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
-  AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 // user_cards removed, load professionals from profiles directly
 import './calendario.css';
@@ -191,7 +189,7 @@ export function CalendarioView() {
               );
             }
           }
-        } catch (e) {
+        } catch {
           // ignore fallback failures, RPC data is primary
         }
 
@@ -377,7 +375,7 @@ export function CalendarioView() {
         logError('Error cargando eventos:', err);
       }
     },
-    [companyId, loadClientCredits, user?.role]
+    [companyId, loadClientCredits, user?.role, isClient, myProfileId, user?.id]
   );
 
   const filterEvents = useCallback(() => {

@@ -13,13 +13,6 @@ const cleanRpcPayload = (obj: any) => {
 export async function getProfilesByRole(companyId: string, role: string) {
     if (!companyId) return [];
 
-    const cleanRpcPayload = (obj: any) => {
-        const out: any = {};
-        for (const [k, v] of Object.entries(obj || {})) {
-            if (v !== undefined && v !== null) out[k] = v;
-        }
-        return out;
-    };
 
     try {
         // Prefer secure RPCs that respect RLS/companies and run as SECURITY DEFINER

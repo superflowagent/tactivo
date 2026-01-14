@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
