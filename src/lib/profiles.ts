@@ -4,11 +4,19 @@ import { error as logError } from '@/lib/logger';
 export async function getProfilesByRole(companyId: string, role: string) {
     if (!companyId) return [];
 
+    const cleanRpcPayload = (obj: any) => {
+        const out: any = {};
+        for (const [k, v] of Object.entries(obj || {})) {
+            if (v !== undefined && v !== null) out[k] = v;
+        }
+        return out;
+    };
+
     try {
         // Prefer secure RPCs that respect RLS/companies and run as SECURITY DEFINER
         if (role === 'professional') {
             const rpcPayload: any = { p_role: role };
-            if (companyId) rpcPayload.p_company = companyId;
+            if (companyId && /^[0-9a-fA-F-]{36}$/.test(companyId)) rpcPayload.p_company = companyId;
             const { data, error } = await supabase.rpc(
                 'get_profiles_by_role_for_professionals',
                 rpcPayload
@@ -28,7 +36,7 @@ export async function getProfilesByRole(companyId: string, role: string) {
             });
         } else {
             const rpcPayload: any = { p_role: role };
-            if (companyId) rpcPayload.p_company = companyId;
+            if (companyId && /^[0-9a-fA-F-]{36}$/.test(companyId)) rpcPayload.p_company = companyId;
             const { data, error } = await supabase.rpc('get_profiles_by_role_for_clients', rpcPayload);
             if (error) {
                 logError('RPC get_profiles_by_role_for_clients error', error);
@@ -75,15 +83,16 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
 
     try {
         const rpcPayload: any = { p_ids: uniq };
-        if (companyId) rpcPayload.p_company = companyId;
+        if (companyId && /^[0-9a-fA-F-]{36}$/.test(companyId)) rpcPayload.p_company = companyId;
 
         // Try both RPCs and merge their results so we don't miss clients when the
         // 'professionals' RPC returns non-empty results for mixed id sets.
         let profRows: any[] = [];
         try {
+            const profRpcPayload = cleanRpcPayload(rpcPayload);
             const { data: profData, error: profErr } = await supabase.rpc(
                 'get_profiles_by_ids_for_professionals',
-                rpcPayload
+                profRpcPayload
             );
             if (!profErr && profData && profData.length > 0) profRows = profData;
         } catch {
@@ -92,9 +101,12 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
 
         let clientRows: any[] = [];
         try {
+            const clientRpcPayload: any = { p_ids: uniq };
+            if (companyId && /^[0-9a-fA-F-]{36}$/.test(companyId)) clientRpcPayload.p_company = companyId;
+            const clientRpcToSend = cleanRpcPayload(clientRpcPayload);
             const { data: clientData, error: clientErr } = await supabase.rpc(
                 'get_profiles_by_ids_for_clients',
-                companyId ? { p_ids: uniq, p_company: companyId } : { p_ids: uniq }
+                clientRpcToSend
             );
             if (!clientErr && clientData && clientData.length > 0) clientRows = clientData;
         } catch {
@@ -114,12 +126,26 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
 
     try {
         const [{ data: byUser }, { data: byId }] = await Promise.all([
-            (companyId
-                ? supabase.from('profiles').select('id, user, name, last_name, email, phone, photo_path, sport, class_credits').eq('company', companyId).in('user', uniq)
-                : supabase.from('profiles').select('id, user, name, last_name, email, phone, photo_path, sport, class_credits').in('user', uniq)),
-            (companyId
-                ? supabase.from('profiles').select('id, user, name, last_name, email, phone, photo_path, sport, class_credits').eq('company', companyId).in('id', uniq)
-                : supabase.from('profiles').select('id, user, name, last_name, email, phone, photo_path, sport, class_credits').in('id', uniq)),
+            companyId
+                ? supabase
+                    .from('profiles')
+                    .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+                    .eq('company', companyId)
+                    .in('user', uniq)
+                : supabase
+                    .from('profiles')
+                    .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+                    .in('user', uniq),
+            companyId
+                ? supabase
+                    .from('profiles')
+                    .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+                    .eq('company', companyId)
+                    .in('id', uniq)
+                : supabase
+                    .from('profiles')
+                    .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+                    .in('id', uniq),
         ]);
 
         const rows = [...(byUser || []), ...(byId || [])];
@@ -142,4 +168,89 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
         logError('getProfilesByIds fallback SELECT failed', err);
         return map;
     }
+}
+
+// Normalize and validate arrays of client profile/user ids -> canonical profile.id
+export async function normalizeAndValidateClientIds(ids: string[] | undefined) {
+    if (!ids || ids.length === 0) return [] as string[];
+    const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
+    const uniq = Array.from(new Set(ids || [])).filter(Boolean);
+
+    const out: string[] = [];
+    const problematic: string[] = [];
+
+    // Basic UUID validation
+    for (const id of uniq) {
+        if (!isUuid(id)) {
+            problematic.push(String(id));
+        }
+    }
+
+    if (problematic.length > 0) {
+        throw new Error('Clientes inválidos: ' + problematic.join(', '));
+    }
+
+    const profilesMap = await getProfilesByIds(uniq);
+
+    for (const id of uniq) {
+        const p = profilesMap[String(id)];
+        if (!p) {
+            problematic.push(String(id));
+            continue;
+        }
+
+        // Invite validation (same behaviour as previous frontend helper)
+        if (p.invite_token) {
+            const expires = p.invite_expires_at ? new Date(p.invite_expires_at) : null;
+            if (!expires || expires.getTime() <= Date.now()) {
+                problematic.push(p.email || String(id));
+                continue;
+            }
+        }
+
+        out.push(p.id || p.user || String(id));
+    }
+
+    if (problematic.length > 0) {
+        throw new Error('Clientes inválidos o con invitación inválida: ' + problematic.join(', '));
+    }
+
+    return out;
+}
+
+// Normalize array of professional ids -> canonical profile.id
+export async function normalizeAndValidateProfessionalIds(ids: string[] | undefined) {
+    if (!ids || ids.length === 0) return [] as string[];
+    const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
+    const uniq = Array.from(new Set(ids || [])).filter(Boolean);
+
+    const out: string[] = [];
+    const problematic: string[] = [];
+
+    for (const id of uniq) {
+        if (!isUuid(id)) {
+            problematic.push(String(id));
+        }
+    }
+
+    if (problematic.length > 0) {
+        throw new Error('Profesionales inválidos: ' + problematic.join(', '));
+    }
+
+    const profilesMap = await getProfilesByIds(uniq);
+
+    for (const id of uniq) {
+        const p = profilesMap[String(id)];
+        if (!p) {
+            problematic.push(String(id));
+            continue;
+        }
+        out.push(p.id || p.user || String(id));
+    }
+
+    if (problematic.length > 0) {
+        throw new Error('Profesionales inválidos: ' + problematic.join(', '));
+    }
+
+    return out;
 }

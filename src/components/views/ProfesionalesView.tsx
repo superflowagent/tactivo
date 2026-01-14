@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { error as logError } from '@/lib/logger';
-import { normalizeForSearch } from "@/lib/stringUtils";
+import { normalizeForSearch } from '@/lib/stringUtils';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProfesionalDialog } from '@/components/profesionales/ProfesionalDialog';
 import useResolvedFileUrl from '@/hooks/useResolvedFileUrl';

@@ -42,17 +42,22 @@ export function AjustesView() {
       if (record?.logo_path) {
         // Try public root first, then id-prefixed, then signed url fallbacks (same approach used for profile photos)
         let previewUrl = getFilePublicUrl(UPLOAD_BUCKET, null, record.logo_path) || null;
-        if (!previewUrl) previewUrl = getFilePublicUrl(UPLOAD_BUCKET, record.id, record.logo_path) || null;
+        if (!previewUrl)
+          previewUrl = getFilePublicUrl(UPLOAD_BUCKET, record.id, record.logo_path) || null;
         if (!previewUrl) {
           try {
-            const signedRoot = await supabase.storage.from(UPLOAD_BUCKET).createSignedUrl(`${record.logo_path}`, 60 * 60);
+            const signedRoot = await supabase.storage
+              .from(UPLOAD_BUCKET)
+              .createSignedUrl(`${record.logo_path}`, 60 * 60);
             previewUrl = signedRoot?.data?.signedUrl || previewUrl;
           } catch {
             // ignore
           }
           if (!previewUrl) {
             try {
-              const signed = await supabase.storage.from(UPLOAD_BUCKET).createSignedUrl(`${record.id}/${record.logo_path}`, 60 * 60);
+              const signed = await supabase.storage
+                .from(UPLOAD_BUCKET)
+                .createSignedUrl(`${record.id}/${record.logo_path}`, 60 * 60);
               previewUrl = signed?.data?.signedUrl || previewUrl;
             } catch {
               // ignore
@@ -136,7 +141,6 @@ export function AjustesView() {
         // Use Edge Function `upload-company-logo` (service role) to upload to root securely.
         const filename = `${Date.now()}_${logoFile.name}`;
 
-
         let uploadErr: any = null;
         let uploadData: any = null;
 
@@ -159,7 +163,13 @@ export function AjustesView() {
               'Content-Type': 'application/json',
               Authorization: token ? `Bearer ${token}` : '',
             },
-            body: JSON.stringify({ bucket: UPLOAD_BUCKET, company_id: companyId, filename, content_b64: b64, content_type: logoFile.type }),
+            body: JSON.stringify({
+              bucket: UPLOAD_BUCKET,
+              company_id: companyId,
+              filename,
+              content_b64: b64,
+              content_type: logoFile.type,
+            }),
           });
           const fnJson = await fnResp.json().catch(() => ({}));
           if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
@@ -169,14 +179,22 @@ export function AjustesView() {
         } catch {
           // Fallback: try uploading to root directly (may fail due to RLS); if it fails, surface an actionable error
           try {
-            const res2 = await supabase.storage.from(UPLOAD_BUCKET).upload(`${filename}`, logoFile, { upsert: true });
+            const res2 = await supabase.storage
+              .from(UPLOAD_BUCKET)
+              .upload(`${filename}`, logoFile, { upsert: true });
             if (res2.error) throw res2.error;
             uploadData = res2.data;
             uploadErr = null;
           } catch (e2) {
             const errMsg = String((e2 as any)?.message || e2 || 'upload_error');
-            if (errMsg.toLowerCase().includes('row-level security') || errMsg.toLowerCase().includes('violates')) {
-              throw new Error('No se pudo subir el logo al bucket en la raíz. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Intenté función de servicio y subida directa a raíz; Detalle: ' + String((e2 as any)?.message || e2));
+            if (
+              errMsg.toLowerCase().includes('row-level security') ||
+              errMsg.toLowerCase().includes('violates')
+            ) {
+              throw new Error(
+                'No se pudo subir el logo al bucket en la raíz. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Intenté función de servicio y subida directa a raíz; Detalle: ' +
+                  String((e2 as any)?.message || e2)
+              );
             }
             throw e2;
           }
@@ -185,7 +203,10 @@ export function AjustesView() {
         if (uploadErr) {
           // If RLS prevents the insert under a folder path, try an admin-backed function to perform the upload
           const errMsg = String(uploadErr?.message || uploadErr || 'upload_error');
-          if (errMsg.toLowerCase().includes('row-level security') || errMsg.toLowerCase().includes('violates')) {
+          if (
+            errMsg.toLowerCase().includes('row-level security') ||
+            errMsg.toLowerCase().includes('violates')
+          ) {
             // Attempt server-side upload using an Edge Function that uploads with the service role key.
             try {
               // Read file as base64
@@ -206,7 +227,13 @@ export function AjustesView() {
                   'Content-Type': 'application/json',
                   Authorization: token ? `Bearer ${token}` : '',
                 },
-                body: JSON.stringify({ bucket: UPLOAD_BUCKET, company_id: companyId, filename, content_b64: b64, content_type: logoFile.type }),
+                body: JSON.stringify({
+                  bucket: UPLOAD_BUCKET,
+                  company_id: companyId,
+                  filename,
+                  content_b64: b64,
+                  content_type: logoFile.type,
+                }),
               });
               const fnJson = await fnResp.json().catch(() => ({}));
               if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
@@ -216,13 +243,18 @@ export function AjustesView() {
             } catch {
               // Fallback: try uploading at root path as before
               try {
-                const res2 = await supabase.storage.from(UPLOAD_BUCKET).upload(`${filename}`, logoFile, { upsert: true });
+                const res2 = await supabase.storage
+                  .from(UPLOAD_BUCKET)
+                  .upload(`${filename}`, logoFile, { upsert: true });
                 if (res2.error) throw res2.error;
                 uploadData = res2.data;
                 uploadErr = null;
               } catch (e2) {
                 // Provide a more actionable message when RLS prevents the insert and function failed
-                throw new Error('No se pudo subir el logo al bucket. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Detalle: ' + String((e2 as any)?.message || e2));
+                throw new Error(
+                  'No se pudo subir el logo al bucket. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Detalle: ' +
+                    String((e2 as any)?.message || e2)
+                );
               }
             }
           } else {
@@ -528,7 +560,11 @@ export function AjustesView() {
 
             <div className="flex justify-end gap-2 pt-4">
               <Button type="submit" disabled={saving} aria-busy={saving}>
-                {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-0 h-4 w-4" />}
+                {saving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-0 h-4 w-4" />
+                )}
                 {saving ? 'Guardando...' : 'Guardar Ajustes'}
               </Button>
             </div>

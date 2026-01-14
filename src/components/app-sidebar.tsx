@@ -64,44 +64,44 @@ export function AppSidebar({ currentView, onViewChange, ...props }: AppSidebarPr
   const mainNavItems =
     user?.role === 'client'
       ? [
-        {
-          title: 'Calendario',
-          view: 'calendario' as ViewType,
-          icon: Calendar,
-        },
-        {
-          title: 'Programas',
-          view: 'programas' as ViewType,
-          icon: Dumbbell,
-        },
-      ]
+          {
+            title: 'Calendario',
+            view: 'calendario' as ViewType,
+            icon: Calendar,
+          },
+          {
+            title: 'Programas',
+            view: 'programas' as ViewType,
+            icon: Dumbbell,
+          },
+        ]
       : [
-        {
-          title: 'Calendario',
-          view: 'calendario' as ViewType,
-          icon: Calendar,
-        },
-        {
-          title: 'Clientes',
-          view: 'clientes' as ViewType,
-          icon: Users,
-        },
-        {
-          title: 'Clases',
-          view: 'clases' as ViewType,
-          icon: ListChecks,
-        },
-        {
-          title: 'Ejercicios',
-          view: 'ejercicios' as ViewType,
-          icon: Dumbbell,
-        },
-        {
-          title: 'Profesionales',
-          view: 'profesionales' as ViewType,
-          icon: UserStar,
-        },
-      ];
+          {
+            title: 'Calendario',
+            view: 'calendario' as ViewType,
+            icon: Calendar,
+          },
+          {
+            title: 'Clientes',
+            view: 'clientes' as ViewType,
+            icon: Users,
+          },
+          {
+            title: 'Clases',
+            view: 'clases' as ViewType,
+            icon: ListChecks,
+          },
+          {
+            title: 'Ejercicios',
+            view: 'ejercicios' as ViewType,
+            icon: Dumbbell,
+          },
+          {
+            title: 'Profesionales',
+            view: 'profesionales' as ViewType,
+            icon: UserStar,
+          },
+        ];
 
   return (
     <Sidebar {...props} collapsible="icon">

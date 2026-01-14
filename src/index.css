@@ -23,7 +23,7 @@
     /* hsl(217, 91%, 60%) */
 
     /* Primary gradient used as a highlight */
-    --primary-gradient: linear-gradient(90deg, #6366F1 0%, #A78BFA 100%);
+    --primary-gradient: linear-gradient(90deg, #6366f1 0%, #a78bfa 100%);
 
     /* Gold */
     --gold: 45 74% 52%;
@@ -94,6 +94,19 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family:
+      Inter,
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      'Noto Sans',
+      'Apple Color Emoji',
+      'Segoe UI Emoji',
+      'Segoe UI Symbol';
   }
 
   /* Reserve layout space for the vertical scrollbar to avoid jumps when it appears/disappears */
@@ -104,7 +117,6 @@
   /* Fallback for browsers that don't support scrollbar-gutter:
      force a persistent vertical scrollbar to prevent layout shift on dropdowns/overlays */
   @supports not (scrollbar-gutter: stable) {
-
     /* Use overflow on html to ensure gutter space is reserved in more browsers */
     html {
       overflow-y: scroll;
@@ -180,7 +192,10 @@
     /* Ensure readable text on background */
     color: hsl(var(--foreground));
     border: 1px solid hsl(var(--border));
-    transition: background-color 0.12s ease, border-color 0.12s ease, filter 0.08s ease;
+    transition:
+      background-color 0.12s ease,
+      border-color 0.12s ease,
+      filter 0.08s ease;
   }
 
   /* Use a more specific selector and !important to override Tailwind utilities */
@@ -219,7 +234,6 @@
 
   /* Hover visuals only on devices that support hover (desktop) */
   @media (hover: hover) and (pointer: fine) {
-
     .action-icon:hover,
     .action-icon:focus-visible {
       background-color: hsl(var(--sidebar-accent));
@@ -230,7 +244,6 @@
 
     /* Allow opting out of hover color changes (useful when icon must keep a color like red) */
     @media (hover: hover) and (pointer: fine) {
-
       .no-hover-color.action-icon:hover,
       .no-hover-color.action-icon:focus-visible {
         color: #dc2626 !important;
@@ -241,7 +254,6 @@
 
   /* Disable hover visuals on touch devices (mobile) - apply broadly to buttons and interactive elements */
   @media (hover: none) and (pointer: coarse) {
-
     .action-icon:hover,
     .action-icon:focus-visible,
     button:hover,
@@ -341,5 +353,4 @@
     display: block;
     object-fit: cover;
   }
-
 }

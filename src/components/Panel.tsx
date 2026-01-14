@@ -4,16 +4,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import ActionButton from '@/components/ui/ActionButton';
+import InviteToast from '@/components/InviteToast';
 import { Menu } from 'lucide-react';
-const CalendarioView = lazy(() => import('@/components/views/CalendarioView').then(m => ({ default: m.CalendarioView })));
-const ClientesView = lazy(() => import('@/components/views/ClientesView').then(m => ({ default: m.ClientesView })));
-const ClasesView = lazy(() => import('@/components/views/ClasesView').then(m => ({ default: m.ClasesView })));
-const ProfesionalesView = lazy(() => import('@/components/views/ProfesionalesView').then(m => ({ default: m.ProfesionalesView })));
-const AjustesView = lazy(() => import('@/components/views/AjustesView').then(m => ({ default: m.AjustesView })));
-const EjerciciosView = lazy(() => import('@/components/views/EjerciciosView').then(m => ({ default: m.EjerciciosView })));
-const ProgramasView = lazy(() => import('@/components/views/ProgramasViewNew').then(m => ({ default: m.ProgramasView })));
-
-
+const CalendarioView = lazy(() =>
+  import('@/components/views/CalendarioView').then((m) => ({ default: m.CalendarioView }))
+);
+const ClientesView = lazy(() =>
+  import('@/components/views/ClientesView').then((m) => ({ default: m.ClientesView }))
+);
+const ClasesView = lazy(() =>
+  import('@/components/views/ClasesView').then((m) => ({ default: m.ClasesView }))
+);
+const ProfesionalesView = lazy(() =>
+  import('@/components/views/ProfesionalesView').then((m) => ({ default: m.ProfesionalesView }))
+);
+const AjustesView = lazy(() =>
+  import('@/components/views/AjustesView').then((m) => ({ default: m.AjustesView }))
+);
+const EjerciciosView = lazy(() =>
+  import('@/components/views/EjerciciosView').then((m) => ({ default: m.EjerciciosView }))
+);
+const ProgramasView = lazy(() =>
+  import('@/components/views/ProgramasViewNew').then((m) => ({ default: m.ProgramasView }))
+);
 
 export type ViewType =
   | 'calendario'
@@ -53,7 +66,7 @@ export function Panel() {
         sv === 'ajustes'
       )
         return sv as ViewType;
-    } catch { }
+    } catch {}
     return 'calendario';
   })();
   const [currentView, setCurrentView] = useState<ViewType>(initialView);
@@ -62,7 +75,7 @@ export function Panel() {
   useEffect(() => {
     try {
       localStorage.setItem('tactivo.currentView', currentView);
-    } catch { }
+    } catch {}
   }, [currentView]);
 
   // Ensure the URL contains the correct companyName path segment
@@ -85,7 +98,31 @@ export function Panel() {
     }
   }, [companyName]);
 
+  // Invite toast: read any persisted toast set before navigation and listen for dispatched invite events
+  const [inviteToast, setInviteToast] = useState<{ title: string; durationMs?: number } | null>(
+    null
+  );
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('tactivo.inviteToast');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.title) {
+          setInviteToast({ title: parsed.title, durationMs: parsed.durationMs ?? 4000 });
+        }
+        localStorage.removeItem('tactivo.inviteToast');
+      }
+    } catch {
+      /* ignore */
+    }
 
+    const handler = (e: any) => {
+      const d = e?.detail || {};
+      if (d?.title) setInviteToast({ title: d.title, durationMs: d.durationMs ?? 4000 });
+    };
+    window.addEventListener('tactivo.invite', handler as EventListener);
+    return () => window.removeEventListener('tactivo.invite', handler as EventListener);
+  }, []);
 
   const viewTitles: Record<ViewType, string> = {
     calendario: 'Calendario',
@@ -153,6 +190,13 @@ export function Panel() {
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar currentView={currentView} onViewChange={setCurrentView} />
+      {inviteToast && (
+        <InviteToast
+          title={inviteToast.title}
+          durationMs={inviteToast.durationMs ?? 4000}
+          onClose={() => setInviteToast(null)}
+        />
+      )}
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <MobileHamburgerButton />

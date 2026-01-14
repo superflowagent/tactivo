@@ -15,7 +15,13 @@ import InviteToast from '@/components/InviteToast';
 import registerUser from '../../lib/registerUser';
 import { error as logError } from '@/lib/logger';
 
-export default function RegisterDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export default function RegisterDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+}) {
   const [email, setEmail] = useState('');
   const [centro, setCentro] = useState('');
   const [name, setName] = useState('');
@@ -39,7 +45,8 @@ export default function RegisterDialog({ open, onOpenChange }: { open: boolean; 
     try {
       const res = await registerUser({ email, centro, name, last_name: lastName, movil });
       if (!res.ok) {
-        const err = (res.json as any)?.error || (res.json as any)?.message || 'Error en el registro';
+        const err =
+          (res.json as any)?.error || (res.json as any)?.message || 'Error en el registro';
         setErrorMsg(String(err));
         return;
       }
@@ -71,18 +78,34 @@ export default function RegisterDialog({ open, onOpenChange }: { open: boolean; 
           <form id="registerForm" onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="r_email">Email</Label>
-              <Input id="r_email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input
+                id="r_email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="r_name">Nombre</Label>
-                <Input id="r_name" value={name} onChange={(e) => setName(e.target.value)} required />
+                <Input
+                  id="r_name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="r_last">Apellidos</Label>
-                <Input id="r_last" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                <Input
+                  id="r_last"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
@@ -94,7 +117,12 @@ export default function RegisterDialog({ open, onOpenChange }: { open: boolean; 
 
               <div className="space-y-2">
                 <Label htmlFor="r_centro">Nombre del centro</Label>
-                <Input id="r_centro" value={centro} onChange={(e) => setCentro(e.target.value)} required />
+                <Input
+                  id="r_centro"
+                  value={centro}
+                  onChange={(e) => setCentro(e.target.value)}
+                  required
+                />
               </div>
             </div>
 

@@ -16,7 +16,7 @@ export default defineConfig({
     },
     proxy: {
       // Ensure client-side routing works
-    }
+    },
   },
   optimizeDeps: {
     // Exclude packages that cause the dep optimizer to mis-handle ESM/CJS resolution
@@ -26,13 +26,13 @@ export default defineConfig({
     react(),
     ...(process.env.ANALYZE === 'true'
       ? [
-        visualizer({
-          filename: 'dist/bundle-analysis.html',
-          open: false,
-          gzipSize: true,
-          brotliSize: true,
-        }),
-      ]
+          visualizer({
+            filename: 'dist/bundle-analysis.html',
+            open: false,
+            gzipSize: true,
+            brotliSize: true,
+          }),
+        ]
       : []),
   ],
   resolve: {

@@ -3,6 +3,7 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import listPlugin from '@fullcalendar/list';
 import esLocale from '@fullcalendar/core/locales/es';
 
 // Lightweight wrapper so calendar can be lazy-loaded as a separate chunk
@@ -13,7 +14,7 @@ const FullCalendarWrapper = React.forwardRef(function FullCalendarWrapper(props:
   return (
     <FullCalendar
       ref={ref}
-      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+      plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
       locale={locale}
       events={events}
       {...rest}

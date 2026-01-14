@@ -1,10 +1,9 @@
-
 import React, { Suspense } from 'react';
 import { motion } from 'motion/react';
 import { LandingNavbar } from '@/components/LandingNavbar';
 import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
 import CalendarPreview from '@/components/ui/CalendarPreview';
-
+import FeaturesSection from '@/components/views/FeaturesSection';
 
 export function LandingView() {
   return (
@@ -40,14 +39,25 @@ export function LandingView() {
               className="text-center"
             >
               <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold leading-tight">
-                <span style={{ backgroundImage: 'var(--primary-gradient)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent', display: 'inline-block' }}>
+                <span
+                  style={{
+                    backgroundImage: 'var(--primary-gradient)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                    WebkitTextFillColor: 'transparent',
+                    display: 'inline-block',
+                  }}
+                >
                   Tactivo
                 </span>
               </h2>
 
               <h1 className="mt-3 text-2xl md:text-3xl lg:text-4xl font-bold text-neutral-900 dark:text-white leading-relaxed lg:leading-relaxed">
-                el software de gestión<br />
-                para fisioterapeutas<br />
+                el software de gestión
+                <br />
+                para fisioterapeutas
+                <br />
                 <Highlight className="text-black dark:text-white">que te libera.</Highlight>
               </h1>
             </motion.div>
@@ -60,9 +70,8 @@ export function LandingView() {
         </div>
       </HeroHighlight>
 
-
-
-
+      {/* Funcionalidades */}
+      <FeaturesSection />
     </div>
   );
 }

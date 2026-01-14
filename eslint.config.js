@@ -1,8 +1,8 @@
-import globals from 'globals'
-import tsPlugin from '@typescript-eslint/eslint-plugin'
-import reactHooksPlugin from 'eslint-plugin-react-hooks'
-import tsParser from '@typescript-eslint/parser'
-import { defineConfig } from 'eslint/config'
+import globals from 'globals';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import tsParser from '@typescript-eslint/parser';
+import { defineConfig } from 'eslint/config';
 
 export default defineConfig([
   { ignores: ['dist', 'vite.config.ts', 'supabase/functions/**', 'api/**'] },
@@ -15,7 +15,7 @@ export default defineConfig([
       parserOptions: {
         ecmaVersion: 2020,
         sourceType: 'module',
-        project: ['./tsconfig.app.json', './tsconfig.api.json']
+        project: ['./tsconfig.app.json', './tsconfig.api.json'],
       },
       globals: globals.browser,
     },
@@ -27,7 +27,7 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-    }
+    },
   },
 
   // JS files

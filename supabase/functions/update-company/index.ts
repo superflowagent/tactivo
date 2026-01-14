@@ -86,7 +86,10 @@ serve(async (req: any) => {
     const provided = req.headers.get('x-admin-secret') || req.headers.get('x-admin-token');
 
     // Basic ingress info for operational visibility
-    console.info('update-company called', { method: req.method, origin: req.headers.get('origin') });
+    console.info('update-company called', {
+      method: req.method,
+      origin: req.headers.get('origin'),
+    });
 
     // Validate caller: either ADMIN_SECRET provided or bearer token validated against auth/v1/user
     let callerUserId: string | null = null;
@@ -127,7 +130,11 @@ serve(async (req: any) => {
     }
 
     // Lookup existing company
-    const { ok: gotOk, status: gotStatus, data: gotData } = await restCompanies('GET', undefined, `id=eq.${targetId}`);
+    const {
+      ok: gotOk,
+      status: gotStatus,
+      data: gotData,
+    } = await restCompanies('GET', undefined, `id=eq.${targetId}`);
     if (!gotOk || !gotData || (Array.isArray(gotData) && gotData.length === 0))
       return jsonResponse({ error: 'company_not_found' }, 404);
     const company = Array.isArray(gotData) ? gotData[0] : gotData;
