@@ -348,24 +348,24 @@ export function CalendarioView() {
         // Vacations are already hidden earlier. This enforces that clients don't see others' appointments.
         const eventsForDisplay = isClient
           ? calendarEvents.filter((e: any) => {
-              const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
-              if (t === 'vacation') return false; // already hidden but keep defensive
-              if (t === 'class') return true;
+            const t = e._rawEvent?.type || e.extendedProps?.type || e.type;
+            if (t === 'vacation') return false; // already hidden but keep defensive
+            if (t === 'class') return true;
 
-              if (t === 'appointment') {
-                // Determine if the auth user or their profile id is listed as a client on the event
-                const clientUserIds = e.extendedProps?.clientUserIds || [];
-                const clientProfileIds = e.extendedProps?.client || [];
+            if (t === 'appointment') {
+              // Determine if the auth user or their profile id is listed as a client on the event
+              const clientUserIds = e.extendedProps?.clientUserIds || [];
+              const clientProfileIds = e.extendedProps?.client || [];
 
-                if (user?.id && clientUserIds.includes(user.id)) return true;
-                if (myProfileId && clientProfileIds.includes(myProfileId)) return true;
-                if (user?.id && clientProfileIds.includes(user.id)) return true; // defensive
+              if (user?.id && clientUserIds.includes(user.id)) return true;
+              if (myProfileId && clientProfileIds.includes(myProfileId)) return true;
+              if (user?.id && clientProfileIds.includes(user.id)) return true; // defensive
 
-                return false; // appointment exists but not for this client
-              }
+              return false; // appointment exists but not for this client
+            }
 
-              return false; // default: don't show other event types to clients
-            })
+            return false; // default: don't show other event types to clients
+          })
           : calendarEvents;
 
         setEvents(eventsForDisplay);
@@ -638,71 +638,80 @@ export function CalendarioView() {
             onValueChange={setSelectedProfessional}
             onOpenChange={(open) => {
               if (process.env.NODE_ENV !== 'production') {
-                try {
-                  const docEl = document.documentElement;
-                  const body = document.body;
-                  const info: any = {
-                    windowInner: { w: window.innerWidth, h: window.innerHeight },
-                    docClient: { w: docEl.clientWidth, h: docEl.clientHeight },
-                    bodyClient: { w: body.clientWidth, h: body.clientHeight },
-                    bodyStyleOverflow: body.style.overflow || '(empty)',
-                    htmlStyleOverflow: docEl.style.overflow || '(empty)',
-                    open,
-                    candidates: [] as any[],
-                  };
+                // Defer heavy DOM reads to idle time to avoid blocking the open change handler
+                const schedule = (fn: () => void) => {
+                  const ric = (window as any).requestIdleCallback || ((cb: any) => setTimeout(cb, 50));
+                  ric(fn, { timeout: 200 });
+                };
 
-                  const selectors = [
-                    'html',
-                    'body',
-                    '.calendar-wrapper',
-                    '.fc',
-                    '.fc-scroller',
-                    '.fc-scrollgrid',
-                    'main',
-                    '[data-sidebar]',
-                  ];
-                  selectors.forEach((sel) => {
-                    const el = document.querySelector(sel) as HTMLElement | null;
-                    if (!el) return;
-                    const cs = getComputedStyle(el);
-                    const hasScroll = el.scrollHeight > el.clientHeight;
-                    info.candidates.push({
-                      selector: sel,
-                      client: { w: el.clientWidth, h: el.clientHeight },
-                      scroll: { sh: el.scrollHeight, ch: el.clientHeight },
-                      overflowY: cs.overflowY,
-                      visible: cs.display !== 'none' && cs.visibility !== 'hidden',
-                    });
-                  });
+                schedule(() => {
+                  try {
+                    const docEl = document.documentElement;
+                    const body = document.body;
+                    const info: any = {
+                      windowInner: { w: window.innerWidth, h: window.innerHeight },
+                      docClient: { w: docEl.clientWidth, h: docEl.clientHeight },
+                      bodyClient: { w: body.clientWidth, h: body.clientHeight },
+                      bodyStyleOverflow: body.style.overflow || '(empty)',
+                      htmlStyleOverflow: docEl.style.overflow || '(empty)',
+                      open,
+                      candidates: [] as any[],
+                    };
 
-                  // Also scan for any element with overflow-y set to scroll/auto and visible
-                  const overflowEls = Array.from(document.querySelectorAll('*'))
-                    .slice(0, 2000)
-                    .filter((el: any) => {
-                      const cs = getComputedStyle(el as Element);
-                      return (
-                        (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
-                        (el as HTMLElement).offsetParent !== null
-                      );
-                    })
-                    .slice(0, 30)
-                    .map((el: any) => {
-                      const cs = getComputedStyle(el as Element);
-                      return {
-                        tag: el.tagName,
-                        classes: el.className,
-                        overflowY: cs.overflowY,
+                    const selectors = [
+                      'html',
+                      'body',
+                      '.calendar-wrapper',
+                      '.fc',
+                      '.fc-scroller',
+                      '.fc-scrollgrid',
+                      'main',
+                      '[data-sidebar]',
+                    ];
+
+                    selectors.forEach((sel) => {
+                      const el = document.querySelector(sel) as HTMLElement | null;
+                      if (!el) return;
+                      const cs = getComputedStyle(el);
+                      const hasScroll = el.scrollHeight > el.clientHeight;
+                      info.candidates.push({
+                        selector: sel,
                         client: { w: el.clientWidth, h: el.clientHeight },
                         scroll: { sh: el.scrollHeight, ch: el.clientHeight },
-                      };
+                        overflowY: cs.overflowY,
+                        visible: cs.display !== 'none' && cs.visibility !== 'hidden',
+                      });
                     });
 
-                  info.overflowEls = overflowEls;
+                    // Also scan for any element with overflow-y set to scroll/auto and visible (limit work)
+                    const overflowEls = Array.from(document.querySelectorAll('*'))
+                      .slice(0, 500)
+                      .filter((el: any) => {
+                        const cs = getComputedStyle(el as Element);
+                        return (
+                          (cs.overflowY === 'auto' || cs.overflowY === 'scroll') &&
+                          (el as HTMLElement).offsetParent !== null
+                        );
+                      })
+                      .slice(0, 30)
+                      .map((el: any) => {
+                        const cs = getComputedStyle(el as Element);
+                        return {
+                          tag: el.tagName,
+                          classes: el.className,
+                          overflowY: cs.overflowY,
+                          client: { w: el.clientWidth, h: el.clientHeight },
+                          scroll: { sh: el.scrollHeight, ch: el.clientHeight },
+                        };
+                      });
 
-                  console.log('[calendario] select open debug:', info);
-                } catch (err) {
-                  console.log('[calendario] select open debug error', err);
-                }
+                    info.overflowEls = overflowEls;
+
+                    console.log('[calendario] select open debug (deferred):', info);
+                  } catch (err) {
+                    console.log('[calendario] select open debug error', err);
+                  }
+                });
               }
             }}
           >

@@ -15,6 +15,20 @@ export const HeroHighlight = ({
   let mouseX = useMotionValue(0);
   let mouseY = useMotionValue(0);
 
+  // Cache element rect and batch mousemove handling to rAF to avoid layout thrashing
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const rectRef = React.useRef<DOMRect | null>(null);
+  const posRef = React.useRef({ x: 0, y: 0 });
+  const rafScheduled = React.useRef(false);
+
+  React.useEffect(() => {
+    const onResize = () => {
+      rectRef.current = null;
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // SVG patterns for different states and themes
   const dotPatterns = {
     light: {
@@ -27,12 +41,33 @@ export const HeroHighlight = ({
     },
   };
 
-  function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent<HTMLDivElement>) {
-    if (!currentTarget) return;
-    let { left, top } = currentTarget.getBoundingClientRect();
+  function handleMouseEnter(e: React.MouseEvent<HTMLDivElement>) {
+    containerRef.current = e.currentTarget;
+    rectRef.current = containerRef.current.getBoundingClientRect();
+  }
 
-    mouseX.set(clientX - left);
-    mouseY.set(clientY - top);
+  function handleMouseLeave() {
+    rectRef.current = null;
+    containerRef.current = null;
+  }
+
+  function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent<HTMLDivElement>) {
+    // store latest coords and batch the work in rAF
+    posRef.current = { x: clientX, y: clientY };
+    if (!containerRef.current && currentTarget) containerRef.current = currentTarget;
+
+    if (rafScheduled.current) return;
+    rafScheduled.current = true;
+
+    requestAnimationFrame(() => {
+      rafScheduled.current = false;
+      const el = containerRef.current;
+      if (!el) return;
+      if (!rectRef.current) rectRef.current = el.getBoundingClientRect();
+      const { left, top } = rectRef.current;
+      mouseX.set(posRef.current.x - left);
+      mouseY.set(posRef.current.y - top);
+    });
   }
   return (
     <div
@@ -41,6 +76,8 @@ export const HeroHighlight = ({
         containerClassName
       )}
       onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div
         className="pointer-events-none absolute inset-0 dark:hidden"

@@ -24,12 +24,17 @@ export function CardBody({
   const ref = useRef<HTMLDivElement | null>(null);
   const [style, setStyle] = useState<React.CSSProperties | undefined>(undefined);
 
-  function onMove(e: React.MouseEvent) {
+  // Batch mouse move work using rAF and cache rect to avoid repeated layout reads
+  const rectRef = useRef<DOMRect | null>(null);
+  const posRef = useRef({ x: 0, y: 0 });
+  const rafRef = useRef<number | null>(null);
+
+  function updateStyleFromPos() {
     const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width; // 0..1
-    const py = (e.clientY - rect.top) / rect.height; // 0..1
+    if (!el || !rectRef.current) return;
+    const rect = rectRef.current;
+    const px = (posRef.current.x - rect.left) / rect.width; // 0..1
+    const py = (posRef.current.y - rect.top) / rect.height; // 0..1
 
     const rotateY = (px - 0.5) * 12; // degrees
     const rotateX = -(py - 0.5) * 8; // degrees
@@ -45,7 +50,26 @@ export function CardBody({
     setStyle(newStyle);
   }
 
+  function onMove(e: React.MouseEvent) {
+    if (!ref.current) return;
+    // ensure we cache the rect once per interaction
+    if (!rectRef.current) rectRef.current = ref.current.getBoundingClientRect();
+
+    posRef.current = { x: e.clientX, y: e.clientY };
+
+    if (rafRef.current != null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      updateStyleFromPos();
+    });
+  }
+
   function onLeave() {
+    rectRef.current = null;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
     setStyle({
       transform: 'none',
       boxShadow: 'none',
