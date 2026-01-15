@@ -1362,7 +1362,7 @@ export default function ClienteView() {
           </Tabs>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:px-6 z-50">
+        <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-4 py-3 md:left-[var(--sidebar-width)] md:px-6 z-50">
           <div className="flex items-center justify-between w-full gap-3">
             <div>
               {cliente?.id && activeTab === 'datos' && (

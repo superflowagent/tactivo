@@ -50,7 +50,7 @@ export default function FeaturePreviewMultidispositivo() {
         setDragging(true);
         try {
             el.setPointerCapture(e.pointerId);
-        } catch (err) {
+        } catch {
             // ignore setPointerCapture failures
         }
         startX.current = e.clientX;
@@ -103,7 +103,7 @@ export default function FeaturePreviewMultidispositivo() {
         if (e) {
             try {
                 el.releasePointerCapture(e.pointerId);
-            } catch (err) {
+            } catch {
                 // ignore
             }
         }
@@ -122,14 +122,11 @@ export default function FeaturePreviewMultidispositivo() {
     };
 
     return (
-        <div className="w-full h-full overflow-hidden flex items-center justify-center">
+        <Iphone className="w-[240px] h-[480px] max-w-full max-h-full shadow-lg transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03]">
+            <div className="relative h-full flex flex-col min-h-0">
+                <Confetti ref={confettiRef} className="absolute inset-0 z-50 pointer-events-none" />
 
-            <div className="px-3 py-2 flex items-center justify-center h-full overflow-hidden w-full transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03]">
-                <Iphone className="w-[240px] h-[360px] max-w-full max-h-full shadow-lg">
-                    <div className="relative h-full">
-                        <Confetti ref={confettiRef} className="absolute inset-0 z-50 pointer-events-none" />
-
-                        <div className="p-2 h-full overflow-hidden bg-white select-none">
+                <div className="p-2 h-full overflow-hidden bg-white select-none">
                             <div className="mb-2 relative">
                                 <button aria-label="Abrir menú" className="absolute left-0 top-1.5 p-0.5 rounded-md text-muted-foreground hover:bg-muted/20">
                                     <Menu className="h-5 w-5" />
@@ -239,7 +236,7 @@ export default function FeaturePreviewMultidispositivo() {
                                                                         if (confettiRef.current) {
                                                                             confettiRef.current.fire({ clientX: cx, clientY: cy, count: 12 });
                                                                         }
-                                                                    } catch (err) {
+                                                                    } catch {
                                                                         // ignore confetti errors
                                                                     }
                                                                 }}
@@ -257,7 +254,5 @@ export default function FeaturePreviewMultidispositivo() {
                         </div>
                     </div>
                 </Iphone>
-            </div>
-        </div>
     );
 }
