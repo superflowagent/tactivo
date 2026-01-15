@@ -14,38 +14,38 @@ const slots = [
         time: 'Jueves 15 ene 2026, 8:00',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: '/landing/professional1.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
     },
 
     {
         time: 'Jueves 15 ene 2026, 9:45',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: '/landing/professional2.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
     },
     {
         time: 'Jueves 15 ene 2026, 16:00',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: '/landing/professional2.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
     },
     {
         time: 'Jueves 15 ene 2026, 10:15',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: '/landing/professional1.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
     },
     {
         time: 'Viernes 16 ene 2026, 10:15',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: '/landing/professional2.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
     },
     {
         time: 'Viernes 16 ene 2026, 10:30',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: '/landing/professional1.jpg',
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
     },
 ];
 
@@ -115,7 +115,7 @@ export default function FeaturePreviewAgenda() {
 
             <div className="p-1 max-h-[18rem] overflow-y-auto">
                 <div className="flex flex-col divide-y">
-                    {filteredSlots.map((s, i) => {
+                    {filteredSlots.slice(0, 4).map((s, i) => {
                         const hour = String(s.time).match(/(\d{1,2}:\d{2})$/)?.[1] ?? s.time;
                         const dateMatch = String(s.time).match(/^([^\d,]+)\s+(\d{1,2})/);
                         const dateLabel = dateMatch ? `${dateMatch[1].trim()} ${dateMatch[2]}` : '';
