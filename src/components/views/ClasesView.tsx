@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import ActionButton from '@/components/ui/ActionButton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -274,6 +274,28 @@ export function ClasesView() {
     }
   };
 
+  // Reference to the scroll container so we can auto-scroll horizontally while dragging
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleContainerDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!scrollContainerRef.current) return;
+    const rect = scrollContainerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const threshold = 80; // px from edges to start scrolling
+    const speed = 20; // px per event
+
+    if (x < threshold) {
+      scrollContainerRef.current.scrollBy({ left: -speed, behavior: 'auto' });
+    } else if (x > rect.width - threshold) {
+      scrollContainerRef.current.scrollBy({ left: speed, behavior: 'auto' });
+    }
+  };
+
+  const handleContainerDragLeave = () => {
+    // no-op (could be used to stop a scrolling interval if implemented)
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex justify-end">
@@ -287,22 +309,28 @@ export function ClasesView() {
           Propagar
         </Button>
       </div>
-      <Card>
+      <Card className="border-0">
         <CardContent className="pt-6">
           {loading ? (
             <p className="text-center text-muted-foreground py-8">Cargando...</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {WEEKDAYS.map((day) => {
-                const daySlots = getSlotsByDay(day.value);
-                return (
-                  <Card
-                    key={day.value}
-                    className={`border-2 transition-all ${dragOverDay === day.value ? 'bg-primary/10 ring-2 ring-primary shadow-lg' : ''}`}
-                    onDragOver={(e) => handleDragOver(e, day.value)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, day.value)}
-                  >
+            <div
+              ref={scrollContainerRef}
+              className="overflow-x-auto w-full -mx-2 px-2"
+              onDragOver={handleContainerDragOver}
+              onDragLeave={handleContainerDragLeave}
+            >
+              <div className="grid grid-cols-1 md:inline-grid md:grid-flow-col md:auto-cols-[minmax(20rem,20rem)] gap-4">
+                {WEEKDAYS.map((day) => {
+                  const daySlots = getSlotsByDay(day.value);
+                  return (
+                    <Card
+                      key={day.value}
+                      className={`border-2 transition-all ${dragOverDay === day.value ? 'bg-primary/10 ring-2 ring-primary shadow-lg' : ''}`}
+                      onDragOver={(e) => handleDragOver(e, day.value)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, day.value)}
+                    >
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base font-semibold flex items-center justify-between">
                         {day.name}
