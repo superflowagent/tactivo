@@ -3,15 +3,15 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const exercisesA = [
-    { name: 'Sentadilla búlgara', tags: ['Pesa', 'Tobillo'], video: `${import.meta.env.BASE_URL}landing/exercises/alante-rezo.mp4` },
-    { name: 'Fondos', tags: ['Goma'], video: `${import.meta.env.BASE_URL}landing/exercises/elevacion-en-paredmp4.mp4` },
-    { name: 'Dominadas', tags: ['Goma'], video: `${import.meta.env.BASE_URL}landing/exercises/escápulas.mp4` },
+    { name: 'Sentadilla búlgara', tags: ['Pesa', 'Tobillo'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Extensión columna.mp4`) },
+    { name: 'Fondos', tags: ['Goma'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rezo al cielo.mp4`) },
+    { name: 'Dominadas', tags: ['Goma'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Movilidad escapular.mp4`) },
 ];
 
 const exercisesB = [
-    { name: 'Plancha lateral', tags: ['Isométrico'], video: `${import.meta.env.BASE_URL}landing/exercises/rotacio-lateral.mp4` },
-    { name: 'Abdominales', tags: ['Piso'], video: `${import.meta.env.BASE_URL}landing/exercises/rotacion-externa.mp4` },
-    { name: 'Fondos con peso', tags: ['Peso'], video: `${import.meta.env.BASE_URL}landing/exercises/vuelta-al-mundo.mp4` },
+    { name: 'Plancha lateral', tags: ['Isométrico'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Apertura desde suelo.mp4`) },
+    { name: 'Abdominales', tags: ['Piso'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rotación externa.mp4`) },
+    { name: 'Fondos con peso', tags: ['Peso'], video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rotación en pared.mp4`) },
 ];
 
 // Helper: derive a user-friendly title from the video file path (e.g. "vuelta-al-mundo.mp4" -> "Vuelta Al Mundo")
@@ -131,8 +131,8 @@ export default function FeaturePreviewProgramas() {
                     onPointerLeave={dayAHandlers.onPointerLeave}
                 >
                     {exercisesA.map((ex, i) => (
-                        <div key={i} className="flex-none w-64 min-h-[12rem]">
-                            <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
+                        <div key={i} className="flex-none w-52 min-h-[12rem]">
+                            <Card className="overflow-hidden hover:shadow-lg transition-shadow w-52 flex flex-col bg-white rounded-lg border">
                                 <CardHeader className="py-2 px-3 h-auto space-y-0.5">
                                     <CardTitle className="text-sm font-semibold line-clamp-2">{titleFromVideo(ex.video)}</CardTitle>
                                     <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
@@ -147,17 +147,19 @@ export default function FeaturePreviewProgramas() {
                                     </div>
                                 </CardHeader>
 
-                                <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
-                                    <video
-                                        className="w-full h-full object-cover"
-                                        src={ex.video}
-                                        muted
-                                        loop
-                                        playsInline
-                                        autoPlay
-                                        preload="metadata"
-                                        aria-hidden
-                                    />
+                                <div className="relative bg-slate-200 overflow-hidden cursor-auto">
+                                    <div className="w-full pt-[75%] relative">
+                                        <video
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            src={ex.video}
+                                            muted
+                                            loop
+                                            playsInline
+                                            autoPlay
+                                            preload="metadata"
+                                            aria-hidden
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="px-3 py-2 text-xs text-muted-foreground border-t">—</div>
@@ -183,8 +185,8 @@ export default function FeaturePreviewProgramas() {
                         onPointerLeave={dayBHandlers.onPointerLeave}
                     >
                         {exercisesB.map((ex, i) => (
-                            <div key={i} className="flex-none w-64 min-h-[12rem]">
-                                <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
+                            <div key={i} className="flex-none w-52 min-h-[12rem]">
+                                <Card className="overflow-hidden hover:shadow-lg transition-shadow w-52 flex flex-col bg-white rounded-lg border">
                                     <CardHeader className="py-2 px-3 h-auto space-y-0.5">
                                         <CardTitle className="text-sm font-semibold line-clamp-2">{titleFromVideo(ex.video)}</CardTitle>
                                         <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
@@ -199,17 +201,19 @@ export default function FeaturePreviewProgramas() {
                                         </div>
                                     </CardHeader>
 
-                                    <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
-                                        <video
-                                            className="w-full h-full object-cover"
-                                            src={ex.video}
-                                            muted
-                                            loop
-                                            playsInline
-                                            autoPlay
-                                            preload="metadata"
-                                            aria-hidden
-                                        />
+                                    <div className="relative bg-slate-200 overflow-hidden cursor-auto">
+                                        <div className="w-full pt-[75%] relative">
+                                            <video
+                                                className="absolute inset-0 w-full h-full object-cover"
+                                                src={ex.video}
+                                                muted
+                                                loop
+                                                playsInline
+                                                autoPlay
+                                                preload="metadata"
+                                                aria-hidden
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="px-3 py-2 text-xs text-muted-foreground border-t">—</div>
