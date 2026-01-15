@@ -36,15 +36,52 @@ export function FeaturesSection() {
     const el = headingRef.current;
     if (!el) return;
 
+    // Keep references to timer and scroll handler so we can clean them up
+    let timerId: ReturnType<typeof window.setTimeout> | undefined;
+
+    const onScroll = () => {
+      // If the heading is visible in the viewport and user scrolled, start immediately
+      const rect = headingRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const isVisible = rect.top >= 0 && rect.top < (window.innerHeight || document.documentElement.clientHeight);
+      if (isVisible && !triggeredRef.current) {
+        triggeredRef.current = true;
+        if (timerId) {
+          window.clearTimeout(timerId);
+          timerId = undefined;
+        }
+        setPlayAnimatedTitle(true);
+        window.removeEventListener('scroll', onScroll);
+      }
+    };
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        // Only trigger when element is intersecting and coming from below (user scrolled down)
+        // Trigger when element is intersecting and coming from below (user scrolled down)
         if (entry.isIntersecting && entry.boundingClientRect.top > 0 && !triggeredRef.current) {
+          // Mark as triggered immediately so we don't double-run
           triggeredRef.current = true;
-          // Use a fixed 2s delay to avoid overlapping the hero animation
-          const delay = 2000;
-          window.setTimeout(() => setPlayAnimatedTitle(true), delay);
+
+          // If element is visible on initial load (no scroll yet), wait 4s but abort early if the user scrolls
+          const initiallyVisible = entry.isIntersecting && window.scrollY === 0;
+          if (initiallyVisible) {
+            // schedule a 4s delay but listen for scrolls to start immediately
+            timerId = window.setTimeout(() => {
+              setPlayAnimatedTitle(true);
+              window.removeEventListener('scroll', onScroll);
+            }, 4000);
+            window.addEventListener('scroll', onScroll, { passive: true });
+          } else {
+            // user scrolled to it -> start immediately
+            setPlayAnimatedTitle(true);
+            window.removeEventListener('scroll', onScroll);
+            if (timerId) {
+              window.clearTimeout(timerId);
+              timerId = undefined;
+            }
+          }
+
           observer.disconnect();
         }
       },
@@ -52,7 +89,11 @@ export function FeaturesSection() {
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', onScroll);
+      if (timerId) window.clearTimeout(timerId);
+    };
   }, []);
 
   return (
