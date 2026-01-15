@@ -37,7 +37,8 @@ export function FeaturesSection() {
     if (!el) return;
 
     // Keep references to timer and scroll handler so we can clean them up
-    let timerId: ReturnType<typeof window.setTimeout> | undefined;
+    // Use `number` for timerId to avoid cross-`node` vs `dom` Timeout type conflicts
+    let timerId: number | undefined;
     let observer: IntersectionObserver | null = null;
 
     const onScroll = (ev?: Event) => {
@@ -72,7 +73,7 @@ export function FeaturesSection() {
         // Only schedule the initial delay if the element is visible from load (no scroll yet)
         if (entry.isIntersecting && window.scrollY === 0 && !triggeredRef.current) {
           triggeredRef.current = true;
-          // schedule a 4s delay but allow user scroll to start it immediately
+          // schedule a 5s delay but allow user scroll to start it immediately
           timerId = window.setTimeout(() => {
             setPlayAnimatedTitle(true);
             window.removeEventListener('scroll', onScroll);
@@ -80,7 +81,7 @@ export function FeaturesSection() {
               observer.disconnect();
               observer = null;
             }
-          }, 4000);
+          }, 5000);
         }
       },
       { threshold: 0.2 }
