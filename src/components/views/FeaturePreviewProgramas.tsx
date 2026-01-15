@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const exercisesA = [
     { name: 'Sentadilla búlgara', tags: ['Pesa', 'Tobillo'], video: `${import.meta.env.BASE_URL}landing/exercises/alante-rezo.mp4` },
@@ -118,9 +119,14 @@ export default function FeaturePreviewProgramas() {
                                 <CardHeader className="py-2 px-3 h-auto space-y-0.5">
                                     <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
                                     <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
-                                        {ex.tags.map((t, idx) => (
-                                            <span key={idx} className="bg-muted/10 rounded px-2 py-0.5">{t}</span>
-                                        ))}
+                                        {ex.tags.map((t, idx) => {
+                                            const bgClass = ['Pesa', 'Peso', 'Goma'].includes(t) ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-orange-100 text-orange-800 border-orange-200';
+                                            return (
+                                                <Badge key={idx} variant="secondary" className={`text-xs truncate ${bgClass} cursor-default`}>
+                                                    {t}
+                                                </Badge>
+                                            );
+                                        })}
                                     </div>
                                 </CardHeader>
 
@@ -165,9 +171,14 @@ export default function FeaturePreviewProgramas() {
                                     <CardHeader className="py-2 px-3 h-auto space-y-0.5">
                                         <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
                                         <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
-                                            {ex.tags.map((t, idx) => (
-                                                <span key={idx} className="bg-muted/10 rounded px-2 py-0.5">{t}</span>
-                                            ))}
+                                            {ex.tags.map((t, idx) => {
+                                                const bgClass = ['Pesa', 'Peso', 'Goma'].includes(t) ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-orange-100 text-orange-800 border-orange-200';
+                                                return (
+                                                    <Badge key={idx} variant="secondary" className={`text-xs truncate ${bgClass} cursor-default`}>
+                                                        {t}
+                                                    </Badge>
+                                                );
+                                            })}
                                         </div>
                                     </CardHeader>
 
