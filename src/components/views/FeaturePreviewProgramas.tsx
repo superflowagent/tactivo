@@ -97,14 +97,13 @@ export default function FeaturePreviewProgramas() {
 
             <div className="p-3 flex-1">
                 {/* Día A */}
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-2 px-1">
+        <div className="mb-4">
                         <div className="text-sm font-semibold">Día A</div>
                     </div>
 
                     <div
                         ref={dayAHandlers.ref as any}
-                        className="flex gap-4 pb-2 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
+                        className="flex gap-4 pb-1 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
                         style={{ touchAction: 'pan-x' }}
                         onPointerDown={dayAHandlers.onPointerDown}
                         onPointerMove={dayAHandlers.onPointerMove}
@@ -133,22 +132,17 @@ export default function FeaturePreviewProgramas() {
                                 </div>
                             </div>
                         ))}
-
-                        <div className="flex-none w-64 min-h-[12rem] flex items-center justify-center">
-                            <div className="w-[10rem] h-[10rem] rounded-md bg-slate-100 border flex items-center justify-center text-muted-foreground">+ Añadir</div>
-                        </div>
                     </div>
-                </div>
 
                 {/* Día B (under Día A) */}
-                <div className="mb-6">
+                <div className="mb-4">
                     <div className="flex items-center justify-between mb-2 px-1">
                         <div className="text-sm font-semibold">Día B</div>
                     </div>
 
                     <div
                         ref={dayBHandlers.ref as any}
-                        className="flex gap-4 pb-2 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
+                        className="flex gap-4 pb-1 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
                         style={{ touchAction: 'pan-x' }}
                         onPointerDown={dayBHandlers.onPointerDown}
                         onPointerMove={dayBHandlers.onPointerMove}
@@ -177,10 +171,6 @@ export default function FeaturePreviewProgramas() {
                                 </div>
                             </div>
                         ))}
-
-                        <div className="flex-none w-64 min-h-[12rem] flex items-center justify-center">
-                            <div className="w-[10rem] h-[10rem] rounded-md bg-slate-100 border flex items-center justify-center text-muted-foreground">+ Añadir</div>
-                        </div>
                     </div>
                 </div>
             </div>
