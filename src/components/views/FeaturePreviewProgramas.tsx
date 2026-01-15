@@ -14,6 +14,23 @@ const exercisesB = [
     { name: 'Fondos con peso', tags: ['Peso'], video: `${import.meta.env.BASE_URL}landing/exercises/vuelta-al-mundo.mp4` },
 ];
 
+// Helper: derive a user-friendly title from the video file path (e.g. "vuelta-al-mundo.mp4" -> "Vuelta Al Mundo")
+function titleFromVideo(video: string) {
+    try {
+        const parts = video.split('/');
+        const file = parts[parts.length - 1] || video;
+        const noExt = file.replace(/\.[^/.]+$/, '');
+        const decoded = decodeURIComponent(noExt);
+        const cleaned = decoded.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return cleaned
+            .split(' ')
+            .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+            .join(' ');
+    } catch {
+        return video;
+    }
+}
+
 export default function FeaturePreviewProgramas() {
     // Small reusable hook-like handlers for drag-to-scroll per scroller
     const makeDragHandlers = () => {
@@ -117,7 +134,7 @@ export default function FeaturePreviewProgramas() {
                         <div key={i} className="flex-none w-64 min-h-[12rem]">
                             <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
                                 <CardHeader className="py-2 px-3 h-auto space-y-0.5">
-                                    <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
+                                    <CardTitle className="text-sm font-semibold line-clamp-2">{titleFromVideo(ex.video)}</CardTitle>
                                     <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
                                         {ex.tags.map((t, idx) => {
                                             const bgClass = ['Pesa', 'Peso', 'Goma'].includes(t) ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-orange-100 text-orange-800 border-orange-200';
@@ -169,7 +186,7 @@ export default function FeaturePreviewProgramas() {
                             <div key={i} className="flex-none w-64 min-h-[12rem]">
                                 <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
                                     <CardHeader className="py-2 px-3 h-auto space-y-0.5">
-                                        <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
+                                        <CardTitle className="text-sm font-semibold line-clamp-2">{titleFromVideo(ex.video)}</CardTitle>
                                         <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
                                             {ex.tags.map((t, idx) => {
                                                 const bgClass = ['Pesa', 'Peso', 'Goma'].includes(t) ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-orange-100 text-orange-800 border-orange-200';
