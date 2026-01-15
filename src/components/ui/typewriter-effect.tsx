@@ -24,6 +24,10 @@ export function TypewriterEffectSmooth({
     if (!words || words.length === 0) return;
     let mounted = true;
 
+    // Calculate a fade duration that scales with the requested interval.
+    // Keep it bounded so it behaves well for both short and long intervals.
+    const fadeMs = Math.min(260, Math.max(20, Math.floor(interval * 0.35)));
+
     if (playOnce) {
       // Schedule a sequence of timeouts to show each word once with cross-fade.
       const timeouts: number[] = [];
@@ -38,7 +42,7 @@ export function TypewriterEffectSmooth({
           const hideT = window.setTimeout(() => {
             if (!mounted) return;
             setVisible(false);
-          }, Math.max(0, interval - 260));
+          }, Math.max(0, interval - fadeMs));
           timeouts.push(hideT);
 
           const nextT = window.setTimeout(() => {
@@ -71,7 +75,7 @@ export function TypewriterEffectSmooth({
         if (!mounted) return;
         setIndex((i) => (i + 1) % words.length);
         setVisible(true);
-      }, 260); // cross-fade timing
+      }, fadeMs); // cross-fade timing
     };
 
     const id = window.setInterval(tick, interval);
