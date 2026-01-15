@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import FeaturePreviewAgenda from './FeaturePreviewAgenda';
+import FeaturePreviewMultidispositivo from './FeaturePreviewMultidispositivo';
 
 export function FeaturesSection() {
   const features = [
@@ -50,7 +51,7 @@ export function FeaturesSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {features.map((f) => (
-            <Card key={f.title} className="w-full group cursor-pointer relative overflow-hidden">
+            <Card key={f.title} className="w-full group cursor-pointer relative overflow-hidden h-128">
               <span className="absolute inset-0 rounded-xl pointer-events-none bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0)_75%)] opacity-0 transition-opacity duration-300 group-hover:opacity-20" />
 
               <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-stretch w-full sm:min-h-[20rem]">
@@ -64,6 +65,8 @@ export function FeaturesSection() {
                 <div className="w-full sm:w-[66%] p-6 flex-none flex items-center">
                   {f.title === 'Agenda autónoma' ? (
                     <FeaturePreviewAgenda />
+                  ) : f.title === 'Multidispositivo' ? (
+                    <FeaturePreviewMultidispositivo />
                   ) : (
                     <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
                       <span className="text-muted-foreground">Preview (placeholder)</span>
