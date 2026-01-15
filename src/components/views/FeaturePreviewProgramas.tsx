@@ -17,6 +17,8 @@ export default function FeaturePreviewProgramas() {
   const isDown = React.useRef(false);
   const startX = React.useRef(0);
   const scrollLeft = React.useRef(0);
+  const rafRef = React.useRef<number | null>(null);
+  const latestDx = React.useRef(0);
 
   const onPointerDown = (e: React.PointerEvent) => {
     const el = scrollRef.current;
@@ -25,20 +27,38 @@ export default function FeaturePreviewProgramas() {
     el.setPointerCapture(e.pointerId);
     startX.current = e.clientX;
     scrollLeft.current = el.scrollLeft;
+    latestDx.current = 0;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const el = scrollRef.current;
     if (!el || !isDown.current) return;
     e.preventDefault();
-    const dx = e.clientX - startX.current;
-    el.scrollLeft = scrollLeft.current - dx;
+    latestDx.current = e.clientX - startX.current;
+    if (rafRef.current == null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const el2 = scrollRef.current;
+        if (!el2) return;
+        el2.scrollLeft = scrollLeft.current - latestDx.current;
+      });
+    }
   };
 
   const endDrag = (e?: React.PointerEvent) => {
     const el = scrollRef.current;
     if (!el) return;
     isDown.current = false;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    // Persist the last scrollLeft snapshot
+    scrollLeft.current = el.scrollLeft;
     if (e) {
       try {
         el.releasePointerCapture(e.pointerId);
