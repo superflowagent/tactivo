@@ -96,7 +96,7 @@ export default function FeaturePreviewProgramas() {
                 </div>
             </div>
 
-            <div className="p-3 flex-1">
+            <div className="p-3 pb-2 flex-1">
                 {/* Día A */}
         <div className="mb-2">
                         <div className="text-sm font-semibold">Día A</div>
@@ -137,7 +137,7 @@ export default function FeaturePreviewProgramas() {
                     </div>
 
                 {/* Día B (under Día A) */}
-                <div className="mt-4 mb-4">
+                <div className="mt-3 mb-3">
                     <div className="flex items-center justify-between mb-2 px-1">
                         <div className="text-sm font-semibold">Día B</div>
                     </div>
