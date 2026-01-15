@@ -42,8 +42,9 @@ export function FeaturesSection() {
         // Only trigger when element is intersecting and coming from below (user scrolled down)
         if (entry.isIntersecting && entry.boundingClientRect.top > 0 && !triggeredRef.current) {
           triggeredRef.current = true;
-          // small delay to avoid simultaneous start with hero highlight
-          const delay = 500;
+          // If element is visible from the initial load (no scroll yet), give a bit more delay
+          const isInitialVisible = entry.isIntersecting && window.scrollY === 0;
+          const delay = isInitialVisible ? 1000 : 500;
           window.setTimeout(() => setPlayAnimatedTitle(true), delay);
           observer.disconnect();
         }
