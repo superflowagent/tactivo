@@ -8,10 +8,14 @@ export function TypewriterEffectSmooth({
   words,
   className = '',
   interval = 1800,
+  playOnce = false,
+  onComplete,
 }: {
   words: WordItem[];
   className?: string;
   interval?: number;
+  playOnce?: boolean;
+  onComplete?: () => void;
 }) {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -19,6 +23,46 @@ export function TypewriterEffectSmooth({
   useEffect(() => {
     if (!words || words.length === 0) return;
     let mounted = true;
+
+    if (playOnce) {
+      // Schedule a sequence of timeouts to show each word once with cross-fade.
+      const timeouts: number[] = [];
+
+      const schedule = (i: number) => {
+        if (!mounted) return;
+        setIndex(i);
+        setVisible(true);
+
+        // Hide shortly before the next word (if any)
+        if (i < words.length - 1) {
+          const hideT = window.setTimeout(() => {
+            if (!mounted) return;
+            setVisible(false);
+          }, Math.max(0, interval - 260));
+          timeouts.push(hideT);
+
+          const nextT = window.setTimeout(() => {
+            if (!mounted) return;
+            schedule(i + 1);
+          }, interval);
+          timeouts.push(nextT);
+        } else {
+          // Last word: call onComplete after it has been visible for 'interval' ms
+          const finishT = window.setTimeout(() => {
+            if (!mounted) return;
+            if (onComplete) onComplete();
+          }, interval);
+          timeouts.push(finishT);
+        }
+      };
+
+      schedule(0);
+
+      return () => {
+        mounted = false;
+        timeouts.forEach((t) => window.clearTimeout(t));
+      };
+    }
 
     const tick = () => {
       if (!mounted) return;
@@ -35,7 +79,7 @@ export function TypewriterEffectSmooth({
       mounted = false;
       window.clearInterval(id);
     };
-  }, [words, interval]);
+  }, [words, interval, playOnce, onComplete]);
 
   if (!words || words.length === 0) return null;
 
