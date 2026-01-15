@@ -14,38 +14,39 @@ const slots = [
         time: 'Jueves 15 ene 2026, 8:00',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
+
 
     {
         time: 'Jueves 15 ene 2026, 9:45',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
         time: 'Jueves 15 ene 2026, 16:00',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
         time: 'Jueves 15 ene 2026, 10:15',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
     {
         time: 'Viernes 16 ene 2026, 10:15',
         duration: 'Duración: 60 min',
         name: 'Jorge Polo',
-        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
         time: 'Viernes 16 ene 2026, 10:30',
         duration: 'Duración: 60 min',
         name: 'Víctor Romero',
-        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg`,
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
 ];
 
@@ -85,7 +86,7 @@ export default function FeaturePreviewAgenda() {
     }, [selected]);
 
     return (
-        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03] overflow-hidden relative">
+        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
             <Confetti ref={confettiRef} className="absolute inset-0 z-10 pointer-events-none" />
             <div className="p-2 border-b">
                 <div className="flex items-center justify-between gap-2">

@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import FeaturePreviewAgenda from './FeaturePreviewAgenda';
 import FeaturePreviewMultidispositivo from './FeaturePreviewMultidispositivo';
+import FeaturePreviewClases from './FeaturePreviewClases';
 
 export function FeaturesSection() {
   const features = [
@@ -67,6 +68,8 @@ export function FeaturesSection() {
                     <FeaturePreviewAgenda />
                   ) : f.title === 'Multidispositivo' ? (
                     <FeaturePreviewMultidispositivo />
+                  ) : f.title === 'Clases' ? (
+                    <FeaturePreviewClases />
                   ) : (
                     <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
                       <span className="text-muted-foreground">Preview (placeholder)</span>
