@@ -28,11 +28,42 @@ export function FeaturesSection() {
     },
   ];
 
+  const headingRef = React.useRef<HTMLHeadingElement | null>(null);
+  const [playAnimatedTitle, setPlayAnimatedTitle] = React.useState(false);
+  const triggeredRef = React.useRef(false);
+
+  React.useEffect(() => {
+    const el = headingRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        // Only trigger when element is intersecting and coming from below (user scrolled down)
+        if (entry.isIntersecting && entry.boundingClientRect.top > 0 && !triggeredRef.current) {
+          triggeredRef.current = true;
+          // small delay to avoid simultaneous start with hero highlight
+          const delay = 500;
+          window.setTimeout(() => setPlayAnimatedTitle(true), delay);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <section aria-labelledby="funcionalidades" className="w-full py-16">
       <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-        <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6 text-center">
-          <Typewriter phrases={["Funcionalidades"]} loop={false} typingSpeed={60} className="inline-block" />
+        <h2 id="funcionalidades" ref={headingRef} className="text-3xl font-extrabold mb-6 text-center">
+          {playAnimatedTitle ? (
+            <Typewriter phrases={["Funcionalidades"]} loop={false} typingSpeed={60} className="inline-block" />
+          ) : (
+            <span className="inline-block">Funcionalidades</span>
+          )}
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
