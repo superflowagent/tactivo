@@ -1,10 +1,10 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import Typewriter from '@/components/ui/typewriter';
 import FeaturePreviewAgenda from './FeaturePreviewAgenda';
 import FeaturePreviewMultidispositivo from './FeaturePreviewMultidispositivo';
 import FeaturePreviewClases from './FeaturePreviewClases';
 import FeaturePreviewProgramas from './FeaturePreviewProgramas';
-import TypewriterEffectSmooth from '@/components/ui/typewriter-effect';
 
 export function FeaturesSection() {
   const features = [
@@ -28,23 +28,12 @@ export function FeaturesSection() {
     },
   ];
 
-  // Helpers
-  const makeTypingWords = (s: string) =>
-    s.split('').map((_, i) => ({ text: s.slice(0, i + 1) }));
-
   return (
     <section aria-labelledby="funcionalidades" className="w-full py-16">
       <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
         <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6 text-center">
-          <TypewriterEffectSmooth
-            words={makeTypingWords('Funcionalidades')}
-            interval={80}
-            className="inline-block"
-            playOnce
-          />
+          <Typewriter phrases={["Funcionalidades"]} loop={false} typingSpeed={60} className="inline-block" />
         </h2>
-
-
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {features.map((f) => (
