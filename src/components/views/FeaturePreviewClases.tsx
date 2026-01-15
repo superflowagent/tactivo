@@ -91,10 +91,11 @@ export default function FeaturePreviewClases() {
         const dx = e.clientX - startX.current;
         el.scrollLeft = scrollLeft.current - dx;
 
-        // velocity calculation
+        // velocity calculation (smoothed, px per ms)
         const now = performance.now();
         const dt = now - lastTime.current || 16;
-        velocity.current = (e.clientX - lastX.current) / dt;
+        const instV = (e.clientX - lastX.current) / dt;
+        velocity.current = velocity.current * 0.5 + instV * 0.5;
         lastX.current = e.clientX;
         lastTime.current = now;
     };
@@ -102,15 +103,38 @@ export default function FeaturePreviewClases() {
     const startMomentum = () => {
         const el = scrollRef.current;
         if (!el) return;
-        let v = velocity.current * 16 * 2; // scale for feel
+        // velocity.current is px per ms from onPointerMove. Scale slightly for feel.
+        let v = velocity.current * 1.6; // px per ms
+        // clamp to avoid huge jumps
+        const maxV = 3; // px/ms
+        v = Math.max(Math.min(v, maxV), -maxV);
+
+        let last = performance.now();
+        const decayPerMs = 0.9985; // closer to 1 for smoother longer glide
 
         const step = () => {
-            v *= 0.95; // decay
-            if (Math.abs(v) < 0.1) {
+            const now = performance.now();
+            const dt = now - last;
+            last = now;
+
+            // apply decay over dt
+            v *= Math.pow(decayPerMs, dt);
+
+            // stop if very small velocity
+            if (Math.abs(v) < 0.02) {
                 rafRef.current = null;
                 return;
             }
-            el.scrollLeft -= v;
+
+            // move by v * dt (px/ms * ms = px)
+            el.scrollLeft -= v * dt;
+
+            // stop if reached bounds and velocity would push further
+            if ((el.scrollLeft <= 0 && v > 0) || (el.scrollLeft >= el.scrollWidth - el.clientWidth && v < 0)) {
+                rafRef.current = null;
+                return;
+            }
+
             rafRef.current = requestAnimationFrame(step);
         };
 
@@ -169,19 +193,19 @@ export default function FeaturePreviewClases() {
                         {WEEKDAYS.map((d, i) => {
                             const slots = makeSlotsForDay(i);
                             return (
-                                <div key={d.value} className="flex-none w-36 min-h-[12rem] bg-muted/5 border rounded-md p-1 flex flex-col">
+                                <div key={d.value} className="flex-none w-36 min-h-[12rem] bg-muted/5 border rounded-md px-1 py-0.5 flex flex-col">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="text-sm font-semibold">{d.name}</div>
                                     </div>
 
-                                    <div className="space-y-2 mt-1">
+                                    <div className="space-y-3 mt-1">
                                         {slots.length === 0 ? (
-                                            <div className="text-sm text-muted-foreground text-center py-4">Sin clases</div>
+                                            <div className="text-sm text-muted-foreground text-center py-2">Sin clases</div>
                                         ) : (
                                             slots.map((s, idx) => (
-                                                <div key={idx} className="bg-background rounded-md border shadow-sm p-1 text-sm cursor-default">
+                                                <div key={idx} className="bg-background rounded-md border shadow-sm p-2 text-sm cursor-default">
                                                     <div className="font-semibold">{s.time}</div>
-                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                    <div className="text-sm text-muted-foreground mt-1">
                                                         <div className="flex items-center gap-2">
                                                             <Avatar name={s.professional} src={s.photo} />
                                                             <span className="truncate">{s.professional}</span>

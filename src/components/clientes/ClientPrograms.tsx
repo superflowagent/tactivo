@@ -1044,8 +1044,7 @@ export default function ClientPrograms({ api }: Props) {
                   </Button>
                 </div>
 
-                <Card className="p-0 space-y-4 h-full">
-                  <div>
+                <div className="p-0 space-y-4 h-full">
                     <div className="flex flex-col gap-4 px-4 pt-4 w-full overflow-hidden min-w-0">
                       {(() => {
                         // Defensive: ensure `days` is a proper array of strings; fall back to extracting days from programExercises or ['A']
@@ -1591,8 +1590,7 @@ export default function ClientPrograms({ api }: Props) {
                         ) : null;
                       })()}
                     </div>
-                  </div>
-                </Card>
+                </div>
               </div>
             );
           })()

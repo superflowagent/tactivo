@@ -303,7 +303,7 @@ export function ClasesView() {
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, day.value)}
                   >
-                    <CardHeader className="pb-3">
+                    <CardHeader className="px-4 pb-2">
                       <CardTitle className="text-base font-semibold flex items-center justify-between">
                         {day.name}
                         <ActionButton
@@ -314,15 +314,15 @@ export function ClasesView() {
                         </ActionButton>
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="px-4 pt-0 space-y-3">
                       {daySlots.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">Sin clases</p>
+                        <p className="text-sm text-muted-foreground text-center py-2">Sin clases</p>
                       ) : (
                         daySlots.map((slot) => (
                           <Card
                             key={slot.id}
                             data-slot-id={slot.id}
-                            className="p-3 hover:bg-muted/50 transition-colors cursor-pointer"
+                            className="p-4 hover:bg-muted/50 transition-colors cursor-pointer"
                             draggable
                             onDragStart={(e) => handleDragStart(e, slot)}
                           >
@@ -357,7 +357,7 @@ export function ClasesView() {
                                   </ActionButton>
                                 </div>
                               </div>
-                              <div className="text-xs text-muted-foreground space-y-1">
+                              <div className="text-sm text-muted-foreground space-y-1">
                                 <p>👤 {getProfessionalNames(slot)}</p>
                                 <p>⏱️ {slot.duration} min</p>
                                 <p>👥 {getClientCount(slot)} clientes</p>
