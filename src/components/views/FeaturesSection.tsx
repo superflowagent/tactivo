@@ -39,7 +39,10 @@ export function FeaturesSection() {
     // Keep references to timer and scroll handler so we can clean them up
     let timerId: ReturnType<typeof window.setTimeout> | undefined;
 
-    const onScroll = () => {
+    const onScroll = (ev?: Event) => {
+      // Ignore non-user-initiated scrolls (programmatic) by checking isTrusted
+      if (ev && (ev as Event).isTrusted === false) return;
+
       // If the heading is visible in the viewport and user scrolled, start immediately
       const rect = headingRef.current?.getBoundingClientRect();
       if (!rect) return;
