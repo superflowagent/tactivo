@@ -54,7 +54,7 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
     const firstName = String(name).split(' ')[0] || name;
 
     if (src) {
-        return <img src={src} alt={firstName} className="w-8 h-8 rounded-md object-cover" loading="lazy" />;
+        return <img src={src} alt={firstName} loading="eager" decoding="async" width={32} height={32} className="w-8 h-8 rounded-md object-cover" />;
     }
 
     const initials = firstName
@@ -141,10 +141,9 @@ export default function FeaturePreviewAgenda() {
                                         variant="outline"
                                         size="sm"
                                         onClick={(e) => {
-                                            const btn = e.currentTarget as HTMLElement;
-                                            const r = btn.getBoundingClientRect();
-                                            const cx = r.left + r.width / 2;
-                                            const cy = r.top + r.height / 2;
+                                            const nativeEvent = e as React.MouseEvent;
+                                            const cx = nativeEvent.clientX;
+                                            const cy = nativeEvent.clientY;
                                             confettiRef.current?.fire({ clientX: cx, clientY: cy, count: 12 });
                                         }}
                                     >

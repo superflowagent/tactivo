@@ -21,7 +21,7 @@ export function FeaturesSection() {
     },
     {
       title: 'Multidispositivo',
-      description: 'Consulta tu agenda desde cualquier lugar.',
+      description: 'Gestiona tu centro desde cualquier lugar.',
     },
     {
       title: 'Librería de ejercicios',
@@ -52,9 +52,7 @@ export function FeaturesSection() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {features.map((f) => (
-            <Card key={f.title} className="w-full group cursor-pointer relative overflow-hidden h-128">
-              <span className="absolute inset-0 rounded-xl pointer-events-none bg-[image:radial-gradient(75%_100%_at_50%_0%,rgba(255,255,255,0.95)_0%,rgba(255,255,255,0)_75%)] opacity-0 transition-opacity duration-300 group-hover:opacity-20" />
-
+            <Card key={f.title} tabIndex={0} className="w-full group cursor-default relative overflow-hidden h-128 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out hover:scale-[1.01] hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
               <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-stretch w-full sm:min-h-[20rem]">
                 <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">
                   <CardHeader className="p-0">
