@@ -38,9 +38,10 @@ export function FeaturesSection() {
 
     // Keep references to timer and scroll handler so we can clean them up
     let timerId: ReturnType<typeof window.setTimeout> | undefined;
+    let observer: IntersectionObserver | null = null;
 
     const onScroll = (ev?: Event) => {
-      // Ignore non-user-initiated scrolls (programmatic) by checking isTrusted
+      // Only react to user-initiated scrolls
       if (ev && (ev as Event).isTrusted === false) return;
 
       // If the heading is visible in the viewport and user scrolled, start immediately
@@ -55,37 +56,31 @@ export function FeaturesSection() {
         }
         setPlayAnimatedTitle(true);
         window.removeEventListener('scroll', onScroll);
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
       }
     };
 
-    const observer = new IntersectionObserver(
+    // Listen for scrolls (user-initiated) from the start so we can react if user scrolls to the heading
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        // Trigger when element is intersecting and coming from below (user scrolled down)
-        if (entry.isIntersecting && entry.boundingClientRect.top > 0 && !triggeredRef.current) {
-          // Mark as triggered immediately so we don't double-run
+        // Only schedule the initial delay if the element is visible from load (no scroll yet)
+        if (entry.isIntersecting && window.scrollY === 0 && !triggeredRef.current) {
           triggeredRef.current = true;
-
-          // If element is visible on initial load (no scroll yet), wait 4s but abort early if the user scrolls
-          const initiallyVisible = entry.isIntersecting && window.scrollY === 0;
-          if (initiallyVisible) {
-            // schedule a 4s delay but listen for scrolls to start immediately
-            timerId = window.setTimeout(() => {
-              setPlayAnimatedTitle(true);
-              window.removeEventListener('scroll', onScroll);
-            }, 4000);
-            window.addEventListener('scroll', onScroll, { passive: true });
-          } else {
-            // user scrolled to it -> start immediately
+          // schedule a 4s delay but allow user scroll to start it immediately
+          timerId = window.setTimeout(() => {
             setPlayAnimatedTitle(true);
             window.removeEventListener('scroll', onScroll);
-            if (timerId) {
-              window.clearTimeout(timerId);
-              timerId = undefined;
+            if (observer) {
+              observer.disconnect();
+              observer = null;
             }
-          }
-
-          observer.disconnect();
+          }, 4000);
         }
       },
       { threshold: 0.2 }
@@ -93,7 +88,7 @@ export function FeaturesSection() {
 
     observer.observe(el);
     return () => {
-      observer.disconnect();
+      if (observer) observer.disconnect();
       window.removeEventListener('scroll', onScroll);
       if (timerId) window.clearTimeout(timerId);
     };
