@@ -3,6 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import FeaturePreviewAgenda from './FeaturePreviewAgenda';
 import FeaturePreviewMultidispositivo from './FeaturePreviewMultidispositivo';
 import FeaturePreviewClases from './FeaturePreviewClases';
+import FeaturePreviewProgramas from './FeaturePreviewProgramas';
 
 export function FeaturesSection() {
   const features = [
@@ -68,6 +69,8 @@ export function FeaturesSection() {
                     <FeaturePreviewMultidispositivo />
                   ) : f.title === 'Clases' ? (
                     <FeaturePreviewClases />
+                  ) : f.title === 'Programas de ejercicios' ? (
+                    <FeaturePreviewProgramas />
                   ) : (
                     <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
                       <span className="text-muted-foreground">Preview (placeholder)</span>
