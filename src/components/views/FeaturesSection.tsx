@@ -14,8 +14,8 @@ export function FeaturesSection() {
         'Deja que tus pacientes reserven sus citas bajo tus condiciones para ahorrarte tiempo en buscar huecos.',
     },
     {
-      title: 'Multidispositivo',
-      description: 'Gestiona tu centro desde cualquier lugar.',
+      title: 'Clases',
+      description: 'Organiza clases y entrenamientos grupales sin esfuerzo.',
     },
     {
       title: 'Programas de ejercicios',
@@ -23,8 +23,8 @@ export function FeaturesSection() {
         'Crea de forma sencilla programas de ejercicios para tus pacientes usando tu librería de ejercicios.',
     },
     {
-      title: 'Clases',
-      description: 'Organiza clases y entrenamientos grupales sin esfuerzo.',
+      title: 'Multidispositivo',
+      description: 'Gestiona tu centro desde cualquier lugar.',
     },
   ];
 
@@ -107,34 +107,37 @@ export function FeaturesSection() {
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          {features.map((f) => (
-            <Card key={f.title} tabIndex={0} className="w-full group cursor-default relative overflow-hidden h-128 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out hover:scale-[1.01] hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
-              <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-stretch w-full sm:min-h-[20rem]">
-                <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">
-                  <CardHeader className="p-0">
-                    <CardTitle className="text-lg">{f.title}</CardTitle>
-                    <CardDescription>{f.description}</CardDescription>
-                  </CardHeader>
-                </div>
+          {features.map((f) => {
+            const cardHeightClass = 'min-h-[28rem]';
+            return (
+              <Card key={f.title} tabIndex={0} className={`w-full group cursor-default relative overflow-hidden ${cardHeightClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out hover:scale-[1.01] hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none`}>
+                <div className="relative z-10 flex flex-col sm:flex-row items-center w-full h-full">
+                  <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">
+                    <CardHeader className="p-0">
+                      <CardTitle className="text-lg">{f.title}</CardTitle>
+                      <CardDescription>{f.description}</CardDescription>
+                    </CardHeader>
+                  </div>
 
-                <div className="w-full sm:w-[66%] p-6 flex-none flex items-center">
-                  {f.title === 'Agenda autónoma' ? (
-                    <FeaturePreviewAgenda />
-                  ) : f.title === 'Multidispositivo' ? (
-                    <FeaturePreviewMultidispositivo />
-                  ) : f.title === 'Clases' ? (
-                    <FeaturePreviewClases />
-                  ) : f.title === 'Programas de ejercicios' ? (
-                    <FeaturePreviewProgramas />
-                  ) : (
-                    <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
-                      <span className="text-muted-foreground">Preview (placeholder)</span>
-                    </div>
-                  )}
+                  <div className="w-full sm:w-[66%] p-6 flex-1 flex items-center justify-center">
+                    {f.title === 'Agenda autónoma' ? (
+                      <FeaturePreviewAgenda />
+                    ) : f.title === 'Multidispositivo' ? (
+                      <FeaturePreviewMultidispositivo />
+                    ) : f.title === 'Clases' ? (
+                      <FeaturePreviewClases />
+                    ) : f.title === 'Programas de ejercicios' ? (
+                      <FeaturePreviewProgramas />
+                    ) : (
+                      <div className="rounded-md border border-dashed border-muted p-4 h-64 sm:h-full flex items-center justify-center bg-muted/10 w-full">
+                        <span className="text-muted-foreground">Preview (placeholder)</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       </div>
     </section>

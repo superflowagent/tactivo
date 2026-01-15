@@ -4,6 +4,7 @@ import { LandingNavbar } from '@/components/LandingNavbar';
 import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
 import CalendarPreview from '@/components/ui/CalendarPreview';
 import FeaturesSection from '@/components/views/FeaturesSection';
+import TestimoniosSection from '@/components/views/TestimoniosSection';
 
 export function LandingView() {
   return (
@@ -72,6 +73,9 @@ export function LandingView() {
 
       {/* Funcionalidades */}
       <FeaturesSection />
+
+      {/* Testimonios (placeholder) */}
+      <TestimoniosSection />
     </div>
   );
 }
