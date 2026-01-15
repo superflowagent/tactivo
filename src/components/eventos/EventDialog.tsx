@@ -1225,7 +1225,10 @@ export function EventDialog({
                                   .toLowerCase();
                                 return normalizedClientName.includes(normalizedSearch);
                               })
-                              .filter((cliente) => !selectedClients.includes(cliente.user));
+                              // Avoid showing clients that are already selected. Be defensive and
+                              // check both `cliente.user` and `cliente.id` since stored selected
+                              // ids may be either user ids or profile ids depending on context.
+                              .filter((cliente) => !selectedClients.includes(cliente.user) && !selectedClients.includes(cliente.id));
 
                             if (filtered.length === 0) {
                               return (
@@ -1258,7 +1261,16 @@ export function EventDialog({
                                       setShowMaxAssistantsDialog(true);
                                       return;
                                     }
-                                    setSelectedClients((prev) => [...prev, cliente.user]);
+
+                                    // Avoid adding duplicates: check both user and profile ids (cliente.user / cliente.id)
+                                    setSelectedClients((prev) => {
+                                      const idToAdd = cliente.user || cliente.id;
+                                      if (!idToAdd) return prev;
+                                      if (prev.includes(idToAdd) || prev.includes(cliente.user) || prev.includes(cliente.id)) {
+                                        return prev; // already selected
+                                      }
+                                      return [...prev, idToAdd];
+                                    });
                                     setClientSearch('');
                                   }}
                                   className={
