@@ -13,21 +13,8 @@ export function FeaturesSection() {
         'Deja que tus pacientes reserven sus citas bajo tus condiciones para ahorrarte tiempo en buscar huecos.',
     },
     {
-      title: 'Historias clínicas',
-      description: 'Toda la información de tu paciente al alcance de un click.',
-    },
-    {
-      title: 'Dashboard',
-      description: 'Reportes automáticos del progreso e ingresos de tu centro.',
-    },
-    {
       title: 'Multidispositivo',
       description: 'Gestiona tu centro desde cualquier lugar.',
-    },
-    {
-      title: 'Librería de ejercicios',
-      description:
-        'Archiva de forma eficiente video-ejercicios, clasificándolos por area y equipamiento.',
     },
     {
       title: 'Programas de ejercicios',
@@ -37,10 +24,6 @@ export function FeaturesSection() {
     {
       title: 'Clases',
       description: 'Organiza clases y entrenamientos grupales sin esfuerzo.',
-    },
-    {
-      title: 'Bonos',
-      description: 'Autogestión de bonos de clases y citas.',
     },
   ];
 
