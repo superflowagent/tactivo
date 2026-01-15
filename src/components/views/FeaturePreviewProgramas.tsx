@@ -1,4 +1,5 @@
 import React from 'react';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 
 const exercisesA = [
     { name: 'Sentadilla búlgara', tags: ['Pesa', 'Tobillo'], img: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2` },
@@ -112,24 +113,25 @@ export default function FeaturePreviewProgramas() {
                         onPointerLeave={dayAHandlers.onPointerLeave}
                     >
                         {exercisesA.map((ex, i) => (
-                            <div key={i} className="flex-none w-64 min-h-[12rem] bg-muted/5 border rounded-md px-3 py-2 flex flex-col">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="text-sm font-semibold line-clamp-2">{ex.name}</div>
-                                </div>
-
-                                <div className="flex-1 flex gap-3">
-                                    <div className="w-28 h-20 rounded-md overflow-hidden bg-slate-100 flex-none flex items-center justify-center text-muted-foreground">
-                                        <span className="text-xs">Placeholder</span>
-                                    </div>
-                                    <div className="flex-1">
+                            <div key={i} className="flex-none w-64 min-h-[12rem]">
+                                <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
+                                    <CardHeader className="py-2 px-3 h-auto space-y-0.5">
+                                        <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
                                         <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
                                             {ex.tags.map((t, idx) => (
                                                 <span key={idx} className="bg-muted/10 rounded px-2 py-0.5">{t}</span>
                                             ))}
                                         </div>
-                                        <div className="mt-2 text-sm text-muted-foreground">—</div>
+                                    </CardHeader>
+
+                                    <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
+                                        <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                                            <span className="text-xs text-muted-foreground">Placeholder</span>
+                                        </div>
                                     </div>
-                                </div>
+
+                                    <div className="px-3 py-2 text-xs text-muted-foreground border-t">—</div>
+                                </Card>
                             </div>
                         ))}
                     </div>
@@ -151,24 +153,25 @@ export default function FeaturePreviewProgramas() {
                         onPointerLeave={dayBHandlers.onPointerLeave}
                     >
                         {exercisesB.map((ex, i) => (
-                            <div key={i} className="flex-none w-64 min-h-[12rem] bg-muted/5 border rounded-md px-3 py-2 flex flex-col">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="text-sm font-semibold line-clamp-2">{ex.name}</div>
-                                </div>
-
-                                <div className="flex-1 flex gap-3">
-                                    <div className="w-28 h-20 rounded-md overflow-hidden bg-slate-100 flex-none flex items-center justify-center text-muted-foreground">
-                                        <span className="text-xs">Placeholder</span>
-                                    </div>
-                                    <div className="flex-1">
+                            <div key={i} className="flex-none w-64 min-h-[12rem]">
+                                <Card className="overflow-hidden hover:shadow-lg transition-shadow h-[200px] w-64 flex flex-col bg-white rounded-lg border">
+                                    <CardHeader className="py-2 px-3 h-auto space-y-0.5">
+                                        <CardTitle className="text-sm font-semibold line-clamp-2">{ex.name}</CardTitle>
                                         <div className="text-xs text-muted-foreground mt-1 flex gap-1 flex-wrap">
                                             {ex.tags.map((t, idx) => (
                                                 <span key={idx} className="bg-muted/10 rounded px-2 py-0.5">{t}</span>
                                             ))}
                                         </div>
-                                        <div className="mt-2 text-sm text-muted-foreground">—</div>
+                                    </CardHeader>
+
+                                    <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
+                                        <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                                            <span className="text-xs text-muted-foreground">Placeholder</span>
+                                        </div>
                                     </div>
-                                </div>
+
+                                    <div className="px-3 py-2 text-xs text-muted-foreground border-t">—</div>
+                                </Card>
                             </div>
                         ))}
                     </div>
