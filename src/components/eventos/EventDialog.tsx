@@ -1242,10 +1242,10 @@ export function EventDialog({
                                 cliente.photo ||
                                 (cliente.photo_path
                                   ? getFilePublicUrl(
-                                      'profile_photos',
-                                      cliente.id,
-                                      cliente.photo_path
-                                    )
+                                    'profile_photos',
+                                    cliente.id,
+                                    cliente.photo_path
+                                  )
                                   : null);
                               return (
                                 <button

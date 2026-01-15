@@ -40,7 +40,7 @@ if (process.env.NODE_ENV !== 'production') {
     let count = 0;
     let sampleStack: string | null = null;
 
-    Element.prototype.getBoundingClientRect = function (...args: any[]) {
+    Element.prototype.getBoundingClientRect = function () {
       count++;
       if (!sampleStack && Error && (Error as any).captureStackTrace) {
         try {
@@ -50,7 +50,7 @@ if (process.env.NODE_ENV !== 'production') {
           sampleStack = null;
         }
       }
-      return original.apply(this, args);
+      return original.apply(this);
     };
 
     const raf = () => {

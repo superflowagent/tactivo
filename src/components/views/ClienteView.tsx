@@ -602,7 +602,7 @@ export default function ClienteView() {
             if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
               throw new Error(
                 'failed_to_set_photo_path: ' +
-                  (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
+                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
               );
             }
             const api2 = await import('@/lib/supabase');
@@ -612,8 +612,8 @@ export default function ClienteView() {
 
             setPhotoPreview(
               getFilePublicUrl('profile_photos', null, filename) ||
-                getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                null
+              getFilePublicUrl('profile_photos', savedUserId, filename) ||
+              null
             );
           } catch (e) {
             logError('Error subiendo foto de cliente:', e);
@@ -665,13 +665,13 @@ export default function ClienteView() {
             if (!patchPhotoRes.ok || !patchPhotoJson || !patchPhotoJson.ok) {
               throw new Error(
                 'failed_to_set_photo_path: ' +
-                  (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
+                (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
               );
             }
             setPhotoPreview(
               getFilePublicUrl('profile_photos', null, filename) ||
-                getFilePublicUrl('profile_photos', savedUserId, filename) ||
-                null
+              getFilePublicUrl('profile_photos', savedUserId, filename) ||
+              null
             );
           } catch (e) {
             logError('Error subiendo foto de cliente:', e);
@@ -773,12 +773,12 @@ export default function ClienteView() {
                     'tactivo.inviteToast',
                     JSON.stringify({ title, durationMs: 2500 })
                   );
-                } catch {}
+                } catch { }
                 try {
                   window.dispatchEvent(
                     new CustomEvent('tactivo.invite', { detail: { title, durationMs: 2500 } })
                   );
-                } catch {}
+                } catch { }
               }
             } else {
               const hint =
@@ -793,8 +793,8 @@ export default function ClienteView() {
                 : '';
               alert(
                 'La invitación fue creada pero no se pudo ejecutar la función de envío: ' +
-                  hint +
-                  debug
+                hint +
+                debug
               );
             }
           } else {
@@ -1039,26 +1039,26 @@ export default function ClienteView() {
                                 {(photoPreview ||
                                   photoFile ||
                                   (formData.photo && !removePhoto)) && (
-                                  <ActionButton
-                                    tooltip="Eliminar foto"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      setPhotoFile(null);
-                                      setPhotoPreview(null);
-                                      setRemovePhoto(true);
-                                      setFormData((prev) => ({ ...prev, photo: '' }));
-                                      const input = document.getElementById(
-                                        'photo'
-                                      ) as HTMLInputElement;
-                                      if (input) input.value = '';
-                                    }}
-                                    className="absolute top-1 right-1 inline-flex items-center justify-center h-6 w-6 rounded-md bg-white shadow border border-border text-red-600 no-hover-color"
-                                    aria-label="Eliminar foto"
-                                  >
-                                    <Trash className="h-3 w-3" />
-                                  </ActionButton>
-                                )}
+                                    <ActionButton
+                                      tooltip="Eliminar foto"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setPhotoFile(null);
+                                        setPhotoPreview(null);
+                                        setRemovePhoto(true);
+                                        setFormData((prev) => ({ ...prev, photo: '' }));
+                                        const input = document.getElementById(
+                                          'photo'
+                                        ) as HTMLInputElement;
+                                        if (input) input.value = '';
+                                      }}
+                                      className="absolute top-1 right-1 inline-flex items-center justify-center h-6 w-6 rounded-md bg-white shadow border border-border text-red-600 no-hover-color"
+                                      aria-label="Eliminar foto"
+                                    >
+                                      <Trash className="h-3 w-3" />
+                                    </ActionButton>
+                                  )}
                               </div>
                             </div>
                           </div>
@@ -1271,7 +1271,8 @@ export default function ClienteView() {
             </TabsContent>
 
             <TabsContent value="programas" className="flex-1 min-h-0">
-              <div className="mt-2 overflow-hidden pr-1">
+              <div className="mt-2 overflow-hidden pr-1 pb-20">
+                {/* Reserve space for fixed footer (pb-20 matches footer height) */}
                 <div className="h-full overflow-y-auto overflow-x-hidden rounded-lg border bg-card p-2 shadow-sm min-w-0">
                   <ClientPrograms api={clientProgramsApi} />
                 </div>
@@ -1295,8 +1296,8 @@ export default function ClienteView() {
                         const fecha = evento.datetime ? new Date(evento.datetime) : null;
                         const profesionalNames = Array.isArray(evento.expand?.professional)
                           ? evento.expand.professional
-                              .map((p: any) => `${p.name} ${p.last_name}`)
-                              .join(', ')
+                            .map((p: any) => `${p.name} ${p.last_name}`)
+                            .join(', ')
                           : evento.expand?.professional
                             ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
                             : 'Sin asignar';
@@ -1455,7 +1456,7 @@ export default function ClienteView() {
                   } else if (nav?.type === 'view') {
                     try {
                       localStorage.setItem('tactivo.currentView', nav.view!);
-                    } catch {}
+                    } catch { }
                     setCurrentView(nav.view!);
                     navigate(`/${companyName}/panel`);
                   }

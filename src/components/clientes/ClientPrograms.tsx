@@ -263,7 +263,7 @@ export default function ClientPrograms({ api }: Props) {
       // Refresh exercises list if modal is open
       if (e?.detail?.success && showAddExercisesDialog) {
         // refresh the list
-        openAddExercises(currentProgramForPicker ?? activeProgramId).catch(() => {});
+        openAddExercises(currentProgramForPicker ?? activeProgramId).catch(() => { });
       }
     };
 
@@ -791,7 +791,7 @@ export default function ClientPrograms({ api }: Props) {
       // Some browsers require setting data to enable drop
       try {
         e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'day', day, programId }));
-      } catch {}
+      } catch { }
       // Update ref synchronously so immediate dragover events see the current dragged column
       draggedDayColumnRef.current = { day, programId };
       setDraggedDayColumn({ day, programId });
@@ -1021,15 +1021,15 @@ export default function ClientPrograms({ api }: Props) {
                           value={p.description || ''}
                           onChange={
                             isClient
-                              ? () => {}
+                              ? () => { }
                               : (val) =>
-                                  setPrograms((prev) =>
-                                    prev.map((x) =>
-                                      x.id === p.id || x.tempId === p.tempId
-                                        ? { ...x, description: val }
-                                        : x
-                                    )
+                                setPrograms((prev) =>
+                                  prev.map((x) =>
+                                    x.id === p.id || x.tempId === p.tempId
+                                      ? { ...x, description: val }
+                                      : x
                                   )
+                                )
                           }
                           placeholder="Descripción del programa"
                           className="min-h-[120px]"
@@ -1045,551 +1045,551 @@ export default function ClientPrograms({ api }: Props) {
                 </div>
 
                 <div className="p-0 space-y-4 h-full">
-                    <div className="flex flex-col gap-4 px-4 pt-4 w-full overflow-hidden min-w-0">
-                      {(() => {
-                        // Defensive: ensure `days` is a proper array of strings; fall back to extracting days from programExercises or ['A']
-                        let daysArr: string[] =
-                          Array.isArray(p.days) && p.days.length
-                            ? [...p.days]
-                            : (p.programExercises || []).length
-                              ? Array.from(
-                                  new Set(
-                                    (p.programExercises || []).map((pe: any) =>
-                                      String(pe.day ?? 'A')
-                                    )
-                                  )
+                  <div className="flex flex-col gap-4 px-4 pt-4 w-full overflow-hidden min-w-0">
+                    {(() => {
+                      // Defensive: ensure `days` is a proper array of strings; fall back to extracting days from programExercises or ['A']
+                      let daysArr: string[] =
+                        Array.isArray(p.days) && p.days.length
+                          ? [...p.days]
+                          : (p.programExercises || []).length
+                            ? Array.from(
+                              new Set(
+                                (p.programExercises || []).map((pe: any) =>
+                                  String(pe.day ?? 'A')
                                 )
-                              : ['A'];
-                        // Force alphabetical order (A,B,C...)
-                        daysArr = daysArr
-                          .slice()
-                          .sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0));
+                              )
+                            )
+                            : ['A'];
+                      // Force alphabetical order (A,B,C...)
+                      daysArr = daysArr
+                        .slice()
+                        .sort((a: string, b: string) => a.charCodeAt(0) - b.charCodeAt(0));
 
-                        return daysArr.slice(0, 7).map((day: string, _di: number) => {
-                          const items = (p.programExercises || [])
-                            .filter((pe: any) => String(pe.day) === day)
-                            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-                          return (
-                            <div
-                              key={day}
-                              className={dayColumnClass}
-                              onDragOver={
-                                !isClient
-                                  ? (e) => handleDragOverColumn(e, day, p.id ?? p.tempId)
-                                  : undefined
-                              }
-                              onDrop={
-                                !isClient
-                                  ? (e) => handleDropToNewDay(e, day, p.id ?? p.tempId)
-                                  : undefined
-                              }
-                              onDragLeave={() => {
-                                if (
-                                  dragOverDayColumn?.day === day &&
-                                  dragOverDayColumn?.programId === (p.id ?? p.tempId)
-                                ) {
-                                  setDragOverDayColumn(null);
-                                  setDragOverDayColumnSide(null);
-                                }
-                              }}
-                            >
-                              {draggedDayColumn &&
+                      return daysArr.slice(0, 7).map((day: string, _di: number) => {
+                        const items = (p.programExercises || [])
+                          .filter((pe: any) => String(pe.day) === day)
+                          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                        return (
+                          <div
+                            key={day}
+                            className={dayColumnClass}
+                            onDragOver={
+                              !isClient
+                                ? (e) => handleDragOverColumn(e, day, p.id ?? p.tempId)
+                                : undefined
+                            }
+                            onDrop={
+                              !isClient
+                                ? (e) => handleDropToNewDay(e, day, p.id ?? p.tempId)
+                                : undefined
+                            }
+                            onDragLeave={() => {
+                              if (
                                 dragOverDayColumn?.day === day &&
-                                dragOverDayColumn?.programId === (p.id ?? p.tempId) && (
-                                  <>
-                                    {dragOverDayColumnSide === 'top' && (
-                                      <div className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
-                                    )}
-                                    {dragOverDayColumnSide === 'bottom' && (
-                                      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500" />
-                                    )}
-                                  </>
+                                dragOverDayColumn?.programId === (p.id ?? p.tempId)
+                              ) {
+                                setDragOverDayColumn(null);
+                                setDragOverDayColumnSide(null);
+                              }
+                            }}
+                          >
+                            {draggedDayColumn &&
+                              dragOverDayColumn?.day === day &&
+                              dragOverDayColumn?.programId === (p.id ?? p.tempId) && (
+                                <>
+                                  {dragOverDayColumnSide === 'top' && (
+                                    <div className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
+                                  )}
+                                  {dragOverDayColumnSide === 'bottom' && (
+                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500" />
+                                  )}
+                                </>
+                              )}
+                            <div className="flex items-center justify-between mb-2">
+                              <div
+                                className={cn(
+                                  'text-sm font-medium pl-2',
+                                  isClient ? 'cursor-default flex-1' : 'cursor-move flex-1'
                                 )}
-                              <div className="flex items-center justify-between mb-2">
-                                <div
-                                  className={cn(
-                                    'text-sm font-medium pl-2',
-                                    isClient ? 'cursor-default flex-1' : 'cursor-move flex-1'
-                                  )}
-                                  role="button"
-                                  aria-grabbed={draggedDayColumn?.day === day ? 'true' : 'false'}
-                                  tabIndex={0}
-                                  draggable={!isClient}
-                                  onDragStart={
-                                    !isClient
-                                      ? (e) => handleDayDragStart(e, day, p.id ?? p.tempId)
-                                      : undefined
-                                  }
-                                  onDragOver={
-                                    !isClient
-                                      ? (e) => handleDayDragOver(e, day, p.id ?? p.tempId)
-                                      : undefined
-                                  }
-                                  onDrop={
-                                    !isClient
-                                      ? (e) => handleDayDrop(e, day, p.id ?? p.tempId)
-                                      : undefined
-                                  }
-                                  onDragEnd={!isClient ? handleDragEnd : undefined}
-                                >
-                                  {`Día ${day}`}
-                                </div>
-                                <div>
-                                  {!isClient && (
-                                    <ActionButton
-                                      tooltip="Eliminar día"
-                                      draggable={false}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                      onClick={() => {
-                                        const key = p.id ?? p.tempId;
-                                        setPrograms((prev) =>
-                                          prev.map((pr) => {
-                                            const k = pr.id ?? pr.tempId;
-                                            if (k !== key) return pr;
-                                            return {
-                                              ...pr,
-                                              days: (pr.days || []).filter(
-                                                (d: string) => d !== day
-                                              ),
-                                              programExercises: (pr.programExercises || []).filter(
-                                                (pe: any) => String(pe.day ?? 'A') !== String(day)
-                                              ),
-                                            };
-                                          })
-                                        );
-                                        try {
-                                          updateProgramExercisesPositions(key);
-                                        } catch (err) {
-                                          logError('Error normalizing after local delete day', err);
-                                        }
-                                      }}
-                                      aria-label="Eliminar día"
-                                    >
-                                      <Trash className={iconButtonClass} />
-                                    </ActionButton>
-                                  )}
-                                </div>
+                                role="button"
+                                aria-grabbed={draggedDayColumn?.day === day ? 'true' : 'false'}
+                                tabIndex={0}
+                                draggable={!isClient}
+                                onDragStart={
+                                  !isClient
+                                    ? (e) => handleDayDragStart(e, day, p.id ?? p.tempId)
+                                    : undefined
+                                }
+                                onDragOver={
+                                  !isClient
+                                    ? (e) => handleDayDragOver(e, day, p.id ?? p.tempId)
+                                    : undefined
+                                }
+                                onDrop={
+                                  !isClient
+                                    ? (e) => handleDayDrop(e, day, p.id ?? p.tempId)
+                                    : undefined
+                                }
+                                onDragEnd={!isClient ? handleDragEnd : undefined}
+                              >
+                                {`Día ${day}`}
                               </div>
-                              <div className="space-y-2 min-h-[40px]">
-                                {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
-                                <div className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0">
-                                  {items.map((pe: any) => {
-                                    const exercise = pe.exercise || {};
+                              <div>
+                                {!isClient && (
+                                  <ActionButton
+                                    tooltip="Eliminar día"
+                                    draggable={false}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onClick={() => {
+                                      const key = p.id ?? p.tempId;
+                                      setPrograms((prev) =>
+                                        prev.map((pr) => {
+                                          const k = pr.id ?? pr.tempId;
+                                          if (k !== key) return pr;
+                                          return {
+                                            ...pr,
+                                            days: (pr.days || []).filter(
+                                              (d: string) => d !== day
+                                            ),
+                                            programExercises: (pr.programExercises || []).filter(
+                                              (pe: any) => String(pe.day ?? 'A') !== String(day)
+                                            ),
+                                          };
+                                        })
+                                      );
+                                      try {
+                                        updateProgramExercisesPositions(key);
+                                      } catch (err) {
+                                        logError('Error normalizing after local delete day', err);
+                                      }
+                                    }}
+                                    aria-label="Eliminar día"
+                                  >
+                                    <Trash className={iconButtonClass} />
+                                  </ActionButton>
+                                )}
+                              </div>
+                            </div>
+                            <div className="space-y-2 min-h-[40px]">
+                              {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
+                              <div className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0">
+                                {items.map((pe: any) => {
+                                  const exercise = pe.exercise || {};
 
-                                    // Map anatomy IDs to names
-                                    const anatomyIds = Array.isArray(exercise.anatomy)
-                                      ? exercise.anatomy
-                                      : [];
-                                    const exerciseAnatomy = anatomyIds
-                                      .map((aId: any) => {
-                                        const id = String(aId ?? '');
-                                        const found = anatomyForPicker.find(
-                                          (a: any) => String(a.id) === id
-                                        );
-                                        return found || null;
-                                      })
-                                      .filter((x: any) => x !== null);
+                                  // Map anatomy IDs to names
+                                  const anatomyIds = Array.isArray(exercise.anatomy)
+                                    ? exercise.anatomy
+                                    : [];
+                                  const exerciseAnatomy = anatomyIds
+                                    .map((aId: any) => {
+                                      const id = String(aId ?? '');
+                                      const found = anatomyForPicker.find(
+                                        (a: any) => String(a.id) === id
+                                      );
+                                      return found || null;
+                                    })
+                                    .filter((x: any) => x !== null);
 
-                                    // Map equipment IDs to names
-                                    const equipmentIds = Array.isArray(exercise.equipment)
-                                      ? exercise.equipment
-                                      : [];
-                                    const exerciseEquipment = equipmentIds
-                                      .map((eqId: any) => {
-                                        const id = String(eqId ?? '');
-                                        const found = equipmentForPicker.find(
-                                          (eq: any) => String(eq.id) === id
-                                        );
-                                        return found || null;
-                                      })
-                                      .filter((x: any) => x !== null);
+                                  // Map equipment IDs to names
+                                  const equipmentIds = Array.isArray(exercise.equipment)
+                                    ? exercise.equipment
+                                    : [];
+                                  const exerciseEquipment = equipmentIds
+                                    .map((eqId: any) => {
+                                      const id = String(eqId ?? '');
+                                      const found = equipmentForPicker.find(
+                                        (eq: any) => String(eq.id) === id
+                                      );
+                                      return found || null;
+                                    })
+                                    .filter((x: any) => x !== null);
 
-                                    const file = (exercise.file as string | undefined) || undefined;
-                                    const mediaUrl =
-                                      file && exercise.id
-                                        ? getFilePublicUrl('exercise_videos', exercise.id, file) ||
-                                          undefined
-                                        : undefined;
+                                  const file = (exercise.file as string | undefined) || undefined;
+                                  const mediaUrl =
+                                    file && exercise.id
+                                      ? getFilePublicUrl('exercise_videos', exercise.id, file) ||
+                                      undefined
+                                      : undefined;
 
-                                    return (
-                                      <div
-                                        key={pe.id || pe.tempId}
-                                        className="relative w-[260px] flex-none"
-                                      >
-                                        {dragOverExercise?.peId === (pe.id ?? pe.tempId) &&
-                                          dragOverExercise?.programId === (p.id ?? p.tempId) && (
-                                            <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
+                                  return (
+                                    <div
+                                      key={pe.id || pe.tempId}
+                                      className="relative w-[260px] flex-none"
+                                    >
+                                      {dragOverExercise?.peId === (pe.id ?? pe.tempId) &&
+                                        dragOverExercise?.programId === (p.id ?? p.tempId) && (
+                                          <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
+                                        )}
+                                      <div className="relative">
+                                        <Card
+                                          role="button"
+                                          aria-grabbed={
+                                            draggedExercise?.peId === (pe.id ?? pe.tempId)
+                                              ? 'true'
+                                              : 'false'
+                                          }
+                                          tabIndex={0}
+                                          draggable={!isClient}
+                                          onDragStart={
+                                            !isClient
+                                              ? (e) =>
+                                                handleDragStart(
+                                                  e,
+                                                  pe.id ?? pe.tempId,
+                                                  day,
+                                                  p.id ?? p.tempId
+                                                )
+                                              : undefined
+                                          }
+                                          onDragOver={
+                                            !isClient
+                                              ? (e) =>
+                                                handleDragOver(
+                                                  e,
+                                                  pe.id ?? pe.tempId,
+                                                  day,
+                                                  p.id ?? p.tempId
+                                                )
+                                              : undefined
+                                          }
+                                          onDrop={
+                                            !isClient
+                                              ? (e) =>
+                                                handleDrop(
+                                                  e,
+                                                  pe.id ?? pe.tempId,
+                                                  day,
+                                                  p.id ?? p.tempId
+                                                )
+                                              : undefined
+                                          }
+                                          onDragEnd={!isClient ? handleDragEnd : undefined}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !isClient) {
+                                              setEditingProgramExercise(pe);
+                                              setShowEditProgramExerciseDialog(true);
+                                            }
+                                          }}
+                                          className={cn(
+                                            'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
+                                            draggedExercise?.peId === (pe.id ?? pe.tempId) &&
+                                            'opacity-50',
+                                            'bg-white rounded-lg border',
+                                            isClient ? 'cursor-default' : 'cursor-move'
                                           )}
-                                        <div className="relative">
-                                          <Card
-                                            role="button"
-                                            aria-grabbed={
-                                              draggedExercise?.peId === (pe.id ?? pe.tempId)
-                                                ? 'true'
-                                                : 'false'
-                                            }
-                                            tabIndex={0}
-                                            draggable={!isClient}
-                                            onDragStart={
-                                              !isClient
-                                                ? (e) =>
-                                                    handleDragStart(
-                                                      e,
-                                                      pe.id ?? pe.tempId,
-                                                      day,
-                                                      p.id ?? p.tempId
-                                                    )
-                                                : undefined
-                                            }
-                                            onDragOver={
-                                              !isClient
-                                                ? (e) =>
-                                                    handleDragOver(
-                                                      e,
-                                                      pe.id ?? pe.tempId,
-                                                      day,
-                                                      p.id ?? p.tempId
-                                                    )
-                                                : undefined
-                                            }
-                                            onDrop={
-                                              !isClient
-                                                ? (e) =>
-                                                    handleDrop(
-                                                      e,
-                                                      pe.id ?? pe.tempId,
-                                                      day,
-                                                      p.id ?? p.tempId
-                                                    )
-                                                : undefined
-                                            }
-                                            onDragEnd={!isClient ? handleDragEnd : undefined}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter' && !isClient) {
-                                                setEditingProgramExercise(pe);
-                                                setShowEditProgramExerciseDialog(true);
-                                              }
-                                            }}
-                                            className={cn(
-                                              'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
-                                              draggedExercise?.peId === (pe.id ?? pe.tempId) &&
-                                                'opacity-50',
-                                              'bg-white rounded-lg border',
-                                              isClient ? 'cursor-default' : 'cursor-move'
-                                            )}
-                                          >
-                                            <CardHeader className="py-1 px-4 h-auto space-y-0.5">
-                                              <div className="flex items-center justify-between gap-2">
-                                                <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="flex-1 line-clamp-2">
-                                                      <span className="flex items-center gap-2">
-                                                        <span className="truncate">
-                                                          {exercise.name ||
-                                                            pe.exercise?.name ||
-                                                            'Ejercicio'}
-                                                        </span>
-                                                        <TooltipProvider delayDuration={150}>
-                                                          <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                              <span
-                                                                className="text-muted-foreground cursor-default"
-                                                                aria-label="Notas del ejercicio"
-                                                              >
-                                                                <HelpCircle className="h-4 w-4" />
-                                                              </span>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
-                                                              <div
-                                                                className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm"
-                                                                dangerouslySetInnerHTML={{
-                                                                  __html:
-                                                                    pe.notes &&
-                                                                    String(pe.notes).trim()
-                                                                      ? DOMPurify.sanitize(
-                                                                          pe.notes,
-                                                                          {
-                                                                            ALLOWED_TAGS: [
-                                                                              'b',
-                                                                              'strong',
-                                                                              'i',
-                                                                              'em',
-                                                                              'ul',
-                                                                              'ol',
-                                                                              'li',
-                                                                              'br',
-                                                                              'p',
-                                                                            ],
-                                                                            ALLOWED_ATTR: [],
-                                                                          }
-                                                                        )
-                                                                      : 'Sin notas',
-                                                                }}
-                                                              />
-                                                            </TooltipContent>
-                                                          </Tooltip>
-                                                        </TooltipProvider>
+                                        >
+                                          <CardHeader className="py-1 px-4 h-auto space-y-0.5">
+                                            <div className="flex items-center justify-between gap-2">
+                                              <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="flex-1 line-clamp-2">
+                                                    <span className="flex items-center gap-2">
+                                                      <span className="truncate">
+                                                        {exercise.name ||
+                                                          pe.exercise?.name ||
+                                                          'Ejercicio'}
                                                       </span>
+                                                      <TooltipProvider delayDuration={150}>
+                                                        <Tooltip>
+                                                          <TooltipTrigger asChild>
+                                                            <span
+                                                              className="text-muted-foreground cursor-default"
+                                                              aria-label="Notas del ejercicio"
+                                                            >
+                                                              <HelpCircle className="h-4 w-4" />
+                                                            </span>
+                                                          </TooltipTrigger>
+                                                          <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                            <div
+                                                              className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm"
+                                                              dangerouslySetInnerHTML={{
+                                                                __html:
+                                                                  pe.notes &&
+                                                                    String(pe.notes).trim()
+                                                                    ? DOMPurify.sanitize(
+                                                                      pe.notes,
+                                                                      {
+                                                                        ALLOWED_TAGS: [
+                                                                          'b',
+                                                                          'strong',
+                                                                          'i',
+                                                                          'em',
+                                                                          'ul',
+                                                                          'ol',
+                                                                          'li',
+                                                                          'br',
+                                                                          'p',
+                                                                        ],
+                                                                        ALLOWED_ATTR: [],
+                                                                      }
+                                                                    )
+                                                                    : 'Sin notas',
+                                                              }}
+                                                            />
+                                                          </TooltipContent>
+                                                        </Tooltip>
+                                                      </TooltipProvider>
                                                     </span>
-                                                  </div>
-                                                </CardTitle>
-                                                {!isClient && (
-                                                  <>
-                                                    <ActionButton
-                                                      tooltip="Editar ejercicio"
-                                                      onClick={() => {
-                                                        setEditingProgramExercise(pe);
-                                                        setShowEditProgramExerciseDialog(true);
-                                                      }}
-                                                      aria-label="Editar ejercicio"
-                                                    >
-                                                      <Pencil className="h-4 w-4" />
-                                                    </ActionButton>
-                                                    <ActionButton
-                                                      tooltip="Eliminar ejercicio"
-                                                      onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        try {
-                                                          if (
-                                                            String(pe.tempId || '').startsWith(
-                                                              'tpe-'
-                                                            )
-                                                          ) {
-                                                            setPrograms((prev) =>
-                                                              prev.map((pr) =>
-                                                                pr.tempId === p.tempId
-                                                                  ? {
-                                                                      ...pr,
-                                                                      programExercises: (
-                                                                        pr.programExercises || []
-                                                                      ).filter(
-                                                                        (x: any) =>
-                                                                          x.tempId !== pe.tempId
-                                                                      ),
-                                                                    }
-                                                                  : pr
-                                                              )
-                                                            );
-                                                            await updateProgramExercisesPositions(
-                                                              p.id ?? p.tempId
-                                                            );
-                                                            return;
-                                                          }
+                                                  </span>
+                                                </div>
+                                              </CardTitle>
+                                              {!isClient && (
+                                                <>
+                                                  <ActionButton
+                                                    tooltip="Editar ejercicio"
+                                                    onClick={() => {
+                                                      setEditingProgramExercise(pe);
+                                                      setShowEditProgramExerciseDialog(true);
+                                                    }}
+                                                    aria-label="Editar ejercicio"
+                                                  >
+                                                    <Pencil className="h-4 w-4" />
+                                                  </ActionButton>
+                                                  <ActionButton
+                                                    tooltip="Eliminar ejercicio"
+                                                    onClick={async (e) => {
+                                                      e.stopPropagation();
+                                                      try {
+                                                        if (
+                                                          String(pe.tempId || '').startsWith(
+                                                            'tpe-'
+                                                          )
+                                                        ) {
                                                           setPrograms((prev) =>
                                                             prev.map((pr) =>
-                                                              (pr.id ?? pr.tempId) ===
-                                                              (p.id ?? p.tempId)
+                                                              pr.tempId === p.tempId
                                                                 ? {
-                                                                    ...pr,
-                                                                    programExercises: (
-                                                                      pr.programExercises || []
-                                                                    ).filter(
-                                                                      (x: any) => x.id !== pe.id
-                                                                    ),
-                                                                  }
+                                                                  ...pr,
+                                                                  programExercises: (
+                                                                    pr.programExercises || []
+                                                                  ).filter(
+                                                                    (x: any) =>
+                                                                      x.tempId !== pe.tempId
+                                                                  ),
+                                                                }
                                                                 : pr
                                                             )
                                                           );
                                                           await updateProgramExercisesPositions(
                                                             p.id ?? p.tempId
                                                           );
-                                                        } catch (err) {
-                                                          logError(
-                                                            'Error deleting program_exercise',
-                                                            err
-                                                          );
+                                                          return;
                                                         }
-                                                      }}
-                                                      aria-label="Eliminar ejercicio"
-                                                    >
-                                                      <Trash className={iconButtonClass} />
-                                                    </ActionButton>
-                                                  </>
-                                                )}
-                                              </div>
-
-                                              <div className="flex flex-col gap-1 min-h-[40px]">
-                                                {exerciseEquipment.length > 0 && (
-                                                  <ExerciseBadgeGroup
-                                                    items={exerciseEquipment}
-                                                    color="blue"
-                                                    maxVisible={2}
-                                                  />
-                                                )}
-                                                {exerciseAnatomy.length > 0 && (
-                                                  <ExerciseBadgeGroup
-                                                    items={exerciseAnatomy}
-                                                    color="orange"
-                                                    maxVisible={2}
-                                                  />
-                                                )}
-                                              </div>
-                                            </CardHeader>
-
-                                            <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
-                                              {mediaUrl ? (
-                                                isVideo(file) ? (
-                                                  <video
-                                                    src={mediaUrl}
-                                                    draggable={false}
-                                                    onDragStart={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    className="absolute inset-0 w-full h-full object-cover cursor-auto"
-                                                    controls
-                                                  />
-                                                ) : (
-                                                  <img
-                                                    src={mediaUrl}
-                                                    draggable={false}
-                                                    onDragStart={(e) => e.stopPropagation()}
-                                                    onMouseDown={(e) => e.stopPropagation()}
-                                                    onPointerDown={(e) => e.stopPropagation()}
-                                                    className="absolute inset-0 w-full h-full object-cover cursor-auto"
-                                                  />
-                                                )
-                                              ) : (
-                                                <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-100">
-                                                  <p className="text-sm text-slate-400">
-                                                    Sin video
-                                                  </p>
-                                                </div>
+                                                        setPrograms((prev) =>
+                                                          prev.map((pr) =>
+                                                            (pr.id ?? pr.tempId) ===
+                                                              (p.id ?? p.tempId)
+                                                              ? {
+                                                                ...pr,
+                                                                programExercises: (
+                                                                  pr.programExercises || []
+                                                                ).filter(
+                                                                  (x: any) => x.id !== pe.id
+                                                                ),
+                                                              }
+                                                              : pr
+                                                          )
+                                                        );
+                                                        await updateProgramExercisesPositions(
+                                                          p.id ?? p.tempId
+                                                        );
+                                                      } catch (err) {
+                                                        logError(
+                                                          'Error deleting program_exercise',
+                                                          err
+                                                        );
+                                                      }
+                                                    }}
+                                                    aria-label="Eliminar ejercicio"
+                                                  >
+                                                    <Trash className={iconButtonClass} />
+                                                  </ActionButton>
+                                                </>
                                               )}
                                             </div>
 
-                                            {(() => {
-                                              const valOrDash = (v: any) =>
-                                                typeof v !== 'undefined' && v !== null && v !== ''
-                                                  ? v
-                                                  : '-';
-                                              return (
-                                                <div className="px-3 py-1.5 text-xs text-muted-foreground border-t">
-                                                  <div className="flex items-center gap-3 whitespace-nowrap">
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-muted-foreground">
-                                                        Series:
-                                                      </span>{' '}
-                                                      <span className="font-medium text-foreground">
-                                                        {valOrDash(pe.sets)}
-                                                      </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                      <span className="text-muted-foreground">
-                                                        Reps:
-                                                      </span>{' '}
-                                                      <span className="font-medium text-foreground">
-                                                        {valOrDash(pe.reps)}
-                                                      </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-muted-foreground">
-                                                        kg:
-                                                      </span>{' '}
-                                                      <span className="font-medium text-foreground">
-                                                        {valOrDash(pe.weight)}
-                                                      </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                      <span className="text-muted-foreground">
-                                                        Secs:
-                                                      </span>{' '}
-                                                      <span className="font-medium text-foreground">
-                                                        {valOrDash(pe.secs)}
-                                                      </span>
-                                                    </div>
+                                            <div className="flex flex-col gap-1 min-h-[40px]">
+                                              {exerciseEquipment.length > 0 && (
+                                                <ExerciseBadgeGroup
+                                                  items={exerciseEquipment}
+                                                  color="blue"
+                                                  maxVisible={2}
+                                                />
+                                              )}
+                                              {exerciseAnatomy.length > 0 && (
+                                                <ExerciseBadgeGroup
+                                                  items={exerciseAnatomy}
+                                                  color="orange"
+                                                  maxVisible={2}
+                                                />
+                                              )}
+                                            </div>
+                                          </CardHeader>
+
+                                          <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
+                                            {mediaUrl ? (
+                                              isVideo(file) ? (
+                                                <video
+                                                  src={mediaUrl}
+                                                  draggable={false}
+                                                  onDragStart={(e) => e.stopPropagation()}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  onPointerDown={(e) => e.stopPropagation()}
+                                                  className="absolute inset-0 w-full h-full object-cover cursor-auto"
+                                                  controls
+                                                />
+                                              ) : (
+                                                <img
+                                                  src={mediaUrl}
+                                                  draggable={false}
+                                                  onDragStart={(e) => e.stopPropagation()}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  onPointerDown={(e) => e.stopPropagation()}
+                                                  className="absolute inset-0 w-full h-full object-cover cursor-auto"
+                                                />
+                                              )
+                                            ) : (
+                                              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-100">
+                                                <p className="text-sm text-slate-400">
+                                                  Sin video
+                                                </p>
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {(() => {
+                                            const valOrDash = (v: any) =>
+                                              typeof v !== 'undefined' && v !== null && v !== ''
+                                                ? v
+                                                : '-';
+                                            return (
+                                              <div className="px-3 py-1.5 text-xs text-muted-foreground border-t">
+                                                <div className="flex items-center gap-3 whitespace-nowrap">
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">
+                                                      Series:
+                                                    </span>{' '}
+                                                    <span className="font-medium text-foreground">
+                                                      {valOrDash(pe.sets)}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="text-muted-foreground">
+                                                      Reps:
+                                                    </span>{' '}
+                                                    <span className="font-medium text-foreground">
+                                                      {valOrDash(pe.reps)}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">
+                                                      kg:
+                                                    </span>{' '}
+                                                    <span className="font-medium text-foreground">
+                                                      {valOrDash(pe.weight)}
+                                                    </span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-muted-foreground">
+                                                      Secs:
+                                                    </span>{' '}
+                                                    <span className="font-medium text-foreground">
+                                                      {valOrDash(pe.secs)}
+                                                    </span>
                                                   </div>
                                                 </div>
-                                              );
-                                            })()}
-                                          </Card>
+                                              </div>
+                                            );
+                                          })()}
+                                        </Card>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {/* Placeholder card to add a new exercise */}
+                                {!isClient && (
+                                  <div
+                                    key="add-placeholder"
+                                    className="relative w-[260px] flex-none"
+                                  >
+                                    {dragOverExercise?.peId === '__end__' &&
+                                      dragOverExercise?.day === day &&
+                                      dragOverExercise?.programId === (p.id ?? p.tempId) && (
+                                        <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
+                                      )}
+                                    <Card
+                                      role="button"
+                                      tabIndex={0}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          openAddExercisesDialog(p.id ?? p.tempId, day);
+                                        }
+                                      }}
+                                      onClick={() =>
+                                        openAddExercisesDialog(p.id ?? p.tempId, day)
+                                      }
+                                      onDragOver={(e) =>
+                                        handleDragOverEnd(e, day, p.id ?? p.tempId)
+                                      }
+                                      onDrop={(e) => handleDropEnd(e, day, p.id ?? p.tempId)}
+                                      onDragLeave={() => {
+                                        if (
+                                          dragOverExercise?.peId === '__end__' &&
+                                          dragOverExercise?.day === day
+                                        ) {
+                                          setDragOverExercise(null);
+                                        }
+                                      }}
+                                      className={cn(
+                                        'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-pointer bg-slate-200 rounded-lg border'
+                                      )}
+                                    >
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                                          <Plus className="h-6 w-6" />
+                                          <p className="text-sm">Añadir</p>
                                         </div>
                                       </div>
-                                    );
-                                  })}
-
-                                  {/* Placeholder card to add a new exercise */}
-                                  {!isClient && (
-                                    <div
-                                      key="add-placeholder"
-                                      className="relative w-[260px] flex-none"
-                                    >
-                                      {dragOverExercise?.peId === '__end__' &&
-                                        dragOverExercise?.day === day &&
-                                        dragOverExercise?.programId === (p.id ?? p.tempId) && (
-                                          <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
-                                        )}
-                                      <Card
-                                        role="button"
-                                        tabIndex={0}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') {
-                                            openAddExercisesDialog(p.id ?? p.tempId, day);
-                                          }
-                                        }}
-                                        onClick={() =>
-                                          openAddExercisesDialog(p.id ?? p.tempId, day)
-                                        }
-                                        onDragOver={(e) =>
-                                          handleDragOverEnd(e, day, p.id ?? p.tempId)
-                                        }
-                                        onDrop={(e) => handleDropEnd(e, day, p.id ?? p.tempId)}
-                                        onDragLeave={() => {
-                                          if (
-                                            dragOverExercise?.peId === '__end__' &&
-                                            dragOverExercise?.day === day
-                                          ) {
-                                            setDragOverExercise(null);
-                                          }
-                                        }}
-                                        className={cn(
-                                          'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-pointer bg-slate-200 rounded-lg border'
-                                        )}
-                                      >
-                                        <div className="w-full h-full flex items-center justify-center">
-                                          <div className="flex flex-col items-center gap-2 text-slate-500">
-                                            <Plus className="h-6 w-6" />
-                                            <p className="text-sm">Añadir</p>
-                                          </div>
-                                        </div>
-                                      </Card>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {/* Removed the empty drop zone - functionality now handled by placeholder card */}
+                                    </Card>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          );
-                        });
-                      })()}
 
-                      {/* Add new day button */}
-                      {(() => {
-                        const safeLen = Array.isArray(p.days)
-                          ? p.days.length
-                          : (p.programExercises || []).length
-                            ? Array.from(
-                                new Set(
-                                  (p.programExercises || []).map((pe: any) => String(pe.day ?? 'A'))
-                                )
-                              ).length
-                            : 1;
-                        return safeLen < 7 ? (
-                          !isClient ? (
-                            <div className="flex items-center mb-6">
-                              <Button
-                                variant="secondary"
-                                className="btn-propagate px-4 py-2"
-                                onClick={() => addNewDayToProgram(p.id ?? p.tempId)}
-                              >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Día
-                              </Button>
+                              {/* Removed the empty drop zone - functionality now handled by placeholder card */}
                             </div>
-                          ) : null
-                        ) : null;
-                      })()}
-                    </div>
+                          </div>
+                        );
+                      });
+                    })()}
+
+                    {/* Add new day button */}
+                    {(() => {
+                      const safeLen = Array.isArray(p.days)
+                        ? p.days.length
+                        : (p.programExercises || []).length
+                          ? Array.from(
+                            new Set(
+                              (p.programExercises || []).map((pe: any) => String(pe.day ?? 'A'))
+                            )
+                          ).length
+                          : 1;
+                      return safeLen < 7 ? (
+                        !isClient ? (
+                          <div className="flex items-center mb-6">
+                            <Button
+                              variant="secondary"
+                              className="btn-propagate px-4 py-2"
+                              onClick={() => addNewDayToProgram(p.id ?? p.tempId)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Día
+                            </Button>
+                          </div>
+                        ) : null
+                      ) : null;
+                    })()}
+                  </div>
                 </div>
               </div>
             );
@@ -1767,18 +1767,18 @@ export default function ClientPrograms({ api }: Props) {
               {(exerciseSearchTerm ||
                 selectedFilterAnatomy.length > 0 ||
                 selectedFilterEquipment.length > 0) && (
-                <Button
-                  variant="outline"
-                  className="text-sm"
-                  onClick={() => {
-                    setExerciseSearchTerm('');
-                    setSelectedFilterAnatomy([]);
-                    setSelectedFilterEquipment([]);
-                  }}
-                >
-                  Limpiar
-                </Button>
-              )}
+                  <Button
+                    variant="outline"
+                    className="text-sm"
+                    onClick={() => {
+                      setExerciseSearchTerm('');
+                      setSelectedFilterAnatomy([]);
+                      setSelectedFilterEquipment([]);
+                    }}
+                  >
+                    Limpiar
+                  </Button>
+                )}
             </div>
 
             {/* Applied filters display */}

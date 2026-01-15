@@ -159,14 +159,17 @@ serve(async (req: any) => {
             type: 'class',
             datetime: formatDateWithOffset(currentDate),
             duration: t.duration || 60,
-            client: Array.isArray(t.client) ? t.client : t.client ? [t.client] : [],
+            // If there are no clients specified, set client to NULL so the DB trigger
+            // can skip processing without ambiguity (empty arrays can be misinterpreted
+            // by some clients or middle layers).
+            client: Array.isArray(t.client) ? (t.client.length ? t.client : null) : t.client ? [t.client] : null,
             professional: Array.isArray(t.professional)
-              ? t.professional
+              ? (t.professional.length ? t.professional : null)
               : t.professional
                 ? [t.professional]
-                : [],
+                : null,
             company,
-            notes: t.notes || '',
+            notes: `${t.notes ? t.notes + ' ' : ''}propagated_by=propagate-classes;propagated_at=${new Date().toISOString()}`,
           });
         }
       }
@@ -175,8 +178,8 @@ serve(async (req: any) => {
     // Insert events in bulk
     if (eventsToCreate.length === 0) return jsonResponse({ ok: true, inserted: 0 }, 200);
 
-    // Precompute client counts from the events we will create so deductions are applied
-    // even if the inserted response shape differs.
+    // Precompute client counts from the events we will create for auditing/debugging
+    // (do not use these to update profiles here — the DB trigger handles credits).
     const clientCounts: Record<string, number> = {};
     for (const ev of eventsToCreate) {
       const clients = Array.isArray(ev.client) ? ev.client : ev.client ? [ev.client] : [];
@@ -191,65 +194,11 @@ serve(async (req: any) => {
 
     const inserted = Array.isArray(insertRes.data) ? insertRes.data : [insertRes.data];
 
-    // Apply credits updates per client (fetch current value then update)
-    const clientsUpdated: any[] = [];
+    // NOTE: class credit adjustments are handled by the DB trigger
+    // `trg_adjust_class_credits` on `public.events`. Do not apply
+    // additional updates here to avoid double-deduction.
 
-    for (const clientId of Object.keys(clientCounts)) {
-      try {
-        // Find profile by profile.id only (we now store canonical profile ids in events)
-        let profileId: string | null = null;
-        let current = 0;
-
-        // attempt by id only
-        let getRes = await rest(
-          'profiles',
-          'GET',
-          undefined,
-          `id=eq.${clientId}&select=id,class_credits`
-        );
-        if (
-          getRes.ok &&
-          getRes.data &&
-          (Array.isArray(getRes.data) ? getRes.data.length > 0 : true)
-        ) {
-          const row = Array.isArray(getRes.data) ? getRes.data[0] : getRes.data;
-          profileId = row.id;
-          current = row && typeof row.class_credits === 'number' ? row.class_credits : 0;
-        }
-
-        if (!profileId) {
-          // no matching profile found, skip silently
-          continue;
-        }
-
-        const delta = clientCounts[clientId];
-        const newVal = current - delta; // allow negative per product decision
-        const patchRes = await rest(
-          'profiles',
-          'PATCH',
-          { class_credits: newVal },
-          `id=eq.${profileId}`
-        );
-        if (!patchRes.ok) {
-          // continue on error, but include info
-          clientsUpdated.push({ clientId, ok: false, details: patchRes });
-        } else {
-          clientsUpdated.push({ clientId, ok: true, updated: patchRes.data });
-        }
-      } catch (err) {
-        clientsUpdated.push({ clientId, ok: false, error: String(err?.message || err) });
-      }
-    }
-
-    return jsonResponse(
-      {
-        ok: true,
-        inserted: inserted.length,
-        client_counts: clientCounts,
-        clients_updated: clientsUpdated,
-      },
-      200
-    );
+    return jsonResponse({ ok: true, inserted: inserted.length, client_counts: clientCounts }, 200);
   } catch (err: any) {
     return jsonResponse({ error: String(err?.message || err) }, 500);
   }
