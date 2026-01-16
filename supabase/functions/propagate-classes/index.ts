@@ -169,7 +169,7 @@ serve(async (req: any) => {
                 ? [t.professional]
                 : null,
             company,
-            notes: `${t.notes ? t.notes + ' ' : ''}propagated_by=propagate-classes;propagated_at=${new Date().toISOString()}`,
+            notes: t.notes ? t.notes : null,
           });
         }
       }
