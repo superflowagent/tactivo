@@ -155,6 +155,11 @@ serve(async (req: any) => {
         const currentDate = new Date(year, month - 1, day);
         if (currentDate.getDay() === templateDay) {
           currentDate.setHours(hours, minutes, 0, 0);
+          // Sanitize notes: remove any debug/provenance tokens that may have been added
+          // earlier (e.g. "propagated_by=propagate-classes;propagated_at=..."). This
+          // ensures templates or older events won't cause the debug string to be copied.
+          const rawNotes = t.notes || '';
+          const cleanedNotes = rawNotes.replace(/propagated_by=[^;]+;?propagated_at=[^;\s]+;?/g, '').trim();
           eventsToCreate.push({
             type: 'class',
             datetime: formatDateWithOffset(currentDate),
@@ -169,7 +174,7 @@ serve(async (req: any) => {
                 ? [t.professional]
                 : null,
             company,
-            notes: t.notes ? t.notes : null,
+            notes: cleanedNotes ? cleanedNotes : null,
           });
         }
       }
