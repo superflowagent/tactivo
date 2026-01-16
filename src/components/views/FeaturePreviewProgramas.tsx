@@ -3,15 +3,15 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const exercisesA = [
-    { name: 'Rotación externa', equipment: ['Banco', 'Mancuerna'], anatomy: ['Hombro'], series: 4, reps: 10, kg: 5, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rotación externa.mp4`) },
-    { name: 'Rezo al cielo', equipment: ['Pared'], anatomy: ['Hombro'], series: 4, reps: 6, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rezo al cielo.mp4`) },
-    { name: 'Movilidad escapular', equipment: [], anatomy: ['Escápula', 'Trapecio'], series: 3, reps: 6, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Movilidad escapular.mp4`) },
+    { name: 'Rotación externa', equipment: ['Banco', 'Mancuerna'], anatomy: ['Hombro'], series: 4, reps: 10, kg: 5, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/rotacion-externa.mp4`) },
+    { name: 'Rezo al cielo', equipment: ['Pared'], anatomy: ['Hombro'], series: 4, reps: 6, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/rezo-al-cielo.mp4`) },
+    { name: 'Movilidad escapular', equipment: [], anatomy: ['Escápula', 'Trapecio'], series: 3, reps: 6, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/movilidad-escapular.mp4`) },
 ];
 
 const exercisesB = [
-    { name: 'Apertura desde suelo', equipment: ['Esterilla'], anatomy: ['Abdominales', 'Lumbar'], series: 4, reps: 8, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Apertura desde suelo.mp4`) },
-    { name: 'Extensión columna', equipment: [], anatomy: ['Columna', 'Dorsal'], series: 4, reps: 10, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Extensión columna.mp4`) },
-    { name: 'Rotación en pared', equipment: ['Pared'], anatomy: ['Hombro'], series: 3, reps: 10, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/Rotación en pared.mp4`) },
+    { name: 'Apertura desde suelo', equipment: ['Esterilla'], anatomy: ['Abdominales', 'Lumbar'], series: 4, reps: 8, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/apertura-desde-suelo.mp4`) },
+    { name: 'Extensión columna', equipment: [], anatomy: ['Columna', 'Dorsal'], series: 4, reps: 10, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/extension-columna.mp4`) },
+    { name: 'Rotación en pared', equipment: ['Pared'], anatomy: ['Hombro'], series: 3, reps: 10, kg: undefined, video: encodeURI(`${import.meta.env.BASE_URL}landing/exercises/rotacion-en-pared.mp4`) },
 ];
 
 // Helper: derive a user-friendly title from the video file path (e.g. "vuelta-al-mundo.mp4" -> "Vuelta Al Mundo")
@@ -155,6 +155,7 @@ export default function FeaturePreviewProgramas() {
                                             autoPlay
                                             preload="metadata"
                                             aria-hidden
+                                            onError={(e) => { console.error('Video failed to load:', ex.video, e); }}
                                         />
                                     </div>
                                 </div>
@@ -226,6 +227,7 @@ export default function FeaturePreviewProgramas() {
                                                 autoPlay
                                                 preload="metadata"
                                                 aria-hidden
+                                                onError={(e) => { console.error('Video failed to load:', ex.video, e); }}
                                             />
                                         </div>
                                     </div>
