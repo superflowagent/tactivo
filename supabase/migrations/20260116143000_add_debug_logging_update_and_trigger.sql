@@ -1,33 +1,6 @@
--- Migration: add debug logging to update_event_json and adjust_class_credits_on_events_change
--- This migration adds temporary audit entries to capture raw client fields and errors when update_event_json runs
-
--- Replace update_event_json with additional logging
-CREATE OR REPLACE FUNCTION public.update_event_json(p_payload jsonb)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-  v_id uuid := NULLIF(p_payload->>'id','')::uuid;
-  v_changes jsonb := COALESCE(p_payload->'changes', '{}'::jsonb);
-  v_type text := v_changes->>'type';
-  v_duration int := NULLIF(v_changes->>'duration','')::int;
-  v_cost numeric := NULLIF(v_changes->>'cost','')::numeric;
-  v_paid boolean := NULLIF(v_changes->>'paid','')::boolean;
-  v_notes text := v_changes->>'notes';
-  v_datetime text := v_changes->>'datetime';
-  v_client uuid[] := NULL;
-  v_professional uuid[] := NULL;
-  v_event_company uuid := NULL;
-  v_event_type text := NULL;
-  v_event_client uuid[] := ARRAY[]::uuid[];
-  v_new_clients uuid[] := ARRAY[]::uuid[];
-  v_my_profile_id uuid := NULL;
-  v_my_user_id uuid := NULL;
-  v_auth_uid_text text := NULL;
-  v_added uuid[] := ARRAY[]::uuid[];
-  v_removed uuid[] := ARRAY[]::uuid[];
-  v_event_client_raw text := NULL;
+-- Deprecated debug migration (no-op)
+-- Temporary debug logging was used during development and has been removed. This migration is kept as a no-op to preserve history.
+SELECT 1 AS noop;
 BEGIN
   IF v_id IS NULL THEN
     RAISE EXCEPTION 'id is required';
