@@ -857,7 +857,8 @@ export function EventDialog({
       return newData;
     });
 
-    if (field === 'type' && value === 'vacation') {
+    // Clear selected clients whenever the event type is changed so the user must re-add them
+    if (field === 'type') {
       setSelectedClients([]);
     }
   };
