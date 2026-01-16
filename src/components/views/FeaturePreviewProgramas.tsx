@@ -22,8 +22,9 @@ function titleFromVideo(video: string) {
         const noExt = file.replace(/\.[^/.]+$/, '');
         const decoded = decodeURIComponent(noExt);
         const cleaned = decoded.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
-        // Do not alter original casing; return cleaned file name as-is
-        return cleaned;
+        // Force first letter uppercase for UI
+        const capitalized = cleaned.replace(/^./, (c) => c.toUpperCase());
+        return capitalized;
     } catch {
         return video;
     }
