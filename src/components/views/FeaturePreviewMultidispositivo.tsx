@@ -1,6 +1,6 @@
 import React from 'react';
 import Iphone from '@/components/ui/Iphone';
-import { Trash, Menu } from 'lucide-react';
+import { Trash, Menu, Calendar, Users, ListChecks, Dumbbell, Settings } from 'lucide-react';
 import Confetti, { type ConfettiRef } from '@/components/ui/Confetti';
 import { normalizeForSearch } from '@/lib/stringUtils';
 
@@ -20,6 +20,7 @@ export default function FeaturePreviewMultidispositivo() {
 
     // Confetti ref for delete action
     const confettiRef = React.useRef<ConfettiRef | null>(null);
+    const [sidebarOpen, setSidebarOpen] = React.useState(false);
     return (
         <Iphone className="w-[240px] h-[480px] max-w-full max-h-full shadow-lg transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03]">
             <div className="relative h-full flex flex-col min-h-0">
@@ -27,7 +28,7 @@ export default function FeaturePreviewMultidispositivo() {
 
                 <div className="pl-2 pr-2 h-full overflow-hidden bg-white select-none">
                     <div className="mb-2 relative pt-2">
-                        <button aria-label="Abrir menú" className="absolute left-0 top-3 p-0.5 rounded-md text-muted-foreground hover:bg-muted/20">
+                        <button aria-label="Abrir menú" onClick={() => setSidebarOpen(true)} className="absolute left-0 top-3 p-0.5 rounded-md text-muted-foreground hover:bg-muted/20">
                             <Menu className="h-5 w-5" />
                         </button>
 
@@ -139,6 +140,48 @@ export default function FeaturePreviewMultidispositivo() {
                         </div>
                     </div>
 
+                    {/* Inline sidebar inside the phone preview */}
+                    <div className={`absolute inset-y-0 left-0 z-40 w-[128px] bg-sidebar text-sidebar-foreground transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} role="dialog" aria-modal="true">
+                        <div className="flex h-full flex-col">
+                            <div className="p-3 border-b flex items-center gap-2">
+                                <span
+                                    className="inline-block text-base font-semibold"
+                                    style={{
+                                        backgroundImage: 'var(--primary-gradient)',
+                                        WebkitBackgroundClip: 'text',
+                                        backgroundClip: 'text',
+                                        color: 'transparent',
+                                        WebkitTextFillColor: 'transparent',
+                                        display: 'inline-block',
+                                    }}
+                                >
+                                    Tactivo
+                                </span>
+                            </div>
+                            <div className="p-2 flex flex-col gap-1">
+                                <button onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 w-full p-2 rounded text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                                    <Calendar className="h-4 w-4" /> Calendario
+                                </button>
+                                <button onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 w-full p-2 rounded text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                                    <Users className="h-4 w-4" /> Clientes
+                                </button>
+                                <button onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 w-full p-2 rounded text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                                    <ListChecks className="h-4 w-4" /> Clases
+                                </button>
+                                <button onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 w-full p-2 rounded text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                                    <Dumbbell className="h-4 w-4" /> Ejercicios
+                                </button>
+                            </div>
+                            <div className="mt-auto p-2 border-t">
+                                <button onClick={() => setSidebarOpen(false)} className="flex items-center gap-2 w-full p-2 rounded text-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+                                    <Settings className="h-4 w-4" /> Ajustes
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* overlay confined to the phone preview */}
+                    <div className={`absolute inset-0 z-30 bg-black/30 transition-opacity ${sidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)} />
                 </div>
             </div>
         </Iphone>
