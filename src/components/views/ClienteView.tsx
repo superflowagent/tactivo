@@ -25,10 +25,8 @@ import {
   CalendarIcon,
   ChevronDown,
   User,
-  Euro,
   CheckCircle,
   XCircle,
-  Pencil,
   HelpCircle,
   Trash,
 } from 'lucide-react';
@@ -46,6 +44,7 @@ import type { Cliente } from '@/types/cliente';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
 import { EventDialog } from '@/components/eventos/EventDialog';
+import { parseDatetime } from '@/lib/date';
 import { AppSidebar } from '@/components/app-sidebar';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import type { ViewType } from '@/App';
@@ -80,6 +79,8 @@ export default function ClienteView() {
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  // Local cache of profile data for professionals referenced by eventos (fallback when expand is missing)
+  const [localProfilesMap, setLocalProfilesMap] = useState<Record<string, any>>({});
   const [activeTab, setActiveTab] = useState('datos');
   const [loadingCliente, setLoadingCliente] = useState(!isNewCliente);
   const [currentView, setCurrentView] = useState<ViewType>(() => {
@@ -226,10 +227,11 @@ export default function ClienteView() {
         }));
         const sorted = (enriched || [])
           .slice()
-          .sort(
-            (a: any, b: any) =>
-              (new Date(b.datetime).getTime() || 0) - (new Date(a.datetime).getTime() || 0)
-          );
+          .sort((a: any, b: any) => {
+            const da = parseDatetime(a.datetime);
+            const db = parseDatetime(b.datetime);
+            return (db ? db.getTime() : 0) - (da ? da.getTime() : 0);
+          });
         setEventos(sorted);
       } catch (err) {
         logError('Error al cargar eventos:', err);
@@ -239,6 +241,30 @@ export default function ClienteView() {
     },
     [companyId]
   );
+
+  // Synchronize profiles for any professionals referenced in the loaded eventos
+  useEffect(() => {
+    (async () => {
+      try {
+        const ids = new Set<string>();
+        (eventos || []).forEach((ev) => {
+          const pros = Array.isArray(ev.professional)
+            ? ev.professional
+            : ev.professional
+              ? [ev.professional]
+              : [];
+          pros.forEach((id: string) => ids.add(id));
+        });
+        const missing = Array.from(ids).filter((id) => !localProfilesMap[id]);
+        if (missing.length > 0 && companyId) {
+          const map = await getProfilesByIds(missing, companyId);
+          setLocalProfilesMap((prev) => ({ ...prev, ...(map || {}) }));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [eventos, companyId, localProfilesMap]);
 
   const ensureAuthoritativeEmail = useCallback(
     async (clienteId?: string) => {
@@ -941,7 +967,7 @@ export default function ClienteView() {
             onValueChange={setActiveTab}
             className="flex-1 min-h-0 flex flex-col overflow-hidden"
           >
-            <TabsList className="grid w-full max-w-md grid-cols-4">
+            <TabsList className="grid w-full max-w-md grid-cols-4 cliente-tabs">
               <TabsTrigger value="datos">Datos</TabsTrigger>
               <TabsTrigger value="bonos">Bonos</TabsTrigger>
               <TabsTrigger value="programas">Programas</TabsTrigger>
@@ -1293,20 +1319,44 @@ export default function ClienteView() {
                   ) : (
                     <div className="space-y-2">
                       {eventos.map((evento) => {
-                        const fecha = evento.datetime ? new Date(evento.datetime) : null;
-                        const profesionalNames = Array.isArray(evento.expand?.professional)
-                          ? evento.expand.professional
+                        const fecha = evento.datetime ? parseDatetime(evento.datetime) : null;
+                        let profesionalNames = 'Sin asignar';
+                        if (Array.isArray(evento.expand?.professional) && evento.expand.professional.length) {
+                          profesionalNames = evento.expand.professional
                             .map((p: any) => `${p.name} ${p.last_name}`)
-                            .join(', ')
-                          : evento.expand?.professional
-                            ? `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`
-                            : 'Sin asignar';
+                            .join(', ');
+                        } else if (evento.expand?.professional) {
+                          profesionalNames = `${(evento.expand.professional as any).name} ${(evento.expand.professional as any).last_name}`;
+                        } else {
+                          // fallback to localProfilesMap using the raw professional id(s)
+                          const pros = Array.isArray(evento.professional)
+                            ? evento.professional
+                            : evento.professional
+                              ? [evento.professional]
+                              : [];
+                          if (pros.length > 0) {
+                            const p = localProfilesMap[pros[0]];
+                            if (p) profesionalNames = `${p.name} ${p.last_name}`;
+                          }
+                        }
 
                         return (
-                          <Card key={evento.id} className="p-4">
-                            <div className="grid grid-cols-6 gap-4 items-center">
-                              <div className="flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                          <Card
+                            key={evento.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleEditEvent(evento.id!)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                handleEditEvent(evento.id!);
+                              }
+                            }}
+                            className="p-4 cursor-pointer"
+                          >
+                            <div className="grid sm:grid-cols-12 cliente-citas-grid gap-0 sm:gap-4 items-center">
+                              <div className="flex items-center gap-1 sm:gap-3 mr-0 sm:mr-8 col-span-1 sm:col-span-2 min-w-0 w-auto sm:w-[120px] flex-shrink-0 pr-8 sm:pr-1">
+                                <CalendarIcon className="hidden sm:inline-block h-4 w-4 text-muted-foreground" />
                                 <div>
                                   {fecha && !Number.isNaN(fecha.getTime()) ? (
                                     <>
@@ -1320,36 +1370,101 @@ export default function ClienteView() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 col-span-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <p className="text-sm">{profesionalNames}</p>
+                              <div className="flex items-center gap-2 col-span-1 sm:col-span-6 min-w-0">
+                                {(() => {
+                                  let profObj =
+                                    Array.isArray(evento.expand?.professional) && evento.expand.professional.length
+                                      ? evento.expand.professional[0]
+                                      : evento.expand?.professional || null;
+                                  // fallback to localProfilesMap if expand missing
+                                  if (!profObj) {
+                                    const pros = Array.isArray(evento.professional)
+                                      ? evento.professional
+                                      : evento.professional
+                                        ? [evento.professional]
+                                        : [];
+                                    if (pros.length > 0) {
+                                      const p = localProfilesMap[pros[0]];
+                                      if (p) profObj = p;
+                                    }
+                                  }
+                                  const profPhoto =
+                                    profObj?.photoUrl ||
+                                    ((profObj?.user || profObj?.id) && profObj?.photo_path
+                                      ? getFilePublicUrl('profile_photos', profObj.user || profObj.id, profObj.photo_path)
+                                      : null);
+
+                                  let first = '';
+                                  let last = '';
+                                  if (profObj) {
+                                    first = profObj.name || '';
+                                    last = profObj.last_name || '';
+                                  } else if (profesionalNames) {
+                                    const parts = String(profesionalNames).trim().split(' ');
+                                    if (parts.length > 1) {
+                                      last = parts.pop() as string;
+                                      first = parts.join(' ');
+                                    } else {
+                                      first = profesionalNames;
+                                    }
+                                  }
+
+                                  const fullName = `${first}${last ? ' ' + last : ''}`.trim();
+
+                                  return (
+                                    <>
+
+                                      {profPhoto ? (
+                                        <img
+                                          src={profPhoto}
+                                          alt={fullName}
+                                          className="h-6 w-6 sm:h-7 sm:w-7 rounded object-cover flex-shrink-0 mr-1 sm:mr-2"
+                                        />
+                                      ) : (
+                                        <div className="h-6 w-6 sm:h-7 sm:w-7 rounded bg-muted flex items-center justify-center flex-shrink-0 mr-1 sm:mr-2">
+                                          <User className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                      )}
+
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm text-foreground leading-tight">
+                                          <span className="block truncate">{first || profesionalNames || 'Sin asignar'}</span>
+                                          {last ? (
+                                            <span className="block text-sm text-foreground truncate">{last}</span>
+                                          ) : null}
+                                        </p>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Euro className="h-4 w-4 text-muted-foreground" />
-                                <p className="text-sm font-medium">{evento.cost || 0}</p>
+
+                              <div className="flex items-center gap-0 mr-0 sm:mr-0 pr-3 sm:pr-0 justify-start sm:justify-start col-span-1 sm:col-span-2 w-auto sm:w-[48px] flex-shrink-0">
+                                <p className="text-sm font-medium">{evento.cost || 0}€</p>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {evento.paid ? (
-                                  <div className="flex items-center gap-1 text-green-600">
-                                    <CheckCircle className="h-4 w-4" />
-                                    <span className="text-sm">Pagada</span>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-1 text-red-600">
-                                    <XCircle className="h-4 w-4" />
-                                    <span className="text-sm">No pagada</span>
-                                  </div>
-                                )}
+
+                              <div className="flex items-center gap-1 pl-1 sm:pl-0 justify-start sm:justify-start col-span-1 sm:col-span-2 w-auto sm:w-[72px] flex-shrink-0 ml-0">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span aria-label={evento.paid ? 'Pagada' : 'No pagada'} className={evento.paid ? 'text-green-600 inline-flex items-center whitespace-nowrap' : 'text-red-600 inline-flex items-center whitespace-nowrap'}>
+                                        {evento.paid ? (
+                                          <CheckCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                                        ) : (
+                                          <XCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                                        )}
+                                        {/* Show text on desktop, hide on mobile */}
+                                        <span className="hidden sm:inline ml-1 text-sm">{evento.paid ? 'Pagada' : 'No pagada'}</span>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-2 py-1 text-sm cursor-default">
+                                      {evento.paid ? 'Pagada' : 'No pagada'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               </div>
-                              <div className="flex justify-end">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleEditEvent(evento.id!)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {/* Edit action moved to row click - removed icon button for clarity on mobile */}
+                              <div className="hidden" />
                             </div>
                           </Card>
                         );

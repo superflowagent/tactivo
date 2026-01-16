@@ -151,7 +151,7 @@ export default function FeaturePreviewClases() {
         if (e) {
             try {
                 el.releasePointerCapture(e.pointerId);
-            } catch (err) {
+            } catch {
                 // ignore
             }
         }
@@ -170,7 +170,7 @@ export default function FeaturePreviewClases() {
     };
 
     return (
-        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
+        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
             <div className="p-2 border-b">
                 <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold">Plantilla de clases</h3>
@@ -192,6 +192,7 @@ export default function FeaturePreviewClases() {
                     <div className="flex gap-2 pb-2">
                         {WEEKDAYS.map((d, i) => {
                             const slots = makeSlotsForDay(i);
+                            const sortedSlots = d.name === 'Viernes' ? [...slots].sort((a, b) => a.time.localeCompare(b.time)) : slots;
                             return (
                                 <div key={d.value} className="flex-none w-36 min-h-[12rem] bg-muted/5 border rounded-md px-1 py-0.5 flex flex-col">
                                     <div className="flex items-center justify-between mb-2">
@@ -199,10 +200,10 @@ export default function FeaturePreviewClases() {
                                     </div>
 
                                     <div className="space-y-3 mt-1">
-                                        {slots.length === 0 ? (
+                                        {sortedSlots.length === 0 ? (
                                             <div className="text-sm text-muted-foreground text-center py-2">Sin clases</div>
                                         ) : (
-                                            slots.map((s, idx) => (
+                                            sortedSlots.map((s, idx) => (
                                                 <div key={idx} className="bg-background rounded-md border shadow-sm p-2 text-sm cursor-default">
                                                     <div className="font-semibold">{s.time}</div>
                                                     <div className="text-sm text-muted-foreground mt-1">

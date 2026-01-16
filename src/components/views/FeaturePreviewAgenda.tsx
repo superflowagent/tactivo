@@ -12,7 +12,7 @@ import {
 const slots = [
     {
         time: 'Jueves 15 ene 2026, 8:00',
-        duration: 'Duración: 60 min',
+        duration: '60 min',
         name: 'Víctor Romero',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
@@ -20,31 +20,31 @@ const slots = [
 
     {
         time: 'Jueves 15 ene 2026, 9:45',
-        duration: 'Duración: 60 min',
+        duration: '60 min',
         name: 'Jorge Polo',
         photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
         time: 'Jueves 15 ene 2026, 16:00',
-        duration: 'Duración: 60 min',
+        duration: '60 min',
         name: 'Jorge Polo',
         photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
-        time: 'Jueves 15 ene 2026, 10:15',
-        duration: 'Duración: 60 min',
+        time: 'Viernes 16 ene 2026, 10:15',
+        duration: '60 min',
         name: 'Víctor Romero',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
     {
-        time: 'Viernes 16 ene 2026, 10:15',
-        duration: 'Duración: 60 min',
-        name: 'Jorge Polo',
-        photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
+        time: 'Jueves 15 ene 2026, 10:15',
+        duration: '60 min',
+        name: 'Víctor Romero',
+        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
     {
         time: 'Viernes 16 ene 2026, 10:30',
-        duration: 'Duración: 60 min',
+        duration: '60 min',
         name: 'Víctor Romero',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
@@ -54,7 +54,7 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
     const firstName = String(name).split(' ')[0] || name;
 
     if (src) {
-        return <img src={src} alt={firstName} loading="eager" decoding="async" width={32} height={32} className="w-8 h-8 rounded-md object-cover" />;
+        return <img src={src} alt={firstName} loading="eager" decoding="async" width={28} height={28} className="w-7 h-7 sm:w-8 sm:h-8 rounded-md object-cover" />;
     }
 
     const initials = firstName
@@ -86,7 +86,7 @@ export default function FeaturePreviewAgenda() {
     }, [selected]);
 
     return (
-        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
+        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
             <Confetti ref={confettiRef} className="absolute inset-0 z-10 pointer-events-none" />
             <div className="p-2 border-b">
                 <div className="flex items-center justify-between gap-2">
@@ -122,7 +122,7 @@ export default function FeaturePreviewAgenda() {
                         const dateLabel = dateMatch ? `${dateMatch[1].trim()} ${dateMatch[2]}` : '';
 
                         return (
-                            <div key={i} className="py-2 px-3 sm:px-4 grid grid-cols-[7.5rem_minmax(0,1fr)_auto] items-center gap-4 border-b transition-colors hover:bg-muted/50 cursor-default">
+                            <div key={i} className="py-2 px-2 sm:px-4 grid grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] items-center gap-1 sm:gap-4 border-b transition-colors hover:bg-muted/50 cursor-default">
                                 <div className="min-w-0">
                                     <div className="text-sm font-medium truncate">{hour}</div>
                                     <div className="text-xs text-muted-foreground truncate">{dateLabel}</div>

@@ -1,6 +1,6 @@
 const fs = require('fs');
 const s = fs.readFileSync('src/components/views/FeaturePreviewMultidispositivo.tsx', 'utf8').split(/\n/);
-let curly = 0, paren = 0, angle = 0;
+let curly = 0, paren = 0;
 for (let i = 0; i < s.length; i++) {
   const line = s[i];
   for (const ch of line) {

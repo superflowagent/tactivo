@@ -4,10 +4,8 @@ export function LandingNavbar() {
   const [open, setOpen] = useState(false);
 
   const links = [
-    { title: 'Quiénes somos', href: '#about' },
-    { title: 'Testimonios', href: '#testimonials' },
-    { title: 'Precios', href: '#pricing' },
-    { title: 'Preguntas frecuentes', href: '#faq' },
+    { title: 'Funcionalidades', href: '#funcionalidades' },
+    { title: 'Testimonios', href: '#testimonios' },
   ];
 
   return (
@@ -82,7 +80,7 @@ export function LandingNavbar() {
                 {l.title}
               </a>
             ))}
-            <a href="/login" className="text-primary transition-colors mt-2">
+            <a href="/login" className="text-primary transition-colors font-semibold">
               Iniciar sesión
             </a>
           </div>
