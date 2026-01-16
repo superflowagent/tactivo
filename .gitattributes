@@ -8,6 +8,7 @@
 *.gif filter=lfs diff=lfs merge=lfs -text
 public/test_exercises/* filter=lfs diff=lfs merge=lfs -text
 public/test_equipment/* filter=lfs diff=lfs merge=lfs -text
+public/landing/exercises/* -filter -diff -merge -text
 
 # Do not track small landing images with LFS to ensure they are served correctly in production
 public/landing/*.jpg -filter -diff -merge -text
