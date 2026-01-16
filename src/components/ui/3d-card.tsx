@@ -77,11 +77,38 @@ export function CardBody({
     });
   }
 
+  // Detect if current device supports hover/pointer for interactive effects.
+  const [interactive, setInteractive] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(hover: hover) and (pointer: fine)');
+    const update = () => setInteractive(mq.matches);
+    update();
+    if (mq.addEventListener) mq.addEventListener('change', update);
+    else mq.addListener(update);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', update);
+      else mq.removeListener(update);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!interactive) {
+      // Ensure no transform or shadow on non-interactive devices
+      setStyle({
+        transform: 'none',
+        boxShadow: 'none',
+        transition: 'transform 240ms ease, box-shadow 240ms ease',
+      });
+    }
+  }, [interactive]);
+
   return (
     <div
       ref={ref}
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
+      onMouseMove={interactive ? onMove : undefined}
+      onMouseLeave={interactive ? onLeave : undefined}
       className={cn(
         'group/card relative rounded-xl p-0 transition-transform duration-200 transform-gpu',
         className

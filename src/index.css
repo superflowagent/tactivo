@@ -78,6 +78,8 @@
     /* On colors */
     --on-primary: 0 0% 100%;
     /* white */
+    --landing-navbar-height: 72px;
+    /* Approximate height of Landing navbar for anchor offset */
 
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -112,6 +114,13 @@
   /* Reserve layout space for the vertical scrollbar to avoid jumps when it appears/disappears */
   html {
     scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+  }
+
+  /* Ensure headings are not hidden by the fixed navbar when linked */
+  h2[id],
+  h3[id] {
+    scroll-margin-top: calc(var(--landing-navbar-height) + 8px);
   }
 
   /* Fallback for browsers that don't support scrollbar-gutter:
@@ -174,6 +183,13 @@
   .section-search {
     max-width: var(--section-search-width);
     width: 100%;
+  }
+
+  /* On small screens allow section controls to share a row without being constrained by max-width */
+  @media (max-width: 640px) {
+    .section-search {
+      max-width: none;
+    }
   }
 
   .popover-content-width {
@@ -307,6 +323,13 @@
       height: 1.5rem;
       width: 1.5rem;
     }
+
+    /* Client cita cards: specify mobile grid columns so middle column takes remaining space */
+    .cliente-citas-grid {
+      /* Allow the date column to size to its content on small screens so the avatar sits closer
+         Use auto for the cost and status columns so they shrink to their content on mobile */
+      grid-template-columns: auto 1fr auto auto;
+    }
   }
 
   /* Also remove hover-based focus outlines for touch */
@@ -350,5 +373,25 @@
     height: 100%;
     display: block;
     object-fit: cover;
+  }
+
+  /* Ensure the active tab on the Cliente view is visible on small screens */
+  @media (max-width: 640px) {
+    .cliente-tabs {
+      background-color: hsl(var(--muted));
+      border-radius: 0.5rem;
+      padding: 0.125rem;
+    }
+
+    .cliente-tabs [data-state="active"] {
+      background-color: hsl(var(--background)) !important;
+      color: hsl(var(--foreground)) !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Make sure triggers don't lose contrast when active */
+    .cliente-tabs [data-state="active"] svg {
+      color: inherit;
+    }
   }
 }

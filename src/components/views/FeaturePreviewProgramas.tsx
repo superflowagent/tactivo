@@ -105,7 +105,7 @@ export default function FeaturePreviewProgramas() {
     const dayBHandlers = React.useMemo(() => makeDragHandlers(), []);
 
     return (
-        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
+        <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
 
 
             <div className="p-3 pb-0 flex-1">

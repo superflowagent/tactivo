@@ -194,11 +194,74 @@
 
 /* Forzar sin scroll interno */
 .fc .fc-scroller {
-  overflow-y: hidden !important;
+  /* Hide both horizontal and vertical overflow to avoid stray scrollbars in constrained layouts */
+  overflow: hidden !important;
 }
 
 .fc .fc-timegrid-body {
   overflow: hidden !important;
+}
+
+/* Evitar scroll horizontal en mobile poniéndolo a hidden en el wrapper del calendario */
+@media (max-width: 640px) {
+
+  .calendar-wrapper,
+  .calendar-wrapper .fc {
+    overflow-x: hidden !important;
+  }
+
+  /* Reducir spacing del header: botones y flechas más compactos */
+  .calendar-wrapper .fc .fc-toolbar {
+    padding: 0.25rem 0.4rem;
+  }
+
+  .calendar-wrapper .fc .fc-toolbar-title {
+    font-size: 1rem;
+  }
+
+  /* Botones más pequeños y con menos gap */
+  .calendar-wrapper .fc .fc-button {
+    padding: 0.18rem 0.36rem;
+    font-size: 0.72rem;
+    border-radius: calc(var(--radius) - 4px);
+    min-width: 2.2rem;
+    margin-right: 0.12rem;
+  }
+
+  .calendar-wrapper .fc .fc-button:last-child,
+  .calendar-wrapper .fc .fc-button-group>.fc-button:last-child {
+    margin-right: 0;
+  }
+
+  .calendar-wrapper .fc .fc-toolbar .fc-button-group {
+    gap: 0.08rem;
+  }
+
+  /* Asegurar que los chunks del toolbar no tengan gaps innecesarios */
+  .calendar-wrapper .fc .fc-toolbar>* {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+
+  /* Mobile-specific: Reduce lateral padding inside events and force left alignment to maximize space for titles */
+  .calendar-wrapper .fc .fc-event,
+  .calendar-wrapper .fc .fc-timegrid-event {
+    padding-left: 0.125rem;
+    padding-right: 0.125rem;
+  }
+
+  .calendar-wrapper .fc .fc-event .fc-event-main,
+  .calendar-wrapper .fc .fc-timegrid-event .fc-event-main {
+    padding-left: 0.125rem !important;
+    padding-right: 0.125rem !important;
+    justify-content: flex-start !important;
+  }
+
+  .calendar-wrapper .fc .fc-event-title,
+  .calendar-wrapper .fc .fc-event .fc-event-title {
+    text-align: left !important;
+  }
 }
 
 /* When using the custom "Lista" view, hide FullCalendar's view area but keep the toolbar */

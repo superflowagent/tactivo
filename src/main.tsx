@@ -16,6 +16,7 @@ if (process.env.NODE_ENV !== 'production') {
     return false;
   };
 
+  let _lastMessageWarnAt = 0;
   window.addEventListener('message', (e) => {
     const data = (e && (e as any).data) || null;
     if (isIgnoredMessage(data)) return; // skip noisy external messages
@@ -23,13 +24,17 @@ if (process.env.NODE_ENV !== 'production') {
     const start = performance.now();
     setTimeout(() => {
       const dur = performance.now() - start;
-      if (dur > 80) {
-        // Log a concise warning with event data to help find the source of long message handlers
-        // eslint-disable-next-line no-console
-        console.warn(`[perf-dev] 'message' handler took ${dur.toFixed(1)}ms`, {
-          data: data,
-          origin: (e && (e as any).origin) || null,
-        });
+      if (dur > 120) {
+        const now = Date.now();
+        // rate limit message handler warnings so they don't spam the console
+        if (now - _lastMessageWarnAt > 2000) {
+          _lastMessageWarnAt = now;
+          // Log a concise warning with event data to help find the source of long message handlers
+          console.warn(`[perf-dev] 'message' handler took ${dur.toFixed(1)}ms`, {
+            data: data,
+            origin: (e && (e as any).origin) || null,
+          });
+        }
       }
     }, 0);
   });
@@ -46,22 +51,41 @@ if (process.env.NODE_ENV !== 'production') {
         try {
           const err = new Error();
           sampleStack = err.stack ? err.stack.toString() : String(err);
-        } catch (err) {
+        } catch {
           sampleStack = null;
         }
       }
       return original.apply(this);
     };
 
+    // Run the check less often, ignore known noisy stacks, dedupe and rate-limit logs to avoid spam.
+    // Evaluate every 60 frames (~1s at 60fps) and raise threshold for reporting bursts.
+    let frameCounter = 0;
+    let lastLoggedSample: string | null = null;
+    let lastLoggedAt = 0;
+    const LOG_COOLDOWN_MS = 10_000; // 10s
+    const STACK_IGNORED_PATTERNS = ['react-devtools', 'installhook', '.vite/deps'];
+
     const raf = () => {
-      if (count > 30) {
-        // eslint-disable-next-line no-console
-        console.warn(`[perf-dev] High layout reads this frame: ${count} getBoundingClientRect calls`, {
-          sampleStack,
-        });
+      frameCounter++;
+      if (frameCounter % 60 === 0) {
+        if (count > 500 && !document.hidden) {
+          const stack = sampleStack || '';
+          const lower = stack.toLowerCase();
+          const isIgnoredStack = STACK_IGNORED_PATTERNS.some((p) => lower.includes(p));
+          const now = Date.now();
+          if (!isIgnoredStack && (stack !== lastLoggedSample || now - lastLoggedAt > LOG_COOLDOWN_MS)) {
+            lastLoggedSample = stack;
+            lastLoggedAt = now;
+
+            console.warn(`[perf-dev] High layout reads detected: ${count} getBoundingClientRect calls in last sample`, {
+              sampleStack: stack,
+            });
+          }
+        }
+        count = 0;
+        sampleStack = null;
       }
-      count = 0;
-      sampleStack = null;
       requestAnimationFrame(raf);
     };
     requestAnimationFrame(raf);

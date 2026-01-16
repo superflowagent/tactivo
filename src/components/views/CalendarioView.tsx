@@ -625,10 +625,10 @@ export function CalendarioView() {
       </Button>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+      <div className="flex flex-row flex-wrap items-center sm:items-center gap-2 sm:gap-4">
         <Input
           placeholder="Buscar eventos..."
-          className="section-search"
+          className="section-search flex-1 min-w-0"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -678,6 +678,7 @@ export function CalendarioView() {
                         selector: sel,
                         client: { w: el.clientWidth, h: el.clientHeight },
                         scroll: { sh: el.scrollHeight, ch: el.clientHeight },
+                        hasScroll,
                         overflowY: cs.overflowY,
                         visible: cs.display !== 'none' && cs.visibility !== 'hidden',
                       });
@@ -715,11 +716,11 @@ export function CalendarioView() {
               }
             }}
           >
-            <SelectTrigger className="section-search">
+            <SelectTrigger className="section-search flex-1 min-w-0">
               <SelectValue placeholder="Profesional" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los profesionales</SelectItem>
+              <SelectItem value="all">{isMobile ? 'Todos' : 'Todos los profesionales'}</SelectItem>
               {professionals.map((prof) => (
                 <SelectItem key={prof.id} value={prof.id}>
                   {prof.name} {prof.last_name}
@@ -830,9 +831,8 @@ export function CalendarioView() {
                     headerToolbar={{
                       left: isMobile ? 'prev,next' : 'prev,next today',
                       center: 'title',
-                      right: isMobile
-                        ? 'today,listWeek'
-                        : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+                      // En móvil solo Mostrar 'Mes' y 'Semana' (dayGridMonth, timeGridWeek)
+                      right: isMobile ? 'dayGridMonth,timeGridWeek' : 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
                     }}
                     buttonText={{
                       today: 'Hoy',

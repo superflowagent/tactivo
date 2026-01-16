@@ -860,15 +860,15 @@ export default function ClientPrograms({ api }: Props) {
               )}
             </div>
 
-            <div className="rounded-xl border bg-background">
-              <Table>
+            <div className="rounded-xl border bg-background overflow-x-auto">
+              <Table className="min-w-[800px]">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[140px]">Nombre</TableHead>
-                    <TableHead className="w-[60%]">Descripción</TableHead>
-                    <TableHead className="w-[80px] text-right">Días</TableHead>
-                    <TableHead className="w-[100px] text-right">Ejercicios</TableHead>
-                    <TableHead className="text-right pr-4 w-[120px]">Acciones</TableHead>
+                    <TableHead className="w-[220px] sm:w-[140px]">Nombre</TableHead>
+                    <TableHead className="w-[160px] sm:w-[60%]">Descripción</TableHead>
+                    <TableHead className="w-[80px] text-left">Días</TableHead>
+                    <TableHead className="w-[100px] text-left">Ejercicios</TableHead>
+                    <TableHead className="pr-4 w-[120px] text-left">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -900,12 +900,12 @@ export default function ClientPrograms({ api }: Props) {
                         className="cursor-pointer hover:bg-muted/50"
                       >
                         <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="w-[60%]">
+                        <TableCell className="w-[160px] sm:w-[60%]">
                           {descriptionText ? (
                             <TooltipProvider delayDuration={150}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="block max-w-[820px] truncate text-muted-foreground">
+                                  <span className="block max-w-[160px] sm:max-w-[820px] truncate overflow-hidden whitespace-nowrap text-muted-foreground">
                                     {descriptionText}
                                   </span>
                                 </TooltipTrigger>
@@ -923,10 +923,10 @@ export default function ClientPrograms({ api }: Props) {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">{daysCount}</TableCell>
-                        <TableCell className="text-right">{exercisesCount}</TableCell>
-                        <TableCell className="text-right pr-4">
-                          <div className="flex justify-end gap-2">
+                        <TableCell className="">{daysCount}</TableCell>
+                        <TableCell className="">{exercisesCount}</TableCell>
+                        <TableCell className="pr-4">
+                          <div className="flex justify-start gap-2">
                             {!isClient && (
                               <ActionButton
                                 onClick={async (e) => {

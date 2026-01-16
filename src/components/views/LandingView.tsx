@@ -65,7 +65,7 @@ export function LandingView() {
           </div>
 
           {/* Right half: calendar preview aligned to the left (towards center) */}
-          <div className="hidden lg:flex w-1/2 items-center justify-start pl-12 pr-48">
+          <div className="flex w-full lg:w-1/2 items-center justify-start pl-6 pr-6 lg:pl-12 lg:pr-48 mt-6 lg:mt-0">
             <CalendarPreview />
           </div>
         </div>

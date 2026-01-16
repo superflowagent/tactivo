@@ -110,7 +110,7 @@ export function FeaturesSection() {
           {features.map((f) => {
             const cardHeightClass = 'min-h-[28rem]';
             return (
-              <Card key={f.title} tabIndex={0} className={`w-full group cursor-default relative overflow-hidden ${cardHeightClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out hover:scale-[1.01] hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none`}>
+              <Card key={f.title} tabIndex={0} className={`w-full group cursor-default relative overflow-hidden ${cardHeightClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.01] sm:hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none`}>
                 <div className="relative z-10 flex flex-col sm:flex-row items-center w-full h-full">
                   <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">
                     <CardHeader className="p-0">

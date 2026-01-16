@@ -44,7 +44,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByRole, getProfilesByIds } from '@/lib/profiles';
 
-import { formatDateWithOffset } from '@/lib/date';
+import { formatDateWithOffset, parseDatetime } from '@/lib/date';
 
 interface EventDialogProps {
   open: boolean;
@@ -100,30 +100,8 @@ export function EventDialog({
   const isUuid = (s: any) => typeof s === 'string' && /^[0-9a-fA-F-]{36}$/.test(s);
   const sanitizeUuidArray = (arr: any) => (Array.isArray(arr) ? arr.filter(isUuid) : []);
 
-  // Helper: robust datetime parser for DB/RPC values
-  const safeParseDatetime = (raw: any): Date | null => {
-    if (!raw) return null;
-    let s = String(raw);
-    if (/[+-]\d{2}$/.test(s)) s = s.replace(/([+-]\d{2})$/, '$1:00');
-    if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(s)) {
-      const d = new Date(s);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
-    if (m) {
-      const y = parseInt(m[1], 10);
-      const mo = parseInt(m[2], 10) - 1;
-      const day = parseInt(m[3], 10);
-      const hh = parseInt(m[4], 10);
-      const mm = parseInt(m[5], 10);
-      const ss = m[6] ? parseInt(m[6], 10) : 0;
-      const d = new Date(y, mo, day, hh, mm, ss);
-      if (!isNaN(d.getTime())) return d;
-    }
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) return d;
-    return null;
-  };
+  // Helper: use shared parser for DB/RPC datetime values
+  const safeParseDatetime = (raw: any): Date | null => parseDatetime(raw);
 
   // Callback functions - BEFORE useEffect
   const loadCompany = useCallback(async () => {
@@ -893,7 +871,7 @@ export function EventDialog({
               {event?.id ? <Edit className="h-5 w-5" /> : <CalendarPlus className="h-5 w-5" />}
               {event?.id ? 'Editar Evento' : 'Crear Evento'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-left">
               {event?.id ? 'Modifica los datos del evento' : 'Completa los datos del nuevo evento'}
             </DialogDescription>
           </DialogHeader>
