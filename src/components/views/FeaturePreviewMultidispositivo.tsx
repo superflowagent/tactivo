@@ -26,8 +26,8 @@ export default function FeaturePreviewMultidispositivo() {
                 <Confetti ref={confettiRef} className="absolute inset-0 z-50 pointer-events-none" />
 
                 <div className="pl-2 pr-2 h-full overflow-hidden bg-white select-none">
-                    <div className="mb-2 relative">
-                        <button aria-label="Abrir menú" className="absolute left-0 top-1.5 p-0.5 rounded-md text-muted-foreground hover:bg-muted/20">
+                    <div className="mb-2 relative pt-2">
+                        <button aria-label="Abrir menú" className="absolute left-0 top-3 p-0.5 rounded-md text-muted-foreground hover:bg-muted/20">
                             <Menu className="h-5 w-5" />
                         </button>
 
