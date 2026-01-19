@@ -15,7 +15,7 @@ const { Client } = require('pg');
     await client.end();
   } catch (err) {
     console.error('Connection error:', err && err.message ? err.message : err);
-    if (err && err.stack) console.error(err.stack.split('\n').slice(0,5).join('\n'));
+    if (err && err.stack) console.error(err.stack.split('\n').slice(0, 5).join('\n'));
     process.exit(1);
   }
 })();

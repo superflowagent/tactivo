@@ -91,7 +91,7 @@ function loadEnv(file) {
       console.log('No baseline row found. We will INSERT a baseline row and then remove others.');
     } else {
       console.log(`Baseline rows found: ${baselineRows.length}`);
-      baselineRows.slice(0,5).forEach(r => console.log(` - ${r[idCol]}`));
+      baselineRows.slice(0, 5).forEach(r => console.log(` - ${r[idCol]}`));
     }
 
     // Confirm action with user prompt
@@ -113,7 +113,7 @@ function loadEnv(file) {
         insertCols.push(timeCol);
         insertVals.push(now);
       }
-      const placeholders = insertCols.map((_, i) => `$${i+1}`).join(',');
+      const placeholders = insertCols.map((_, i) => `$${i + 1}`).join(',');
       const q = `INSERT INTO ${tableSchema}.${tableName}(${insertCols.join(',')}) VALUES (${placeholders}) RETURNING *`;
       const ins = await client.query(q, insertVals);
       console.log('Inserted baseline row:', ins.rows[0]);
