@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest';
 import { computeAppointmentSlots } from '@/components/eventos/AppointmentSlotsDialog';
 
 describe('computeAppointmentSlots', () => {
