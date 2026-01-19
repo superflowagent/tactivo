@@ -107,7 +107,7 @@ describe('computeAppointmentSlots', () => {
     expect(at10Pro2.length).toBe(1);
     expect(
       at10Pro2[0].professional &&
-        (at10Pro2[0].professional.id === 'p2' || at10Pro2[0].professional.user === 'p2')
+      (at10Pro2[0].professional.id === 'p2' || at10Pro2[0].professional.user === 'p2')
     ).toBeTruthy();
 
     const slotsPro1Busy = computeAppointmentSlots({
