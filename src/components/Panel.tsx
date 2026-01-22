@@ -66,7 +66,7 @@ export function Panel() {
         sv === 'ajustes'
       )
         return sv as ViewType;
-    } catch {}
+    } catch { }
     return 'calendario';
   })();
   const [currentView, setCurrentView] = useState<ViewType>(initialView);
@@ -75,7 +75,7 @@ export function Panel() {
   useEffect(() => {
     try {
       localStorage.setItem('tactivo.currentView', currentView);
-    } catch {}
+    } catch { }
   }, [currentView]);
 
   // Ensure the URL contains the correct companyName path segment

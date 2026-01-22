@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, getFilePublicUrl } from '@/lib/supabase';
+import { supabase, getFilePublicUrl, getAuthToken } from '@/lib/supabase';
 
 export default function useResolvedFileUrl(
   bucket: string,
@@ -53,27 +53,56 @@ export default function useResolvedFileUrl(
 
     const init = async () => {
       try {
-        // Try public URL first (prefer root then id-prefixed)
+        // Try public URL first (prefer root then id-prefixed), but verify accessibility
         const pubRoot = getFilePublicUrl(bucket, null, filename);
         if (mounted && pubRoot) {
-          setUrl(pubRoot);
-          return;
+          try {
+            const headRes = await fetch(pubRoot, { method: 'HEAD' });
+            if (headRes.ok) {
+              setUrl(pubRoot);
+              return;
+            }
+          } catch {
+            // HEAD failed or CORS blocked, continue to next candidate
+          }
         }
         const pubId = getFilePublicUrl(bucket, id, filename);
         if (mounted && pubId) {
-          setUrl(pubId);
-          return;
+          try {
+            const headRes = await fetch(pubId, { method: 'HEAD' });
+            if (headRes.ok) {
+              setUrl(pubId);
+              return;
+            }
+          } catch {
+            // HEAD failed or CORS blocked, continue to signed URL fallback
+          }
         }
 
-        // Fallback: attempt to create signed URL only for existing objects, prefer root then id-prefixed
+        // Fallback: attempt to get a signed URL for likely candidate paths via a server-side function (uses service role)
         const candidates = [`${filename}`, `${id}/${filename}`];
+        const authToken = await getAuthToken();
         for (const path of candidates) {
           try {
-            const exists = await fileExists(bucket, path);
-            if (!exists) continue;
-            const signed = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-            if (signed?.data?.signedUrl) {
-              if (mounted) setUrl(signed.data.signedUrl);
+            // Try server-side signed URL generator (stronger permissions than client createSignedUrl)
+            const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (authToken) headers.Authorization = `Bearer ${authToken}`;
+            const res = await fetch(fnUrl, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ bucket, path, expires: 60 * 60 })
+            });
+            if (!res.ok) {
+              // If the server-side attempt fails, try next candidate
+              let txt = null;
+              try { txt = await res.text(); } catch { }
+              console.debug('get-signed-url failed', { status: res.status, body: txt });
+              continue;
+            }
+            const j = await res.json().catch(() => null);
+            if (j && j.signedUrl) {
+              if (mounted) setUrl(j.signedUrl);
               break;
             }
           } catch {

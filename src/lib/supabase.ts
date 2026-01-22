@@ -162,9 +162,18 @@ export async function fetchProfileByUserId(userId: string) {
 
   // Prefer RPC to avoid PostgREST column-name parsing issues for reserved column names like "user"
   try {
+    const sessionRes = await supabase.auth.getSession();
+    debug('fetchProfileByUserId session:', sessionRes);
+    const access = sessionRes?.data?.session?.access_token;
+    debug('fetchProfileByUserId access_token present:', !!access);
+
     const { data, error } = await supabase.rpc('get_profile_by_user', { p_user: userId });
     if (!error && data) return data;
-  } catch {
+    if (error) {
+      debug('RPC get_profile_by_user error:', error);
+    }
+  } catch (e) {
+    debug('RPC get_profile_by_user threw:', e);
     // ignore and fallthrough to direct selects
   }
 

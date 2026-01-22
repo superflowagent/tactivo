@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
-import { error } from '@/lib/logger';
+import { debug, error } from '@/lib/logger';
 
 interface User {
   id: string;
@@ -39,12 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const sessionRes = await supabase.auth.getSession();
       const session = sessionRes.data.session;
+      debug('checkAuth session:', session);
 
       if (session?.user) {
         const userId = session.user.id;
+        debug('checkAuth user id:', userId);
         // Obtener perfil del usuario desde "profiles"
         // Fetch profile using helper that supports different schemas
         const profile = await (await import('@/lib/supabase')).fetchProfileByUserId(userId);
+        debug('checkAuth profile:', profile);
         if (!profile) throw new Error('Profile not found');
 
         const role = profile?.role;
@@ -147,9 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
+      debug('login signInWithPassword result:', data, signInError);
       if (signInError) throw signInError;
 
       const userId = data.user?.id;
+      debug('login userId:', userId);
       if (!userId) throw new Error('No user in session');
 
       // Obtener perfil (robusto para distintos esquemas de columna)

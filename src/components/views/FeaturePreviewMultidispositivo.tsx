@@ -51,6 +51,8 @@ export default function FeaturePreviewMultidispositivo() {
 
                     <div className="mb-1 flex items-center gap-2">
                         <input
+                            id="fp-search"
+                            name="fp-search"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Buscar cliente..."

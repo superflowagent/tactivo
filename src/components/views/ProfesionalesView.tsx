@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowUpDown, UserStar, Pencil } from 'lucide-react';
+import { ArrowUpDown, UserStar } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -9,7 +9,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import ActionButton from '@/components/ui/ActionButton';
 import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
@@ -293,12 +292,16 @@ export function ProfesionalesView() {
               <TableHead>DNI</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead className="text-right pr-4">Acciones</TableHead>
+
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredProfesionales.map((profesional) => (
-              <TableRow key={profesional.id}>
+              <TableRow
+                key={profesional.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleEdit(profesional)}
+              >
                 <TableCell>
                   <ProfileAvatar
                     id={profesional.id}
@@ -313,66 +316,6 @@ export function ProfesionalesView() {
                 <TableCell>{profesional.dni}</TableCell>
                 <TableCell>{profesional.phone}</TableCell>
                 <TableCell>{profesional.email}</TableCell>
-                <TableCell className="text-right pr-4">
-                  <div className="flex justify-end gap-0.5">
-                    <ActionButton
-                      tooltip="Editar"
-                      onClick={() => handleEdit(profesional)}
-                      aria-label="Editar profesional"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </ActionButton>
-                    {!isLoading && user?.id !== profesional.id && (
-                      <ActionButton
-                        tooltip="Eliminar"
-                        onClick={() => {
-                          setProfesionalToDelete(profesional.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                        aria-label="Eliminar profesional"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                        >
-                          <path
-                            d="M3 6h18"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M10 11v6"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M14 11v6"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          <path
-                            d="M9 6V4h6v2"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </ActionButton>
-                    )}
-                  </div>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>

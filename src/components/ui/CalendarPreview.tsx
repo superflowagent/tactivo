@@ -224,6 +224,8 @@ export default function CalendarPreview() {
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <input
+                  id="calendar-search"
+                  name="calendar-search"
                   type="text"
                   placeholder="Buscar eventos"
                   value={searchTerm}

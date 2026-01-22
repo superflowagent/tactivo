@@ -88,3 +88,8 @@ entrypoint = "./functions/propagate-classes/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/register-user/index.ts"
+
+[functions."get-signed-url"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/get-signed-url/index.ts"

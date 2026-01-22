@@ -5,6 +5,8 @@ This Edge Function exchanges a TokenHash (access_token / TokenHash from Supabase
 Usage:
 
 - Email template: use `{{ .SiteURL }}/functions/password-reset?access_token={{ .TokenHash }}` (or call this endpoint directly with the token as `access_token` or `token`).
+
+Note: The `password-reset` function redirects to `APP_URL` (set via environment) after exchanging the token for a session. For local testing set `APP_URL` to your frontend origin (eg. `http://127.0.0.1:5173`) so the final redirect token lands in your local app.
 - The function will call `supabase.auth.verifyOtp({ token, type: 'recovery' })` using the Service Role key.
 - If Supabase returns session tokens, the function redirects to `${APP_URL}/auth/password-reset#access_token=...&refresh_token=...` so the SPA can parse and create the session.
 - If the exchange does not return tokens, it redirects to `${APP_URL}/auth/password-reset?token=<token>` as a fallback.

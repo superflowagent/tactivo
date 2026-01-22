@@ -25,7 +25,13 @@ dist-ssr
 
 .vercel
 .env
-.env*.local
+.env.local
 
 # Supabase CLI artifacts (do not commit)
 supabase/.temp/
+
+# Supabase
+.supabase
+
+# Local admin secret used by functions for local development
+.local_admin_secret

@@ -26,6 +26,7 @@ import { getFilePublicUrl } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
 import { normalizeForSearch } from '@/lib/stringUtils';
 import type { Cliente } from '@/types/cliente';
+import ClientAvatar from '@/components/clientes/ClientAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfilesByRole } from '@/lib/profiles';
 
@@ -216,31 +217,7 @@ export function ClientesView() {
                 onClick={() => handleRowClick(cliente)}
               >
                 <TableCell>
-                  {(() => {
-                    const photoUrl =
-                      cliente.photoUrl ||
-                      (cliente.photo
-                        ? getFilePublicUrl('profile_photos', cliente.id, cliente.photo)
-                        : null) ||
-                      (cliente.photo_path
-                        ? getFilePublicUrl('profile_photos', cliente.id, cliente.photo_path)
-                        : null);
-                    if (photoUrl) {
-                      return (
-                        <img
-                          src={photoUrl || undefined}
-                          alt={cliente.name}
-                          className="w-10 h-10 rounded-md object-cover"
-                        />
-                      );
-                    }
-                    return (
-                      <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center text-sm font-medium">
-                        {String(cliente.name || '')?.charAt(0)}
-                        {String(cliente.last_name || '')?.charAt(0)}
-                      </div>
-                    );
-                  })()}
+                  <ClientAvatar cliente={cliente} />
                 </TableCell>
                 <TableCell className="font-medium">
                   {cliente.name} {cliente.last_name}

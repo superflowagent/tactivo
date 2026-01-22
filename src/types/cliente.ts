@@ -19,4 +19,5 @@ export interface Cliente {
   diagnosis?: string;
   allergies?: string;
   notes?: string;
+  test_temp?: string | null;
 }

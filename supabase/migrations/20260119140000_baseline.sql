@@ -51,41 +51,84 @@
 
 -- Begin concatenated baseline content
 
+-- Ensure minimal required tables exist for fresh DBs
+CREATE TABLE IF NOT EXISTS public.exercises (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company uuid,
+  anatomy uuid[],
+  equipment uuid[],
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.programs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  company uuid,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  "user" uuid,
+  company uuid,
+  role text,
+  created_at timestamp with time zone DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.anatomy (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text
+);
+
+CREATE TABLE IF NOT EXISTS public.equipment (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text
+);
+
 -- From: 20260105232312_add_exercises_rls.sql
 
-ALTER TABLE IF EXISTS public.exercises ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
 
-DROP POLICY IF EXISTS "Company members can select" ON public.exercises;
-CREATE POLICY "Company members can select" ON public.exercises
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
-    )
-  );
+    ALTER TABLE IF EXISTS public.exercises ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Company members can insert" ON public.exercises;
-CREATE POLICY "Company members can insert" ON public.exercises
-  FOR INSERT WITH CHECK (
-    company = (SELECT p.company FROM public.profiles p WHERE p.user = auth.uid() LIMIT 1)
-  );
+    DROP POLICY IF EXISTS "Company members can select" ON public.exercises;
+    CREATE POLICY "Company members can select" ON public.exercises
+      FOR SELECT USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
+        )
+      );
 
-DROP POLICY IF EXISTS "Company members can update" ON public.exercises;
-CREATE POLICY "Company members can update" ON public.exercises
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
-    )
-  ) WITH CHECK (
-    company = (SELECT p.company FROM public.profiles p WHERE p.user = auth.uid() LIMIT 1)
-  );
+    DROP POLICY IF EXISTS "Company members can insert" ON public.exercises;
+    CREATE POLICY "Company members can insert" ON public.exercises
+      FOR INSERT WITH CHECK (
+        company = (SELECT p.company FROM public.profiles p WHERE p.user = auth.uid() LIMIT 1)
+      );
 
-DROP POLICY IF EXISTS "Company members can delete" ON public.exercises;
-CREATE POLICY "Company members can delete" ON public.exercises
-  FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
-    )
-  );
+    DROP POLICY IF EXISTS "Company members can update" ON public.exercises;
+    CREATE POLICY "Company members can update" ON public.exercises
+      FOR UPDATE USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
+        )
+      ) WITH CHECK (
+        company = (SELECT p.company FROM public.profiles p WHERE p.user = auth.uid() LIMIT 1)
+      );
+
+    DROP POLICY IF EXISTS "Company members can delete" ON public.exercises;
+    CREATE POLICY "Company members can delete" ON public.exercises
+      FOR DELETE USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.exercises.company
+        )
+      );
+
+  END IF;
+END $$;
 
 -- From: 20260105235651_add_storage_exercise_videos_rls.sql
 
@@ -149,43 +192,53 @@ END $$;
 
 -- From: 20260106105000_add_programs_rls.sql
 
-ALTER TABLE IF EXISTS public.programs ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'public' AND c.relname = 'programs'
+  ) THEN
 
-DROP POLICY IF EXISTS "Company members can select" ON public.programs;
-CREATE POLICY "Company members can select" ON public.programs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
-    )
-  );
+    ALTER TABLE IF EXISTS public.programs ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Company members can insert" ON public.programs;
-CREATE POLICY "Company members can insert" ON public.programs
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid()
-    )
-  );
+    DROP POLICY IF EXISTS "Company members can select" ON public.programs;
+    CREATE POLICY "Company members can select" ON public.programs
+      FOR SELECT USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
+        )
+      );
 
-DROP POLICY IF EXISTS "Company members can update" ON public.programs;
-CREATE POLICY "Company members can update" ON public.programs
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
-    )
-  ) WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid()
-    )
-  );
+    DROP POLICY IF EXISTS "Company members can insert" ON public.programs;
+    CREATE POLICY "Company members can insert" ON public.programs
+      FOR INSERT WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid()
+        )
+      );
 
-DROP POLICY IF EXISTS "Company members can delete" ON public.programs;
-CREATE POLICY "Company members can delete" ON public.programs
-  FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
-    )
-  );
+    DROP POLICY IF EXISTS "Company members can update" ON public.programs;
+    CREATE POLICY "Company members can update" ON public.programs
+      FOR UPDATE USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
+        )
+      ) WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid()
+        )
+      );
+
+    DROP POLICY IF EXISTS "Company members can delete" ON public.programs;
+    CREATE POLICY "Company members can delete" ON public.programs
+      FOR DELETE USING (
+        EXISTS (
+          SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = public.programs.company
+        )
+      );
+
+  END IF;
+END $$;
 
 -- From: 20260106122500_create_program_exercises.sql
 
@@ -253,7 +306,7 @@ DROP POLICY IF EXISTS "Company members can insert" ON public.programs;
 CREATE POLICY "Company members can insert" ON public.programs
   FOR INSERT WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = new.company AND (p.role = 'professional' OR p.role = 'admin')
+      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND (p.role = 'professional' OR p.role = 'admin')
     )
   );
 
@@ -265,7 +318,7 @@ CREATE POLICY "Company members can update" ON public.programs
     )
   ) WITH CHECK (
     EXISTS (
-      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND p.company = new.company AND (p.role = 'professional' OR p.role = 'admin')
+      SELECT 1 FROM public.profiles p WHERE p.user = auth.uid() AND (p.role = 'professional' OR p.role = 'admin')
     )
   );
 

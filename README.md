@@ -37,6 +37,28 @@ npm run new:function -- <nombre-de-la-funcion>
 
 Esto creará `supabase/functions/<nombre-de-la-funcion>/index.ts` y añadirá automáticamente la entrada en `supabase/config.toml` con `verify_jwt = false`.
 
+---
+
+## Administrar secretos y migraciones (prod vs local) 🔒
+
+- En producción **usa `supabase secrets set`** para poner valores sensibles (por ejemplo `ADMIN_SECRET`) en el proyecto remoto. Ejemplo:
+
+  supabase secrets set ADMIN_SECRET=sb_secret_xxx --project-ref <your-project-ref>
+
+- En local tienes dos opciones válidas:
+  - **Preferida**: usar `supabase secrets set ADMIN_SECRET=...` (se inyectará en los runtimes locales y será leída por las functions vía `Deno.env.get('ADMIN_SECRET')`).
+  - **Fallback controlado**: si la env var no está disponible (por ejemplo en entornos donde no se inyectan secrets), las functions intentarán leer **`public.app_settings`** usando la Service Role Key. Para crear la fila localmente (solo dev):
+
+    curl -sS -X POST "http://127.0.0.1:54321/rest/v1/app_settings" \
+      -H "apikey: $SERVICE_ROLE_KEY" \
+      -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+      -H "Content-Type: application/json" \
+      -d '{"key":"ADMIN_SECRET","value":"sb_secret_..."}'
+
+  Esto permite que local y prod compartan la misma lógica de lectura (production prioriza `Deno.env`).
+
+- Migraciones limpias: cuando vayas a pasar a prod con `supabase db push --project-ref` y `supabase functions deploy --project-ref`, asegúrate de incluir las migraciones versionadas en `supabase/migrations` (ya añadí las necesarias para `app_settings`, trigger y backfill). Las migraciones son idempotentes y diseñadas para ser seguras tanto en local como en producción.
+
 ## Admin endpoint: create user
 
 A serverless endpoint is provided at `api/admin/create-user` which:

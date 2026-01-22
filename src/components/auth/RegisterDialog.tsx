@@ -51,13 +51,9 @@ export default function RegisterDialog({
         return;
       }
 
-      // Success: show toast and redirect to login after it's dismissed
+      // Success: show toast and close dialog; navigate when toast is dismissed via onClose
       setShowToast(true);
       onOpenChange(false);
-      // Navigate to login (we're probably already there, but ensure route)
-      setTimeout(() => {
-        navigate('/');
-      }, 500);
     } catch (err: any) {
       logError('Register failed', err);
       setErrorMsg(err?.message || 'Error al registrar');
@@ -149,8 +145,6 @@ export default function RegisterDialog({
           title={<span>Revisa tu correo para acceder a tu cuenta</span>}
           onClose={() => {
             setShowToast(false);
-            // After toast closes, ensure still on login
-            navigate('/');
           }}
         />
       )}

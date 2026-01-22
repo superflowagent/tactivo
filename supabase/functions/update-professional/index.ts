@@ -2,42 +2,68 @@
 /// <reference path="./deno.d.ts" />
 // @ts-ignore: Deno remote module resolution is fine at runtime
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-
-// local fallback for the type checker
-declare const Deno: any;
-
-serve(async (req: any) => {
+serve(async (req) => {
   const origin = req.headers.get('origin') || '*';
-  const corsHeaders: Record<string, string> = {
+  const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'PATCH, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Admin-Secret, X-Admin-Token',
     'Access-Control-Max-Age': '3600',
-    Vary: 'Origin',
+    Vary: 'Origin'
   };
   if (origin !== '*') corsHeaders['Access-Control-Allow-Credentials'] = 'true';
-
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
+    });
   }
-
-  const jsonResponse = (body: any, status = 200) => {
-    const h: Record<string, string> = { 'Content-Type': 'application/json', ...corsHeaders };
-    return new Response(JSON.stringify(body), { status, headers: h });
+  const jsonResponse = (body, status = 200) => {
+    const h = {
+      'Content-Type': 'application/json',
+      ...corsHeaders
+    };
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: h
+    });
   };
-
   try {
-    const ADMIN_SECRET = (globalThis as any).Deno?.env?.get('ADMIN_SECRET');
-    const SUPABASE_URL = (globalThis as any).Deno?.env?.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = (globalThis as any).Deno?.env?.get(
-      'SUPABASE_SERVICE_ROLE_KEY'
-    );
+    const ADMIN_SECRET = globalThis.Deno?.env?.get('ADMIN_SECRET');
+    const SUPABASE_URL = globalThis.Deno?.env?.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = globalThis.Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return jsonResponse({
+      error: 'Supabase not configured'
+    }, 500);
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)
-      return jsonResponse({ error: 'Supabase not configured' }, 500);
-
+    const getAdminSecret = async () => {
+      try {
+        const env = globalThis.Deno?.env?.get('ADMIN_SECRET');
+        if (env) return env;
+        try {
+          const txt = await Deno.readTextFile('./.local_admin_secret');
+          if (txt) return txt.trim();
+        } catch (e) {
+          // ignore
+        }
+        const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/app_settings?select=value&key=eq.ADMIN_SECRET`;
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          }
+        });
+        if (!res.ok) return null;
+        const json = await res.json().catch(() => null);
+        if (Array.isArray(json) && json.length) return json[0].value || null;
+        return null;
+      } catch (e) {
+        return null;
+      }
+    };
     // Helper to call Supabase REST for profiles using Service Role key
-    const restProfiles = async (method: string, body?: any, query?: string) => {
+    const restProfiles = async (method, body, query) => {
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -45,45 +71,48 @@ serve(async (req: any) => {
           'Content-Type': 'application/json',
           apikey: SUPABASE_SERVICE_ROLE_KEY,
           Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-          Prefer: 'return=representation',
+          Prefer: 'return=representation'
         },
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? JSON.stringify(body) : undefined
       });
       const text = await res.text();
-      let data: any = null;
+      let data = null;
       try {
         data = JSON.parse(text);
       } catch {
         data = text;
       }
-      return { ok: res.ok, status: res.status, data };
+      return {
+        ok: res.ok,
+        status: res.status,
+        data
+      };
     };
-
     const authHeader = req.headers.get('authorization');
     const provided = req.headers.get('x-admin-secret') || req.headers.get('x-admin-token');
-
     // Minimal ingress log
     console.info('update-professional called', {
       method: req.method,
-      origin: req.headers.get('origin'),
+      origin: req.headers.get('origin')
     });
-
     // Validate caller: either ADMIN_SECRET provided or bearer token validated against auth/v1/user
-    let callerUserId: string | null = null;
+    let callerUserId = null;
     if (!provided) {
       if (!authHeader || !authHeader.toLowerCase().startsWith('bearer ')) {
-        return jsonResponse({ error: 'Missing authorization header' }, 401);
+        return jsonResponse({
+          error: 'Missing authorization header'
+        }, 401);
       }
       const bearer = authHeader.substring(7);
       const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: {
           'Content-Type': 'application/json',
           apikey: SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${bearer}`,
-        },
+          Authorization: `Bearer ${bearer}`
+        }
       });
       if (!userResp.ok) {
-        let authErr: any = null;
+        let authErr = null;
         try {
           authErr = await userResp.json();
         } catch {
@@ -93,90 +122,92 @@ serve(async (req: any) => {
             authErr = null;
           }
         }
-        return jsonResponse({ error: 'Invalid token', auth_error: authErr }, 401);
+        return jsonResponse({
+          error: 'Invalid token',
+          auth_error: authErr
+        }, 401);
       }
       const userJson = await userResp.json();
       callerUserId = userJson.id;
-      if (!callerUserId) return jsonResponse({ error: 'Invalid token' }, 401);
+      if (!callerUserId) return jsonResponse({
+        error: 'Invalid token'
+      }, 401);
     } else {
-      if (!ADMIN_SECRET) return jsonResponse({ error: 'ADMIN_SECRET not configured' }, 500);
-      if (provided !== ADMIN_SECRET) return jsonResponse({ error: 'Unauthorized' }, 401);
+      const adminSecret = await getAdminSecret();
+      if (!adminSecret) return jsonResponse({
+        error: 'ADMIN_SECRET not configured'
+      }, 500);
+      if (provided !== adminSecret) return jsonResponse({
+        error: 'Unauthorized'
+      }, 401);
     }
-
-    if (req.method !== 'PATCH') return jsonResponse({ error: 'Method not allowed' }, 405);
-
+    if (req.method !== 'PATCH') return jsonResponse({
+      error: 'Method not allowed'
+    }, 405);
     const body = await req.json().catch(() => ({}));
     const { profile_id, id, user } = body || {};
     const targetId = profile_id || id || user;
-    if (!targetId) return jsonResponse({ error: 'profile_id (or id/user) is required' }, 400);
-
+    if (!targetId) return jsonResponse({
+      error: 'profile_id (or id/user) is required'
+    }, 400);
     // Lookup existing profile
-    const {
-      ok: gotOk,
-      status: gotStatus,
-      data: gotData,
-    } = await restProfiles('GET', undefined, `id=eq.${targetId}`);
-    if (!gotOk || !gotData || (Array.isArray(gotData) && gotData.length === 0))
-      return jsonResponse({ error: 'profile_not_found' }, 404);
+    const { ok: gotOk, status: gotStatus, data: gotData } = await restProfiles('GET', undefined, `id=eq.${targetId}`);
+    if (!gotOk || !gotData || Array.isArray(gotData) && gotData.length === 0) return jsonResponse({
+      error: 'profile_not_found'
+    }, 404);
     const profile = Array.isArray(gotData) ? gotData[0] : gotData;
-
     // Authorization check for bearer callers: allow admin, or professionals in same company, or editing own profile
     if (callerUserId) {
       const callerResp = await restProfiles('GET', undefined, `user=eq.${callerUserId}`);
-      if (
-        !callerResp.ok ||
-        !callerResp.data ||
-        (Array.isArray(callerResp.data) && callerResp.data.length === 0)
-      )
-        return jsonResponse({ error: 'caller_profile_missing' }, 403);
+      if (!callerResp.ok || !callerResp.data || Array.isArray(callerResp.data) && callerResp.data.length === 0) return jsonResponse({
+        error: 'caller_profile_missing'
+      }, 403);
       const callerProfile = Array.isArray(callerResp.data) ? callerResp.data[0] : callerResp.data;
       const sameCompany = String(callerProfile.company) === String(profile.company);
-      if (
-        !(
-          callerProfile.role === 'admin' ||
-          (callerProfile.role === 'professional' && sameCompany) ||
-          String(callerProfile.user) === String(targetId) ||
-          String(callerProfile.id) === String(targetId)
-        )
-      ) {
+      if (!(callerProfile.role === 'admin' || callerProfile.role === 'professional' && sameCompany || String(callerProfile.user) === String(targetId) || String(callerProfile.id) === String(targetId))) {
         const authDebug = {
           caller_role: callerProfile?.role ?? null,
           caller_company: callerProfile?.company ?? null,
           target_company: profile?.company ?? null,
-          same_company: sameCompany,
+          same_company: sameCompany
         };
         console.warn('update-professional forbidden', authDebug);
-        return jsonResponse({ error: 'forbidden', auth_debug: authDebug }, 403);
+        return jsonResponse({
+          error: 'forbidden',
+          auth_debug: authDebug
+        }, 403);
       }
     }
-
     // Prevent role escalation
     if (body.role && body.role !== 'professional') delete body.role;
-
     // Remove helper/identifying fields
-    const sanitizedBody: any = { ...(body || {}) };
+    const sanitizedBody = {
+      ...body || {}
+    };
     if (sanitizedBody.profile_id) delete sanitizedBody.profile_id;
     if (sanitizedBody.id) delete sanitizedBody.id;
-
     // If photo_path provided and profile has no legacy 'photo' column, skip setting 'photo'
     try {
-      if (
-        sanitizedBody.photo_path &&
-        (sanitizedBody.photo === undefined || sanitizedBody.photo === null)
-      ) {
+      if (sanitizedBody.photo_path && (sanitizedBody.photo === undefined || sanitizedBody.photo === null)) {
         if (profile && Object.prototype.hasOwnProperty.call(profile, 'photo')) {
           sanitizedBody.photo = sanitizedBody.photo_path;
         }
       }
     } catch (e) {
       /* ignore */
-    }
-
+}
     const upd = await restProfiles('PATCH', sanitizedBody, `id=eq.${targetId}`);
-    if (!upd.ok) return jsonResponse({ error: 'failed_to_update_profile', details: upd }, 500);
-
-    return jsonResponse({ ok: true, updated: upd.data }, 200);
-  } catch (err: any) {
-    return jsonResponse({ error: String(err?.message || err) }, 500);
+    if (!upd.ok) return jsonResponse({
+      error: 'failed_to_update_profile',
+      details: upd
+    }, 500);
+    return jsonResponse({
+      ok: true,
+      updated: upd.data
+    }, 200);
+  } catch (err) {
+    return jsonResponse({
+      error: String(err?.message || err)
+    }, 500);
   }
 });
