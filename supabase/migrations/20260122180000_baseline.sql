@@ -24,31 +24,31 @@ COMMIT;
 -- Begin schema snapshot
 drop extension if exists "pg_net";
 
-drop policy "Company members can delete" on "public"."exercises";
+drop policy if exists "Company members can delete" on "public"."exercises";
 
-drop policy "Company members can insert" on "public"."exercises";
+drop policy if exists "Company members can insert" on "public"."exercises";
 
-drop policy "Company members can update" on "public"."exercises";
+drop policy if exists "Company members can update" on "public"."exercises"; 
 
-drop policy "Company members can delete" on "public"."program_exercises";
+drop policy if exists "Company members can delete" on "public"."program_exercises";
 
-drop policy "Company members can insert" on "public"."program_exercises";
+drop policy if exists "Company members can insert" on "public"."program_exercises";
 
-drop policy "Company members can select" on "public"."program_exercises";
+drop policy if exists "Company members can select" on "public"."program_exercises";
 
-drop policy "Company members can update" on "public"."program_exercises";
+drop policy if exists "Company members can update" on "public"."program_exercises";
 
-drop policy "Company members can insert" on "public"."programs";
+drop policy if exists "Company members can insert" on "public"."programs";
 
-drop policy "Company members can update" on "public"."programs";
+drop policy if exists "Company members can update" on "public"."programs"; 
 
-alter table "public"."program_exercises" drop constraint "program_exercises_exercise_fkey";
+alter table "public"."program_exercises" drop constraint if exists "program_exercises_exercise_fkey";
 
-alter table "public"."program_exercises" drop constraint "program_exercises_program_fkey";
+alter table "public"."program_exercises" drop constraint if exists "program_exercises_program_fkey";
 
-alter table "public"."program_exercises" drop constraint "program_exercises_pkey";
+alter table "public"."program_exercises" drop constraint if exists "program_exercises_pkey";
 
-alter table "public"."programs" drop constraint "programs_pkey";
+alter table "public"."programs" drop constraint if exists "programs_pkey";
 
 drop index if exists "public"."program_exercises_pkey";
 
