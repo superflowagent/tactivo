@@ -311,17 +311,24 @@ END $$;
 
 alter table "public"."programs" drop column if exists "created_at";
 
-alter table "public"."programs" drop column if exists "created_at";
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'programs') THEN
 
-alter table "public"."programs" add column if not exists "created" timestamp without time zone;
+    alter table "public"."programs" drop column if exists "created_at";
 
-alter table "public"."programs" add column if not exists "description" text;
+    alter table "public"."programs" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."programs" add column if not exists "name" text;
+    alter table "public"."programs" add column if not exists "description" text;
 
-alter table "public"."programs" add column if not exists "position" numeric;
+    alter table "public"."programs" add column if not exists "name" text;
 
-alter table "public"."programs" add column if not exists "profile" uuid; 
+    alter table "public"."programs" add column if not exists "position" numeric;
+
+    alter table "public"."programs" add column if not exists "profile" uuid; 
+
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS classes_templates_company_idx ON public.classes_templates USING btree (company);
 
