@@ -55,7 +55,7 @@ drop index if exists "public"."program_exercises_pkey";
 drop index if exists "public"."programs_pkey";
 
 
-  create table "public"."classes_templates" (
+  create table if not exists "public"."classes_templates" (
     "id" uuid not null default gen_random_uuid(),
     "type" text default 'class'::text,
     "created" timestamp without time zone,
@@ -74,7 +74,7 @@ drop index if exists "public"."programs_pkey";
 alter table "public"."classes_templates" enable row level security;
 
 
-  create table "public"."companies" (
+  create table if not exists "public"."companies" (
     "id" uuid not null default gen_random_uuid(),
     "name" text,
     "max_class_assistants" numeric default '5'::numeric,
@@ -93,7 +93,7 @@ alter table "public"."classes_templates" enable row level security;
 alter table "public"."companies" enable row level security;
 
 
-  create table "public"."events" (
+  create table if not exists "public"."events" (
     "id" uuid not null default gen_random_uuid(),
     "type" text,
     "datetime" timestamp with time zone,
@@ -212,23 +212,23 @@ alter table "public"."programs" add column "position" numeric;
 
 alter table "public"."programs" add column "profile" uuid;
 
-CREATE INDEX classes_templates_company_idx ON public.classes_templates USING btree (company);
+CREATE INDEX IF NOT EXISTS classes_templates_company_idx ON public.classes_templates USING btree (company);
 
-CREATE UNIQUE INDEX classes_templates_pkey ON public.classes_templates USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS classes_templates_pkey ON public.classes_templates USING btree (id);
 
-CREATE UNIQUE INDEX companies_pkey ON public.companies USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS companies_pkey ON public.companies USING btree (id);
 
-CREATE UNIQUE INDEX events_pkey ON public.events USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS events_pkey ON public.events USING btree (id);
 
-CREATE UNIQUE INDEX exercises_aux_pkey ON public.program_exercises USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS exercises_aux_pkey ON public.program_exercises USING btree (id);
 
-CREATE INDEX idx_classes_templates_company ON public.classes_templates USING btree (company);
+CREATE INDEX IF NOT EXISTS idx_classes_templates_company ON public.classes_templates USING btree (company);
 
-CREATE INDEX idx_events_company ON public.events USING btree (company);
+CREATE INDEX IF NOT EXISTS idx_events_company ON public.events USING btree (company);
 
-CREATE UNIQUE INDEX plans_pkey ON public.programs USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS plans_pkey ON public.programs USING btree (id);
 
-CREATE UNIQUE INDEX profiles_invite_token_unique ON public.profiles USING btree (invite_token) WHERE (invite_token IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_invite_token_unique ON public.profiles USING btree (invite_token) WHERE (invite_token IS NOT NULL);
 
 alter table "public"."classes_templates" add constraint "classes_templates_pkey" PRIMARY KEY using index "classes_templates_pkey";
 
@@ -2084,9 +2084,17 @@ with check ((EXISTS ( SELECT 1
   WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
 
 
-CREATE TRIGGER trg_adjust_class_credits AFTER INSERT OR DELETE OR UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION public.adjust_class_credits_on_events_change();
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_adjust_class_credits') THEN
+    CREATE TRIGGER trg_adjust_class_credits AFTER INSERT OR DELETE OR UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION public.adjust_class_credits_on_events_change();
+  END IF;
+END $$;
 
-CREATE TRIGGER trg_set_program_exercise_notes BEFORE INSERT ON public.program_exercises FOR EACH ROW EXECUTE FUNCTION public.fn_set_program_exercise_notes();
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_set_program_exercise_notes') THEN
+    CREATE TRIGGER trg_set_program_exercise_notes BEFORE INSERT ON public.program_exercises FOR EACH ROW EXECUTE FUNCTION public.fn_set_program_exercise_notes();
+  END IF;
+END $$;
 
 
   create policy "allow_company_logos_delete"
