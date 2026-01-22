@@ -2217,61 +2217,108 @@ END
 $$;
 
 
-
-  create policy "events_update_company_members"
-  on "public"."events"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
-
-
-
-  create policy "events_update_professional_or_service"
-  on "public"."events"
-  as permissive
-  for update
-  to public
-using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))))
-with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_update_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_update_company_members"
+    ON "public"."events"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_update_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_update_professional_or_service"
+    ON "public"."events"
+    AS permissive
+    FOR update
+    TO public
+    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))))
+    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+  END IF;
+END
+$$;
 
-  create policy "select_events_by_company_and_role"
-  on "public"."events"
-  as permissive
-  for select
-  to authenticated
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company) AND ((p.role = 'professional'::text) OR ((p.role = 'client'::text) AND ((events.type = 'class'::text) OR ((events.type = 'appointment'::text) AND ((p.id = ANY (events.client)) OR (p."user" = ANY (events.client)))))))))));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'select_events_by_company_and_role' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "select_events_by_company_and_role"
+    ON "public"."events"
+    AS permissive
+    FOR select
+    TO authenticated
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company) AND ((p.role = 'professional'::text) OR ((p.role = 'client'::text) AND ((events.type = 'class'::text) OR ((events.type = 'appointment'::text) AND ((p.id = ANY (events.client)) OR (p."user" = ANY (events.client)))))))))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'company_resource_select' AND n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
+    CREATE POLICY "company_resource_select"
+    ON "public"."exercises"
+    AS permissive
+    FOR select
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.company = exercises.company)))));
+  END IF;
+END
+$$;
 
-  create policy "company_resource_select"
-  on "public"."exercises"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.company = exercises.company)))));
 
-
-
-  create policy "company_resource_write"
-  on "public"."exercises"
-  as permissive
-  for all
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'company_resource_write' AND n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
+    CREATE POLICY "company_resource_write"
+    ON "public"."exercises"
+    AS permissive
+    FOR all
   to public
 using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
@@ -2281,218 +2328,400 @@ with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
   WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
 
 
-
-  create policy "Delete own profile"
-  on "public"."profiles"
-  as permissive
-  for delete
-  to public
-using (((auth.uid() = "user") OR (auth.uid() = id)));
-
-
-
-  create policy "Enable insert for authenticated users only"
-  on "public"."profiles"
-  as permissive
-  for insert
-  to authenticated
-with check (true);
-
-
-
-  create policy "Select owner or company"
-  on "public"."profiles"
-  as permissive
-  for select
-  to public
-using (((auth.uid() = "user") OR (auth.uid() = id) OR public.is_same_company(company)));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Delete own profile' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "Delete own profile"
+    ON "public"."profiles"
+    AS permissive
+    FOR delete
+    TO public
+    USING (((auth.uid() = "user") OR (auth.uid() = id)));
+  END IF;
+END
+$$;
 
 
-
-  create policy "Update own profile"
-  on "public"."profiles"
-  as permissive
-  for update
-  to public
-using (((auth.uid() = "user") OR (auth.uid() = id)))
-with check (((auth.uid() = "user") OR (auth.uid() = id)));
-
-
-
-  create policy "profiles_delete_professional_same_company_delete"
-  on "public"."profiles"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p2
-  WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Enable insert for authenticated users only' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "Enable insert for authenticated users only"
+    ON "public"."profiles"
+    AS permissive
+    FOR insert
+    TO authenticated
+    WITH CHECK (true);
+  END IF;
+END
+$$;
 
 
-
-  create policy "profiles_policy_delete_admins"
-  on "public"."profiles"
-  as permissive
-  for delete
-  to public
-using (public.is_profile_admin_of(company));
-
-
-
-  create policy "profiles_policy_select_company_members"
-  on "public"."profiles"
-  as permissive
-  for select
-  to public
-using ((("user" = auth.uid()) OR public.is_profile_member_of(company)));
-
-
-
-  create policy "profiles_policy_update_company_members"
-  on "public"."profiles"
-  as permissive
-  for update
-  to public
-using ((public.is_profile_member_of(company) OR ("user" = auth.uid())))
-with check ((public.is_profile_member_of(company) OR ("user" = auth.uid())));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Select owner or company' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "Select owner or company"
+    ON "public"."profiles"
+    AS permissive
+    FOR select
+    TO public
+    USING (((auth.uid() = "user") OR (auth.uid() = id) OR public.is_same_company(company)));
+  END IF;
+END
+$$;
 
 
-
-  create policy "profiles_update_own"
-  on "public"."profiles"
-  as permissive
-  for update
-  to public
-using (((auth.uid())::text = (USER)::text))
-with check (((auth.uid())::text = (USER)::text));
-
-
-
-  create policy "profiles_update_professional_same_company_update"
-  on "public"."profiles"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p2
-  WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))))
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p2
-  WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Update own profile' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "Update own profile"
+    ON "public"."profiles"
+    AS permissive
+    FOR update
+    TO public
+    USING (((auth.uid() = "user") OR (auth.uid() = id)))
+    WITH CHECK (((auth.uid() = "user") OR (auth.uid() = id)));
+  END IF;
+END
+$$;
 
 
-
-  create policy "Company members can delete"
-  on "public"."exercises"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
-
-
-
-  create policy "Company members can insert"
-  on "public"."exercises"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_delete_professional_same_company_delete' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_delete_professional_same_company_delete"
+    ON "public"."profiles"
+    AS permissive
+    FOR delete
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p2
+      WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))));
+  END IF;
+END
+$$;
 
 
-  create policy "Company members can update"
-  on "public"."exercises"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_policy_delete_admins' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_policy_delete_admins"
+    ON "public"."profiles"
+    AS permissive
+    FOR delete
+    TO public
+    USING (public.is_profile_admin_of(company));
+  END IF;
+END
+$$;
 
 
-
-  create policy "Company members can delete"
-  on "public"."program_exercises"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM (public.profiles p
-     JOIN public.programs prog ON ((prog.company = p.company)))
-  WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
-
-
-
-  create policy "Company members can insert"
-  on "public"."program_exercises"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM (public.profiles p
-     JOIN public.programs prog ON ((prog.company = p.company)))
-  WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_policy_select_company_members' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_policy_select_company_members"
+    ON "public"."profiles"
+    AS permissive
+    FOR select
+    TO public
+    USING ((("user" = auth.uid()) OR public.is_profile_member_of(company)));
+  END IF;
+END
+$$;
 
 
-
-  create policy "Company members can select"
-  on "public"."program_exercises"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM (public.profiles p
-     JOIN public.programs prog ON ((prog.company = p.company)))
-  WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program)))));
-
-
-
-  create policy "Company members can update"
-  on "public"."program_exercises"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM (public.profiles p
-     JOIN public.programs prog ON ((prog.company = p.company)))
-  WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
-with check ((EXISTS ( SELECT 1
-   FROM (public.profiles p
-     JOIN public.programs prog ON ((prog.company = p.company)))
-  WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_policy_update_company_members' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_policy_update_company_members"
+    ON "public"."profiles"
+    AS permissive
+    FOR update
+    TO public
+    USING ((public.is_profile_member_of(company) OR ("user" = auth.uid())))
+    WITH CHECK ((public.is_profile_member_of(company) OR ("user" = auth.uid())));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_update_own' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_update_own"
+    ON "public"."profiles"
+    AS permissive
+    FOR update
+    TO public
+    USING (((auth.uid())::text = (USER)::text))
+    WITH CHECK (((auth.uid())::text = (USER)::text));
+  END IF;
+END
+$$;
 
-  create policy "Company members can insert"
-  on "public"."programs"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'profiles_update_professional_same_company_update' AND n.nspname = 'public' AND c.relname = 'profiles'
+  ) THEN
+    CREATE POLICY "profiles_update_professional_same_company_update"
+    ON "public"."profiles"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p2
+      WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p2
+      WHERE (((p2."user")::text = (auth.uid())::text) AND (p2.role = 'professional'::text) AND ((p2.company)::text = (profiles.company)::text)))));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
+    CREATE POLICY "Company members can delete"
+    ON "public"."exercises"
+    AS permissive
+    FOR delete
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
+    CREATE POLICY "Company members can insert"
+    ON "public"."exercises"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'exercises'
+  ) THEN
+    CREATE POLICY "Company members can update"
+    ON "public"."exercises"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'program_exercises'
+  ) THEN
+    CREATE POLICY "Company members can delete"
+    ON "public"."program_exercises"
+    AS permissive
+    FOR delete
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM (public.profiles p
+         JOIN public.programs prog ON ((prog.company = p.company)))
+      WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
 
-  create policy "Company members can update"
-  on "public"."programs"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'program_exercises'
+  ) THEN
+    CREATE POLICY "Company members can insert"
+    ON "public"."program_exercises"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM (public.profiles p
+         JOIN public.programs prog ON ((prog.company = p.company)))
+      WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can select' AND n.nspname = 'public' AND c.relname = 'program_exercises'
+  ) THEN
+    CREATE POLICY "Company members can select"
+    ON "public"."program_exercises"
+    AS permissive
+    FOR select
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM (public.profiles p
+         JOIN public.programs prog ON ((prog.company = p.company)))
+      WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program)))));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'program_exercises'
+  ) THEN
+    CREATE POLICY "Company members can update"
+    ON "public"."program_exercises"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM (public.profiles p
+         JOIN public.programs prog ON ((prog.company = p.company)))
+      WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM (public.profiles p
+         JOIN public.programs prog ON ((prog.company = p.company)))
+      WHERE ((p."user" = auth.uid()) AND (prog.id = program_exercises.program) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'programs'
+  ) THEN
+    CREATE POLICY "Company members can insert"
+    ON "public"."programs"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'programs'
+  ) THEN
+    CREATE POLICY "Company members can update"
+    ON "public"."programs"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = programs.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+  END IF;
+END
+$$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_adjust_class_credits') THEN
@@ -2506,79 +2735,149 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-
-  create policy "allow_company_logos_delete"
-  on "storage"."objects"
-  as permissive
-  for delete
-  to authenticated
-using (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
-   FROM public.profiles
-  WHERE (profiles."user" = auth.uid())
- LIMIT 1))));
-
-
-
-  create policy "allow_company_logos_insert"
-  on "storage"."objects"
-  as permissive
-  for insert
-  to authenticated
-with check (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
-   FROM public.profiles
-  WHERE (profiles."user" = auth.uid())
- LIMIT 1))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_company_logos_delete' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_company_logos_delete"
+    ON "storage"."objects"
+    AS permissive
+    FOR delete
+    TO authenticated
+    USING (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
+       FROM public.profiles
+      WHERE (profiles."user" = auth.uid())
+     LIMIT 1))));
+  END IF;
+END
+$$;
 
 
-
-  create policy "allow_company_logos_select"
-  on "storage"."objects"
-  as permissive
-  for select
-  to authenticated
-using (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
-   FROM public.profiles
-  WHERE (profiles."user" = auth.uid())
- LIMIT 1))));
-
-
-
-  create policy "allow_company_logos_update"
-  on "storage"."objects"
-  as permissive
-  for update
-  to authenticated
-using (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
-   FROM public.profiles
-  WHERE (profiles."user" = auth.uid())
- LIMIT 1))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_company_logos_insert' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_company_logos_insert"
+    ON "storage"."objects"
+    AS permissive
+    FOR insert
+    TO authenticated
+    WITH CHECK (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
+       FROM public.profiles
+      WHERE (profiles."user" = auth.uid())
+     LIMIT 1))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_company_logos_select' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_company_logos_select"
+    ON "storage"."objects"
+    AS permissive
+    FOR select
+    TO authenticated
+    USING (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
+       FROM public.profiles
+      WHERE (profiles."user" = auth.uid())
+     LIMIT 1))));
+  END IF;
+END
+$$;
 
-  create policy "allow_profile_photos_delete"
-  on "storage"."objects"
-  as permissive
-  for delete
-  to public
-using (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_company_logos_update' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_company_logos_update"
+    ON "storage"."objects"
+    AS permissive
+    FOR update
+    TO authenticated
+    USING (((bucket_id = 'company_logos'::text) AND ("substring"(name, '^[^/]+'::text) = ( SELECT (profiles.company)::text AS company
+       FROM public.profiles
+      WHERE (profiles."user" = auth.uid())
+     LIMIT 1))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_profile_photos_delete' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_profile_photos_delete"
+    ON "storage"."objects"
+    AS permissive
+    FOR delete
+    TO public
+    USING (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+  END IF;
+END
+$$;
 
-  create policy "allow_profile_photos_insert"
-  on "storage"."objects"
-  as permissive
-  for insert
-  to public
-with check (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_profile_photos_insert' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_profile_photos_insert"
+    ON "storage"."objects"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+  END IF;
+END
+$$;
 
 
-
-  create policy "allow_profile_photos_select"
-  on "storage"."objects"
-  as permissive
-  for select
-  to public
-using (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'allow_profile_photos_select' AND n.nspname = 'storage' AND c.relname = 'objects'
+  ) THEN
+    CREATE POLICY "allow_profile_photos_select"
+    ON "storage"."objects"
+    AS permissive
+    FOR select
+    TO public
+    USING (((bucket_id = 'profile_photos'::text) AND (auth.uid() IS NOT NULL)));
+  END IF;
+END
+$$;
 
 
 
