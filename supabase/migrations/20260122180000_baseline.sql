@@ -280,27 +280,36 @@ BEGIN
   END IF;
 END $$; 
 
-alter table "public"."program_exercises" drop column if exists "company";
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'program_exercises') THEN
 
-alter table "public"."program_exercises" drop column if exists "created_at";
+    alter table "public"."program_exercises" drop column if exists "company";
 
-alter table "public"."program_exercises" add column if not exists "day" text;
+    alter table "public"."program_exercises" drop column if exists "created_at";
 
-alter table "public"."program_exercises" add column if not exists "reps" numeric;
+    alter table "public"."program_exercises" add column if not exists "day" text;
 
-alter table "public"."program_exercises" add column if not exists "secs" numeric;
+    alter table "public"."program_exercises" add column if not exists "reps" numeric;
 
-alter table "public"."program_exercises" add column if not exists "sets" numeric;
+    alter table "public"."program_exercises" add column if not exists "secs" numeric;
 
-alter table "public"."program_exercises" add column if not exists "weight" numeric;
+    alter table "public"."program_exercises" add column if not exists "sets" numeric;
 
-alter table "public"."program_exercises" alter column "exercise" drop not null; 
+    alter table "public"."program_exercises" add column if not exists "weight" numeric;
 
-alter table "public"."program_exercises" alter column "position" drop default;
+    alter table "public"."program_exercises" alter column "exercise" drop not null; 
 
-alter table "public"."program_exercises" alter column "position" set data type numeric using "position"::numeric;
+    alter table "public"."program_exercises" alter column "position" drop default;
 
-alter table "public"."program_exercises" alter column "program" drop not null;
+    alter table "public"."program_exercises" alter column "position" set data type numeric using "position"::numeric;
+
+    alter table "public"."program_exercises" alter column "program" drop not null;
+
+  END IF;
+END $$;
+
+alter table "public"."programs" drop column if exists "created_at";
 
 alter table "public"."programs" drop column if exists "created_at";
 
