@@ -230,51 +230,116 @@ CREATE UNIQUE INDEX IF NOT EXISTS plans_pkey ON public.programs USING btree (id)
 
 CREATE UNIQUE INDEX IF NOT EXISTS profiles_invite_token_unique ON public.profiles USING btree (invite_token) WHERE (invite_token IS NOT NULL);
 
-alter table "public"."classes_templates" add constraint "classes_templates_pkey" PRIMARY KEY using index "classes_templates_pkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_pkey') THEN
+    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_pkey" PRIMARY KEY USING INDEX "classes_templates_pkey";
+  END IF;
+END $$;
 
-alter table "public"."companies" add constraint "companies_pkey" PRIMARY KEY using index "companies_pkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'companies_pkey') THEN
+    ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_pkey" PRIMARY KEY USING INDEX "companies_pkey";
+  END IF;
+END $$;
 
-alter table "public"."events" add constraint "events_pkey" PRIMARY KEY using index "events_pkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_pkey') THEN
+    ALTER TABLE "public"."events" ADD CONSTRAINT "events_pkey" PRIMARY KEY USING INDEX "events_pkey";
+  END IF;
+END $$;
 
-alter table "public"."program_exercises" add constraint "exercises_aux_pkey" PRIMARY KEY using index "exercises_aux_pkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_pkey') THEN
+    ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY USING INDEX "exercises_aux_pkey";
+  END IF;
+END $$;
 
-alter table "public"."programs" add constraint "plans_pkey" PRIMARY KEY using index "plans_pkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_pkey') THEN
+    ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_pkey" PRIMARY KEY USING INDEX "plans_pkey";
+  END IF;
+END $$;
 
-alter table "public"."anatomy" add constraint "anatomy_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'anatomy_company_fkey') THEN
+    ALTER TABLE "public"."anatomy" ADD CONSTRAINT "anatomy_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'anatomy_company_fkey') THEN
+    ALTER TABLE "public"."anatomy" VALIDATE CONSTRAINT "anatomy_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."anatomy" validate constraint "anatomy_company_fkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
+    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
+    ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."classes_templates" add constraint "classes_templates_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
+    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey1" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
+    ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey1";
+  END IF;
+END $$;
 
-alter table "public"."classes_templates" validate constraint "classes_templates_company_fkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
+    ALTER TABLE "public"."equipment" ADD CONSTRAINT "equipment_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
+    ALTER TABLE "public"."equipment" VALIDATE CONSTRAINT "equipment_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."classes_templates" add constraint "classes_templates_company_fkey1" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
+    ALTER TABLE "public"."events" ADD CONSTRAINT "events_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
+    ALTER TABLE "public"."events" VALIDATE CONSTRAINT "events_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."classes_templates" validate constraint "classes_templates_company_fkey1";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
+    ALTER TABLE "public"."exercises" ADD CONSTRAINT "exercises_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
+    ALTER TABLE "public"."exercises" VALIDATE CONSTRAINT "exercises_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."equipment" add constraint "equipment_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
+    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
+    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_company_fkey";
+  END IF;
+END $$;
 
-alter table "public"."equipment" validate constraint "equipment_company_fkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
+    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_invite_expires_valid" CHECK (((invite_expires_at IS NULL) OR (invite_expires_at > now()))) NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
+    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_invite_expires_valid";
+  END IF;
+END $$;
 
-alter table "public"."events" add constraint "events_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."events" validate constraint "events_company_fkey";
-
-alter table "public"."exercises" add constraint "exercises_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."exercises" validate constraint "exercises_company_fkey";
-
-alter table "public"."profiles" add constraint "profiles_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."profiles" validate constraint "profiles_company_fkey";
-
-alter table "public"."profiles" add constraint "profiles_invite_expires_valid" CHECK (((invite_expires_at IS NULL) OR (invite_expires_at > now()))) NOT VALID not valid;
-
-alter table "public"."profiles" validate constraint "profiles_invite_expires_valid";
-
-alter table "public"."profiles" add constraint "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES auth.users(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."profiles" validate constraint "profiles_user_fkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
+    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES auth.users(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
+    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_user_fkey";
+  END IF;
+END $$;
 
 alter table "public"."program_exercises" add constraint "exercises_aux_exercise_fkey" FOREIGN KEY (exercise) REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
 
