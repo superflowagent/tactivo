@@ -10,7 +10,15 @@ BEGIN;
 DROP TABLE IF EXISTS public.app_settings CASCADE;
 
 -- Remove legacy debug/test column from profiles if present
-ALTER TABLE public.profiles DROP COLUMN IF EXISTS test_temp;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'profiles'
+  ) THEN
+    ALTER TABLE public.profiles DROP COLUMN IF EXISTS test_temp;
+  END IF;
+END $$;
 
 COMMIT;
 
@@ -24,31 +32,117 @@ COMMIT;
 -- Begin schema snapshot
 drop extension if exists "pg_net";
 
-drop policy if exists "Company members can delete" on "public"."exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can delete" ON public.exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can insert" on "public"."exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can insert" ON public.exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can update" on "public"."exercises"; 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can update" ON public.exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can delete" on "public"."program_exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'program_exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can delete" ON public.program_exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can insert" on "public"."program_exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'program_exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can insert" ON public.program_exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can select" on "public"."program_exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'program_exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can select" ON public.program_exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can update" on "public"."program_exercises";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'program_exercises'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can update" ON public.program_exercises;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can insert" on "public"."programs";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'programs'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can insert" ON public.programs;
+  END IF;
+END $$;
 
-drop policy if exists "Company members can update" on "public"."programs"; 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'programs'
+  ) THEN
+    DROP POLICY IF EXISTS "Company members can update" ON public.programs;
+  END IF;
+END $$;
 
-alter table "public"."program_exercises" drop constraint if exists "program_exercises_exercise_fkey";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'program_exercises'
+  ) THEN
+    ALTER TABLE public.program_exercises DROP CONSTRAINT IF EXISTS "program_exercises_exercise_fkey";
+    ALTER TABLE public.program_exercises DROP CONSTRAINT IF EXISTS "program_exercises_program_fkey";
+    ALTER TABLE public.program_exercises DROP CONSTRAINT IF EXISTS "program_exercises_pkey";
+  END IF;
+END $$;
 
-alter table "public"."program_exercises" drop constraint if exists "program_exercises_program_fkey";
-
-alter table "public"."program_exercises" drop constraint if exists "program_exercises_pkey";
-
-alter table "public"."programs" drop constraint if exists "programs_pkey";
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'programs'
+  ) THEN
+    ALTER TABLE public.programs DROP CONSTRAINT IF EXISTS "programs_pkey";
+  END IF;
+END $$;
 
 drop index if exists "public"."program_exercises_pkey";
 
@@ -110,11 +204,20 @@ alter table "public"."companies" enable row level security;
 
 alter table "public"."events" enable row level security;
 
-alter table "public"."anatomy" add column if not exists "company" uuid;
-
-alter table "public"."anatomy" add column if not exists "created" timestamp without time zone;
-
-alter table "public"."anatomy" enable row level security; 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name = 'anatomy'
+  ) THEN
+    ALTER TABLE public.anatomy
+      ADD COLUMN IF NOT EXISTS company uuid;
+    ALTER TABLE public.anatomy
+      ADD COLUMN IF NOT EXISTS created timestamp without time zone;
+    ALTER TABLE public.anatomy
+      ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 alter table "public"."equipment" add column if not exists "company" uuid;
 
