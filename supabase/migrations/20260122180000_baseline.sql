@@ -122,7 +122,7 @@ alter table "public"."equipment" add column if not exists "created" timestamp wi
 
 alter table "public"."equipment" enable row level security; 
 
-alter table "public"."exercises" drop column "created_at";
+alter table "public"."exercises" drop column if exists "created_at";
 
 alter table "public"."exercises" add column if not exists "created" timestamp without time zone;
 
@@ -136,7 +136,7 @@ alter table "public"."exercises" alter column "anatomy" set default '{}'::uuid[]
 
 alter table "public"."exercises" alter column "equipment" set default '{}'::uuid[];
 
-alter table "public"."profiles" drop column "created_at";
+alter table "public"."profiles" drop column if exists "created_at";
 
 alter table "public"."profiles" add column if not exists "address" text;
 
@@ -178,9 +178,9 @@ alter table "public"."profiles" add column if not exists "sport" text;
 
 alter table "public"."profiles" enable row level security; 
 
-alter table "public"."program_exercises" drop column "company";
+alter table "public"."program_exercises" drop column if exists "company";
 
-alter table "public"."program_exercises" drop column "created_at";
+alter table "public"."program_exercises" drop column if exists "created_at";
 
 alter table "public"."program_exercises" add column if not exists "day" text;
 
@@ -200,7 +200,7 @@ alter table "public"."program_exercises" alter column "position" set data type n
 
 alter table "public"."program_exercises" alter column "program" drop not null;
 
-alter table "public"."programs" drop column "created_at";
+alter table "public"."programs" drop column if exists "created_at";
 
 alter table "public"."programs" add column if not exists "created" timestamp without time zone;
 
