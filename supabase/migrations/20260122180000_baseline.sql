@@ -234,19 +234,21 @@ BEGIN
   END IF;
 END $$;
 
-alter table "public"."exercises" drop column if exists "created_at";
-
-alter table "public"."exercises" add column if not exists "created" timestamp without time zone;
-
-alter table "public"."exercises" add column if not exists "description" text;
-
-alter table "public"."exercises" add column if not exists "file" text;
-
-alter table "public"."exercises" add column if not exists "name" text;
-
-alter table "public"."exercises" alter column "anatomy" set default '{}'::uuid[]; 
-
-alter table "public"."exercises" alter column "equipment" set default '{}'::uuid[];
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'exercises'
+  ) THEN
+    alter table "public"."exercises" drop column if exists "created_at";
+    alter table "public"."exercises" add column if not exists "created" timestamp without time zone;
+    alter table "public"."exercises" add column if not exists "description" text;
+    alter table "public"."exercises" add column if not exists "file" text;
+    alter table "public"."exercises" add column if not exists "name" text;
+    alter table "public"."exercises" alter column "anatomy" set default '{}'::uuid[]; 
+    alter table "public"."exercises" alter column "equipment" set default '{}'::uuid[];
+  END IF;
+END $$;
 
 alter table "public"."profiles" drop column if exists "created_at";
 
