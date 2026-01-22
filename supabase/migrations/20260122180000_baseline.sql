@@ -219,11 +219,20 @@ BEGIN
   END IF;
 END $$;
 
-alter table "public"."equipment" add column if not exists "company" uuid;
-
-alter table "public"."equipment" add column if not exists "created" timestamp without time zone;
-
-alter table "public"."equipment" enable row level security; 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name = 'equipment'
+  ) THEN
+    ALTER TABLE public.equipment
+      ADD COLUMN IF NOT EXISTS company uuid;
+    ALTER TABLE public.equipment
+      ADD COLUMN IF NOT EXISTS created timestamp without time zone;
+    ALTER TABLE public.equipment
+      ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 alter table "public"."exercises" drop column if exists "created_at";
 
