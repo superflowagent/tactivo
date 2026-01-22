@@ -309,8 +309,6 @@ BEGIN
   END IF;
 END $$;
 
-alter table "public"."programs" drop column if exists "created_at";
-
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'programs') THEN
