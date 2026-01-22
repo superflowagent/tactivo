@@ -2004,117 +2004,217 @@ END
 $$;
 
 
-
-  create policy "events_delete_company_members"
-  on "public"."events"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
-
-
-
-  create policy "events_delete_professional_or_service"
-  on "public"."events"
-  as permissive
-  for delete
-  to public
-using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))));
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_delete_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_delete_company_members"
+    ON "public"."events"
+    AS permissive
+    FOR delete
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  END IF;
+END
+$$;
 
 
-  create policy "events_insert_professional_or_service"
-  on "public"."events"
-  as permissive
-  for insert
-  to public
-with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_delete_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_delete_professional_or_service"
+    ON "public"."events"
+    AS permissive
+    FOR delete
+    TO public
+    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))));
+  END IF;
+END
+$$;
 
 
-
-  create policy "events_insert_professionals"
-  on "public"."events"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));
-
-
-
-  create policy "events_policy_delete"
-  on "public"."events"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_insert_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_insert_professional_or_service"
+    ON "public"."events"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+  END IF;
+END
+$$;
 
 
-  create policy "events_policy_insert"
-  on "public"."events"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.role = ANY (ARRAY['professional'::text, 'admin'::text])) AND (p.company = p.company)))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_insert_professionals' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_insert_professionals"
+    ON "public"."events"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));
+  END IF;
+END
+$$;
 
 
-
-  create policy "events_policy_select"
-  on "public"."events"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
-
-
-
-  create policy "events_policy_update"
-  on "public"."events"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
-with check ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_policy_delete' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_policy_delete"
+    ON "public"."events"
+    AS permissive
+    FOR delete
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_policy_insert' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_policy_insert"
+    ON "public"."events"
+    AS permissive
+    FOR insert
+    TO public
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.role = ANY (ARRAY['professional'::text, 'admin'::text])) AND (p.company = p.company)))));
+  END IF;
+END
+$$;
 
-  create policy "events_select_company_member"
-  on "public"."events"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.company = events.company)))));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_policy_select' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_policy_select"
+    ON "public"."events"
+    AS permissive
+    FOR select
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  END IF;
+END
+$$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_policy_update' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_policy_update"
+    ON "public"."events"
+    AS permissive
+    FOR update
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
+    WITH CHECK ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
+  END IF;
+END
+$$;
 
-  create policy "events_select_company_members"
-  on "public"."events"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_select_company_member' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_select_company_member"
+    ON "public"."events"
+    AS permissive
+    FOR select
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p.id = auth.uid()) AND (p.company = events.company)))));
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policy p
+    JOIN pg_class c ON p.polrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE p.polname = 'events_select_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+  ) THEN
+    CREATE POLICY "events_select_company_members"
+    ON "public"."events"
+    AS permissive
+    FOR select
+    TO public
+    USING ((EXISTS ( SELECT 1
+       FROM public.profiles p
+      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  END IF;
+END
+$$;
 
 
 
