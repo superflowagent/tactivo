@@ -359,9 +359,14 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-alter table "public"."programs" add constraint "plans_profile_fkey" FOREIGN KEY (profile) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
-
-alter table "public"."programs" validate constraint "plans_profile_fkey";
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
+    ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_profile_fkey" FOREIGN KEY (profile) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
+    ALTER TABLE "public"."programs" VALIDATE CONSTRAINT "plans_profile_fkey";
+  END IF;
+END $$;
 
 alter table "public"."program_exercises" add constraint "program_exercises_program_fkey" FOREIGN KEY (program) REFERENCES public.programs(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
 
