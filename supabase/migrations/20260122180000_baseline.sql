@@ -2326,7 +2326,9 @@ using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
 with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
-
+  END IF;
+END
+$$;
 
 DO $$
 BEGIN
