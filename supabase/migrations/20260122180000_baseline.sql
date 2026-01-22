@@ -250,47 +250,35 @@ BEGIN
   END IF;
 END $$;
 
-alter table "public"."profiles" drop column if exists "created_at";
-
-alter table "public"."profiles" add column if not exists "address" text;
-
-alter table "public"."profiles" add column if not exists "allergies" text;
-
-alter table "public"."profiles" add column if not exists "birth_date" timestamp without time zone;
-
-alter table "public"."profiles" add column if not exists "class_credits" numeric;
-
-alter table "public"."profiles" add column if not exists "created" timestamp without time zone;
-
-alter table "public"."profiles" add column if not exists "diagnosis" text;
-
-alter table "public"."profiles" add column if not exists "dni" text;
-
-alter table "public"."profiles" add column if not exists "email" text;
-
-alter table "public"."profiles" add column if not exists "history" text;
-
-alter table "public"."profiles" add column if not exists "invite_expires_at" timestamp without time zone;
-
-alter table "public"."profiles" add column if not exists "invite_token" uuid;
-
-alter table "public"."profiles" add column if not exists "last_name" text;
-
-alter table "public"."profiles" add column if not exists "name" text;
-
-alter table "public"."profiles" add column if not exists "notes" text;
-
-alter table "public"."profiles" add column if not exists "occupation" text;
-
-alter table "public"."profiles" add column if not exists "phone" text;
-
-alter table "public"."profiles" add column if not exists "photo_path" text;
-
-alter table "public"."profiles" add column if not exists "session_credits" numeric;
-
-alter table "public"."profiles" add column if not exists "sport" text;
-
-alter table "public"."profiles" enable row level security; 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'profiles'
+  ) THEN
+    alter table "public"."profiles" drop column if exists "created_at";
+    alter table "public"."profiles" add column if not exists "address" text;
+    alter table "public"."profiles" add column if not exists "allergies" text;
+    alter table "public"."profiles" add column if not exists "birth_date" timestamp without time zone;
+    alter table "public"."profiles" add column if not exists "class_credits" numeric;
+    alter table "public"."profiles" add column if not exists "created" timestamp without time zone;
+    alter table "public"."profiles" add column if not exists "diagnosis" text;
+    alter table "public"."profiles" add column if not exists "dni" text;
+    alter table "public"."profiles" add column if not exists "email" text;
+    alter table "public"."profiles" add column if not exists "history" text;
+    alter table "public"."profiles" add column if not exists "invite_expires_at" timestamp without time zone;
+    alter table "public"."profiles" add column if not exists "invite_token" uuid;
+    alter table "public"."profiles" add column if not exists "last_name" text;
+    alter table "public"."profiles" add column if not exists "name" text;
+    alter table "public"."profiles" add column if not exists "notes" text;
+    alter table "public"."profiles" add column if not exists "occupation" text;
+    alter table "public"."profiles" add column if not exists "phone" text;
+    alter table "public"."profiles" add column if not exists "photo_path" text;
+    alter table "public"."profiles" add column if not exists "session_credits" numeric;
+    alter table "public"."profiles" add column if not exists "sport" text;
+    alter table "public"."profiles" enable row level security;
+  END IF;
+END $$; 
 
 alter table "public"."program_exercises" drop column if exists "company";
 
