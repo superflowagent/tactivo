@@ -21,6 +21,19 @@ jobs:
         with:
           version: latest
 
+      - name: Diagnóstico Supabase CLI
+        run: |
+          supabase --version || true
+          echo "PROJECT_ID=$PROJECT_ID"
+          supabase db push --help || true
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Linkear proyecto Supabase
+        run: supabase link --project-ref $PROJECT_ID
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
       - name: Desplegar Migraciones (Base de Datos)
         run: supabase db push
 
