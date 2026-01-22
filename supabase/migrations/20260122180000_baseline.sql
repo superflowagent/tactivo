@@ -110,89 +110,89 @@ alter table "public"."companies" enable row level security;
 
 alter table "public"."events" enable row level security;
 
-alter table "public"."anatomy" add column "company" uuid;
+alter table "public"."anatomy" add column if not exists "company" uuid;
 
-alter table "public"."anatomy" add column "created" timestamp without time zone;
+alter table "public"."anatomy" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."anatomy" enable row level security;
+alter table "public"."anatomy" enable row level security; 
 
-alter table "public"."equipment" add column "company" uuid;
+alter table "public"."equipment" add column if not exists "company" uuid;
 
-alter table "public"."equipment" add column "created" timestamp without time zone;
+alter table "public"."equipment" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."equipment" enable row level security;
+alter table "public"."equipment" enable row level security; 
 
 alter table "public"."exercises" drop column "created_at";
 
-alter table "public"."exercises" add column "created" timestamp without time zone;
+alter table "public"."exercises" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."exercises" add column "description" text;
+alter table "public"."exercises" add column if not exists "description" text;
 
-alter table "public"."exercises" add column "file" text;
+alter table "public"."exercises" add column if not exists "file" text;
 
-alter table "public"."exercises" add column "name" text;
+alter table "public"."exercises" add column if not exists "name" text;
 
-alter table "public"."exercises" alter column "anatomy" set default '{}'::uuid[];
+alter table "public"."exercises" alter column "anatomy" set default '{}'::uuid[]; 
 
 alter table "public"."exercises" alter column "equipment" set default '{}'::uuid[];
 
 alter table "public"."profiles" drop column "created_at";
 
-alter table "public"."profiles" add column "address" text;
+alter table "public"."profiles" add column if not exists "address" text;
 
-alter table "public"."profiles" add column "allergies" text;
+alter table "public"."profiles" add column if not exists "allergies" text;
 
-alter table "public"."profiles" add column "birth_date" timestamp without time zone;
+alter table "public"."profiles" add column if not exists "birth_date" timestamp without time zone;
 
-alter table "public"."profiles" add column "class_credits" numeric;
+alter table "public"."profiles" add column if not exists "class_credits" numeric;
 
-alter table "public"."profiles" add column "created" timestamp without time zone;
+alter table "public"."profiles" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."profiles" add column "diagnosis" text;
+alter table "public"."profiles" add column if not exists "diagnosis" text;
 
-alter table "public"."profiles" add column "dni" text;
+alter table "public"."profiles" add column if not exists "dni" text;
 
-alter table "public"."profiles" add column "email" text;
+alter table "public"."profiles" add column if not exists "email" text;
 
-alter table "public"."profiles" add column "history" text;
+alter table "public"."profiles" add column if not exists "history" text;
 
-alter table "public"."profiles" add column "invite_expires_at" timestamp without time zone;
+alter table "public"."profiles" add column if not exists "invite_expires_at" timestamp without time zone;
 
-alter table "public"."profiles" add column "invite_token" uuid;
+alter table "public"."profiles" add column if not exists "invite_token" uuid;
 
-alter table "public"."profiles" add column "last_name" text;
+alter table "public"."profiles" add column if not exists "last_name" text;
 
-alter table "public"."profiles" add column "name" text;
+alter table "public"."profiles" add column if not exists "name" text;
 
-alter table "public"."profiles" add column "notes" text;
+alter table "public"."profiles" add column if not exists "notes" text;
 
-alter table "public"."profiles" add column "occupation" text;
+alter table "public"."profiles" add column if not exists "occupation" text;
 
-alter table "public"."profiles" add column "phone" text;
+alter table "public"."profiles" add column if not exists "phone" text;
 
-alter table "public"."profiles" add column "photo_path" text;
+alter table "public"."profiles" add column if not exists "photo_path" text;
 
-alter table "public"."profiles" add column "session_credits" numeric;
+alter table "public"."profiles" add column if not exists "session_credits" numeric;
 
-alter table "public"."profiles" add column "sport" text;
+alter table "public"."profiles" add column if not exists "sport" text;
 
-alter table "public"."profiles" enable row level security;
+alter table "public"."profiles" enable row level security; 
 
 alter table "public"."program_exercises" drop column "company";
 
 alter table "public"."program_exercises" drop column "created_at";
 
-alter table "public"."program_exercises" add column "day" text;
+alter table "public"."program_exercises" add column if not exists "day" text;
 
-alter table "public"."program_exercises" add column "reps" numeric;
+alter table "public"."program_exercises" add column if not exists "reps" numeric;
 
-alter table "public"."program_exercises" add column "secs" numeric;
+alter table "public"."program_exercises" add column if not exists "secs" numeric;
 
-alter table "public"."program_exercises" add column "sets" numeric;
+alter table "public"."program_exercises" add column if not exists "sets" numeric;
 
-alter table "public"."program_exercises" add column "weight" numeric;
+alter table "public"."program_exercises" add column if not exists "weight" numeric;
 
-alter table "public"."program_exercises" alter column "exercise" drop not null;
+alter table "public"."program_exercises" alter column "exercise" drop not null; 
 
 alter table "public"."program_exercises" alter column "position" drop default;
 
@@ -202,15 +202,15 @@ alter table "public"."program_exercises" alter column "program" drop not null;
 
 alter table "public"."programs" drop column "created_at";
 
-alter table "public"."programs" add column "created" timestamp without time zone;
+alter table "public"."programs" add column if not exists "created" timestamp without time zone;
 
-alter table "public"."programs" add column "description" text;
+alter table "public"."programs" add column if not exists "description" text;
 
-alter table "public"."programs" add column "name" text;
+alter table "public"."programs" add column if not exists "name" text;
 
-alter table "public"."programs" add column "position" numeric;
+alter table "public"."programs" add column if not exists "position" numeric;
 
-alter table "public"."programs" add column "profile" uuid;
+alter table "public"."programs" add column if not exists "profile" uuid; 
 
 CREATE INDEX IF NOT EXISTS classes_templates_company_idx ON public.classes_templates USING btree (company);
 
