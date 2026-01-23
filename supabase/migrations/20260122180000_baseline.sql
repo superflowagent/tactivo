@@ -336,7 +336,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS companies_pkey ON public.companies USING btree
 
 CREATE UNIQUE INDEX IF NOT EXISTS events_pkey ON public.events USING btree (id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS exercises_aux_pkey ON public.program_exercises USING btree (id);
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'program_exercises') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS exercises_aux_pkey ON public.program_exercises USING btree (id);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_classes_templates_company ON public.classes_templates USING btree (company);
 
@@ -366,7 +371,9 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_pkey') THEN
-    ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY USING INDEX "exercises_aux_pkey";
+    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'exercises_aux_pkey' AND relkind = 'i') THEN
+      ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY USING INDEX "exercises_aux_pkey";
+    END IF;
   END IF;
 END $$;
 
