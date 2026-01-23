@@ -2370,14 +2370,14 @@ BEGIN
       JOIN pg_namespace n ON c.relnamespace = n.oid
       WHERE p.polname = 'events_insert_professionals' AND n.nspname = 'public' AND c.relname = 'events'
     ) THEN
-      CREATE POLICY "events_insert_professionals"
-      ON "public"."events"
-      AS permissive
-      FOR insert
-      TO public
-      WITH CHECK ((EXISTS ( SELECT 1
-         FROM public.profiles p
-        WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));
+      EXECUTE $$CREATE POLICY "events_insert_professionals"
+        ON "public"."events"
+        AS permissive
+        FOR insert
+        TO public
+        WITH CHECK ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));$$;
     END IF;
   END IF;
 END
@@ -2504,20 +2504,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_select_company_members' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_select_company_members"
-    ON "public"."events"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_select_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_select_company_members"
+      ON "public"."events"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -2525,23 +2527,25 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_update_company_members' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_update_company_members"
-    ON "public"."events"
-    AS permissive
-    FOR update
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
-    WITH CHECK ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_update_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_update_company_members"
+      ON "public"."events"
+      AS permissive
+      FOR update
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))))
+      WITH CHECK ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = p.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -2549,23 +2553,25 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_update_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_update_professional_or_service"
-    ON "public"."events"
-    AS permissive
-    FOR update
-    TO public
-    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))))
-    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_update_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_update_professional_or_service"
+      ON "public"."events"
+      AS permissive
+      FOR update
+      TO public
+      USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))))
+      WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    END IF;
   END IF;
 END
 $$;
