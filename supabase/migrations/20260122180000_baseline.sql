@@ -2363,20 +2363,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_insert_professionals' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_insert_professionals"
-    ON "public"."events"
-    AS permissive
-    FOR insert
-    TO public
-    WITH CHECK ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_insert_professionals' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_insert_professionals"
+      ON "public"."events"
+      AS permissive
+      FOR insert
+      TO public
+      WITH CHECK ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = p.company)))));
+    END IF;
   END IF;
 END
 $$;
