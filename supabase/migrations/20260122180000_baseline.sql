@@ -2386,20 +2386,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_policy_delete' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_policy_delete"
-    ON "public"."events"
-    AS permissive
-    FOR delete
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_policy_delete' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_policy_delete"
+      ON "public"."events"
+      AS permissive
+      FOR delete
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+    END IF;
   END IF;
 END
 $$;
