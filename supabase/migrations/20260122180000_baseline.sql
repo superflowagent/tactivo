@@ -362,35 +362,45 @@ BEGIN
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_pkey') THEN
-    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_pkey" PRIMARY KEY USING INDEX "classes_templates_pkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'companies_pkey') THEN
-    ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_pkey" PRIMARY KEY USING INDEX "companies_pkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_pkey') THEN
-    ALTER TABLE "public"."events" ADD CONSTRAINT "events_pkey" PRIMARY KEY USING INDEX "events_pkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_pkey') THEN
-    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'exercises_aux_pkey' AND relkind = 'i') THEN
-      ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY USING INDEX "exercises_aux_pkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'classes_templates') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_pkey') THEN
+      ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_pkey" PRIMARY KEY USING INDEX "classes_templates_pkey";
     END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_pkey') THEN
-    IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'plans_pkey' AND relkind = 'i') THEN
-      ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_pkey" PRIMARY KEY USING INDEX "plans_pkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'companies') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'companies_pkey') THEN
+      ALTER TABLE "public"."companies" ADD CONSTRAINT "companies_pkey" PRIMARY KEY USING INDEX "companies_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'events') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_pkey') THEN
+      ALTER TABLE "public"."events" ADD CONSTRAINT "events_pkey" PRIMARY KEY USING INDEX "events_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'program_exercises') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_pkey') THEN
+      IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'exercises_aux_pkey' AND relkind = 'i') THEN
+        ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY USING INDEX "exercises_aux_pkey";
+      END IF;
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'programs') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_pkey') THEN
+      IF EXISTS (SELECT 1 FROM pg_class WHERE relname = 'plans_pkey' AND relkind = 'i') THEN
+        ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_pkey" PRIMARY KEY USING INDEX "plans_pkey";
+      END IF;
     END IF;
   END IF;
 END $$;
@@ -407,20 +417,24 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
-    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
-    ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'classes_templates') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
+      ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey') THEN
+      ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey";
+    END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
-    ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey1" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
-    ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey1";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'classes_templates') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
+      ALTER TABLE "public"."classes_templates" ADD CONSTRAINT "classes_templates_company_fkey1" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1') THEN
+      ALTER TABLE "public"."classes_templates" VALIDATE CONSTRAINT "classes_templates_company_fkey1";
+    END IF;
   END IF;
 END $$;
 
@@ -436,80 +450,103 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
-    ALTER TABLE "public"."events" ADD CONSTRAINT "events_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
-    ALTER TABLE "public"."events" VALIDATE CONSTRAINT "events_company_fkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
-    ALTER TABLE "public"."exercises" ADD CONSTRAINT "exercises_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
-    ALTER TABLE "public"."exercises" VALIDATE CONSTRAINT "exercises_company_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'events') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
+      ALTER TABLE "public"."events" ADD CONSTRAINT "events_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey') THEN
+      ALTER TABLE "public"."events" VALIDATE CONSTRAINT "events_company_fkey";
+    END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
-    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
-    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_company_fkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
-    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_invite_expires_valid" CHECK (((invite_expires_at IS NULL) OR (invite_expires_at > now()))) NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
-    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_invite_expires_valid";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'exercises') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
+      ALTER TABLE "public"."exercises" ADD CONSTRAINT "exercises_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey') THEN
+      ALTER TABLE "public"."exercises" VALIDATE CONSTRAINT "exercises_company_fkey";
+    END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
-    ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES auth.users(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
-    ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_user_fkey";
-  END IF;
-END $$;
-
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_exercise_fkey') THEN
-    ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_exercise_fkey" FOREIGN KEY (exercise) REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_exercise_fkey') THEN
-    ALTER TABLE "public"."program_exercises" VALIDATE CONSTRAINT "exercises_aux_exercise_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
+      ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey') THEN
+      ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_company_fkey";
+    END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_company_fkey') THEN
-    ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_company_fkey') THEN
-    ALTER TABLE "public"."programs" VALIDATE CONSTRAINT "plans_company_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
+      ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_invite_expires_valid" CHECK (((invite_expires_at IS NULL) OR (invite_expires_at > now()))) NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_invite_expires_valid') THEN
+      ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_invite_expires_valid";
+    END IF;
   END IF;
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
-    ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_profile_fkey" FOREIGN KEY (profile) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
-    ALTER TABLE "public"."programs" VALIDATE CONSTRAINT "plans_profile_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
+      ALTER TABLE "public"."profiles" ADD CONSTRAINT "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES auth.users(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey') THEN
+      ALTER TABLE "public"."profiles" VALIDATE CONSTRAINT "profiles_user_fkey";
+    END IF;
   END IF;
 END $$;
 
-alter table "public"."program_exercises" add constraint "program_exercises_program_fkey" FOREIGN KEY (program) REFERENCES public.programs(id) ON UPDATE CASCADE ON DELETE CASCADE not valid;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'program_exercises') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_exercise_fkey') THEN
+      ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "exercises_aux_exercise_fkey" FOREIGN KEY (exercise) REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_exercise_fkey') THEN
+      ALTER TABLE "public"."program_exercises" VALIDATE CONSTRAINT "exercises_aux_exercise_fkey";
+    END IF;
+  END IF;
+END $$;
 
-alter table "public"."program_exercises" validate constraint "program_exercises_program_fkey";
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'programs') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_company_fkey') THEN
+      ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_company_fkey') THEN
+      ALTER TABLE "public"."programs" VALIDATE CONSTRAINT "plans_company_fkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'programs') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
+      ALTER TABLE "public"."programs" ADD CONSTRAINT "plans_profile_fkey" FOREIGN KEY (profile) REFERENCES public.profiles(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey') THEN
+      ALTER TABLE "public"."programs" VALIDATE CONSTRAINT "plans_profile_fkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'program_exercises') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'program_exercises_program_fkey') THEN
+      ALTER TABLE "public"."program_exercises" ADD CONSTRAINT "program_exercises_program_fkey" FOREIGN KEY (program) REFERENCES public.programs(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'program_exercises_program_fkey') THEN
+      ALTER TABLE "public"."program_exercises" VALIDATE CONSTRAINT "program_exercises_program_fkey";
+    END IF;
+  END IF;
+END $$;
 
 set check_function_bodies = off;
 
@@ -558,42 +595,52 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.accept_invite(p_token uuid)
- RETURNS SETOF public.profiles
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-DECLARE
-  v_profile public.profiles%ROWTYPE;
+DO $$
 BEGIN
-  -- Find invited profile
-  SELECT * INTO v_profile FROM public.profiles WHERE invite_token = p_token LIMIT 1;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'profiles'
+  ) THEN
+    EXECUTE $sql$
+    CREATE OR REPLACE FUNCTION public.accept_invite(p_token uuid)
+     RETURNS SETOF public.profiles
+     LANGUAGE plpgsql
+     SECURITY DEFINER
+    AS $function$
+    DECLARE
+      v_profile public.profiles%ROWTYPE;
+    BEGIN
+      -- Find invited profile
+      SELECT * INTO v_profile FROM public.profiles WHERE invite_token = p_token LIMIT 1;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'invalid_invite_token';
+      IF NOT FOUND THEN
+        RAISE EXCEPTION 'invalid_invite_token';
+      END IF;
+
+      -- Check expiration if provided (invite_expires_at is a timestamp)
+      IF v_profile.invite_expires_at IS NOT NULL AND v_profile.invite_expires_at < now() THEN
+        RAISE EXCEPTION 'invite_expired';
+      END IF;
+
+      -- Ensure the profile isn't already linked to a user
+      IF v_profile."user" IS NOT NULL THEN
+        RAISE EXCEPTION 'invite_already_accepted';
+      END IF;
+
+      -- Perform the update linking the current authenticated user
+      UPDATE public.profiles
+      SET "user" = auth.uid(), invite_token = NULL, invite_expires_at = NULL
+      WHERE id = v_profile.id;
+
+      -- Return the updated profile
+      RETURN QUERY
+      SELECT * FROM public.profiles WHERE id = v_profile.id;
+    END;
+    $function$
+    ;
+    $sql$;
   END IF;
-
-  -- Check expiration if provided (invite_expires_at is a timestamp)
-  IF v_profile.invite_expires_at IS NOT NULL AND v_profile.invite_expires_at < now() THEN
-    RAISE EXCEPTION 'invite_expired';
-  END IF;
-
-  -- Ensure the profile isn't already linked to a user
-  IF v_profile."user" IS NOT NULL THEN
-    RAISE EXCEPTION 'invite_already_accepted';
-  END IF;
-
-  -- Perform the update linking the current authenticated user
-  UPDATE public.profiles
-  SET "user" = auth.uid(), invite_token = NULL, invite_expires_at = NULL
-  WHERE id = v_profile.id;
-
-  -- Return the updated profile
-  RETURN QUERY
-  SELECT * FROM public.profiles WHERE id = v_profile.id;
-END;
-$function$
-;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.accept_invite_debug(p_token text)
  RETURNS jsonb
@@ -998,30 +1045,40 @@ AS $function$
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.get_profile_by_user(p_user uuid)
- RETURNS public.profiles
- LANGUAGE plpgsql
- STABLE SECURITY DEFINER
-AS $function$
-DECLARE
-  rec public.profiles%ROWTYPE;
-  has_user_id boolean;
+DO $$
 BEGIN
-  SELECT EXISTS(
-    SELECT 1 FROM information_schema.columns
-    WHERE table_schema='public' AND table_name='profiles' AND column_name='user_id'
-  ) INTO has_user_id;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'profiles'
+  ) THEN
+    EXECUTE $sql$
+    CREATE OR REPLACE FUNCTION public.get_profile_by_user(p_user uuid)
+     RETURNS public.profiles
+     LANGUAGE plpgsql
+     STABLE SECURITY DEFINER
+    AS $function$
+    DECLARE
+      rec public.profiles%ROWTYPE;
+      has_user_id boolean;
+    BEGIN
+      SELECT EXISTS(
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='profiles' AND column_name='user_id'
+      ) INTO has_user_id;
 
-  IF has_user_id THEN
-    SELECT * INTO rec FROM public.profiles WHERE "user" = p_user OR id = p_user OR user_id = p_user LIMIT 1;
-  ELSE
-    SELECT * INTO rec FROM public.profiles WHERE "user" = p_user OR id = p_user LIMIT 1;
+      IF has_user_id THEN
+        SELECT * INTO rec FROM public.profiles WHERE "user" = p_user OR id = p_user OR user_id = p_user LIMIT 1;
+      ELSE
+        SELECT * INTO rec FROM public.profiles WHERE "user" = p_user OR id = p_user LIMIT 1;
+      END IF;
+
+      RETURN rec;
+    END;
+    $function$
+    ;
+    $sql$;
   END IF;
-
-  RETURN rec;
-END;
-$function$
-;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.get_profiles_by_ids_for_clients(p_ids uuid[])
  RETURNS TABLE(id uuid, "user" uuid, name text, last_name text, photo_path text, sport text, class_credits integer, dni text, phone text, email text)
@@ -1649,20 +1706,78 @@ grant update on table "public"."events" to "service_role";
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
   ) THEN
-    CREATE POLICY "Company members can delete"
-    ON "public"."anatomy"
-    AS permissive
-    FOR delete
-    TO public
-    USING ((EXISTS ( SELECT 1
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "Company members can delete"
+      ON "public"."anatomy"
+      AS permissive
+      FOR delete
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))));
+    END IF;
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
+  ) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "Company members can insert"
+      ON "public"."anatomy"
+      AS permissive
+      FOR insert
+      TO public
+      WITH CHECK ((company = ( SELECT p.company
+         FROM public.profiles p
+        WHERE (p."user" = auth.uid())
+       LIMIT 1)));
+    END IF;
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
+  ) THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'Company members can select' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "Company members can select"
+      ON "public"."anatomy"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
        FROM public.profiles p
       WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -1670,21 +1785,29 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
   ) THEN
-    CREATE POLICY "Company members can insert"
-    ON "public"."anatomy"
-    AS permissive
-    FOR insert
-    TO public
-    WITH CHECK ((company = ( SELECT p.company
-       FROM public.profiles p
-      WHERE (p."user" = auth.uid())
-     LIMIT 1)));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "Company members can update"
+      ON "public"."anatomy"
+      AS permissive
+      FOR update
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))))
+      WITH CHECK ((company = ( SELECT p.company
+         FROM public.profiles p
+        WHERE (p."user" = auth.uid())
+       LIMIT 1)));
+    END IF;
   END IF;
 END
 $$;
@@ -1692,20 +1815,25 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'Company members can select' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
   ) THEN
-    CREATE POLICY "Company members can select"
-    ON "public"."anatomy"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'anatomy_select_company' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "anatomy_select_company"
+      ON "public"."anatomy"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.company = anatomy.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -1713,24 +1841,28 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'anatomy'
   ) THEN
-    CREATE POLICY "Company members can update"
-    ON "public"."anatomy"
-    AS permissive
-    FOR update
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))))
-    WITH CHECK ((company = ( SELECT p.company
-       FROM public.profiles p
-      WHERE (p."user" = auth.uid())
-     LIMIT 1)));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'anatomy_write_company' AND n.nspname = 'public' AND c.relname = 'anatomy'
+    ) THEN
+      CREATE POLICY "anatomy_write_company"
+      ON "public"."anatomy"
+      AS permissive
+      FOR all
+      TO public
+      USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = anatomy.company))))))
+      WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    END IF;
   END IF;
 END
 $$;
@@ -1738,20 +1870,30 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'anatomy_select_company' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'classes_templates'
   ) THEN
-    CREATE POLICY "anatomy_select_company"
-    ON "public"."anatomy"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.company = anatomy.company)))));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'delete_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'profiles'
+      ) THEN
+        CREATE POLICY "delete_classes_templates_by_professional"
+        ON "public"."classes_templates"
+        AS permissive
+        FOR delete
+        TO authenticated
+        USING ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -1759,23 +1901,30 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'anatomy_write_company' AND n.nspname = 'public' AND c.relname = 'anatomy'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'classes_templates'
   ) THEN
-    CREATE POLICY "anatomy_write_company"
-    ON "public"."anatomy"
-    AS permissive
-    FOR all
-    TO public
-    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = anatomy.company))))))
-    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'insert_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'profiles'
+      ) THEN
+        CREATE POLICY "insert_classes_templates_by_professional"
+        ON "public"."classes_templates"
+        AS permissive
+        FOR insert
+        TO authenticated
+        WITH CHECK ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -1783,20 +1932,30 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'delete_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'classes_templates'
   ) THEN
-    CREATE POLICY "delete_classes_templates_by_professional"
-    ON "public"."classes_templates"
-    AS permissive
-    FOR delete
-    TO authenticated
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'select_classes_templates_by_company' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'profiles'
+      ) THEN
+        CREATE POLICY "select_classes_templates_by_company"
+        ON "public"."classes_templates"
+        AS permissive
+        FOR select
+        TO authenticated
+        USING ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -1804,65 +1963,33 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'insert_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'classes_templates'
   ) THEN
-    CREATE POLICY "insert_classes_templates_by_professional"
-    ON "public"."classes_templates"
-    AS permissive
-    FOR insert
-    TO authenticated
-    WITH CHECK ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
-  END IF;
-END
-$$;
-
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'select_classes_templates_by_company' AND n.nspname = 'public' AND c.relname = 'classes_templates'
-  ) THEN
-    CREATE POLICY "select_classes_templates_by_company"
-    ON "public"."classes_templates"
-    AS permissive
-    FOR select
-    TO authenticated
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company)))));
-  END IF;
-END
-$$;
-
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'update_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
-  ) THEN
-    CREATE POLICY "update_classes_templates_by_professional"
-    ON "public"."classes_templates"
-    AS permissive
-    FOR update
-    TO authenticated
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))))
-    WITH CHECK ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'update_classes_templates_by_professional' AND n.nspname = 'public' AND c.relname = 'classes_templates'
+    ) THEN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'profiles'
+      ) THEN
+        CREATE POLICY "update_classes_templates_by_professional"
+        ON "public"."classes_templates"
+        AS permissive
+        FOR update
+        TO authenticated
+        USING ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))))
+        WITH CHECK ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = classes_templates.company) AND (p.role = 'professional'::text)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -1933,14 +2060,16 @@ BEGIN
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE p.polname = 'companies_select_member' AND n.nspname = 'public' AND c.relname = 'companies'
   ) THEN
-    CREATE POLICY "companies_select_member"
-    ON "public"."companies"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.company = companies.id)))));
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+      CREATE POLICY "companies_select_member"
+      ON "public"."companies"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.company = companies.id)))));
+    END IF;
   END IF;
 END
 $$;
@@ -1954,17 +2083,19 @@ BEGIN
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE p.polname = 'companies_update_professional' AND n.nspname = 'public' AND c.relname = 'companies'
   ) THEN
-    CREATE POLICY "companies_update_professional"
-    ON "public"."companies"
-    AS permissive
-    FOR update
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = companies.id)))))
-    WITH CHECK ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text)))));
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+      CREATE POLICY "companies_update_professional"
+      ON "public"."companies"
+      AS permissive
+      FOR update
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = companies.id)))))
+      WITH CHECK ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text)))));
+    END IF;
   END IF;
 END
 $$;
@@ -1978,14 +2109,18 @@ BEGIN
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'equipment'
   ) THEN
-    CREATE POLICY "Company members can delete"
-    ON "public"."equipment"
-    AS permissive
-    FOR delete
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))));
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+        CREATE POLICY "Company members can delete"
+        ON "public"."equipment"
+        AS permissive
+        FOR delete
+        TO public
+        USING ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -1999,15 +2134,19 @@ BEGIN
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'equipment'
   ) THEN
-    CREATE POLICY "Company members can insert"
-    ON "public"."equipment"
-    AS permissive
-    FOR insert
-    TO public
-    WITH CHECK ((company = ( SELECT p.company
-       FROM public.profiles p
-      WHERE (p."user" = auth.uid())
-     LIMIT 1)));
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+        CREATE POLICY "Company members can insert"
+        ON "public"."equipment"
+        AS permissive
+        FOR insert
+        TO public
+        WITH CHECK ((company = ( SELECT p.company
+           FROM public.profiles p
+          WHERE (p."user" = auth.uid())
+         LIMIT 1)));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -2021,14 +2160,18 @@ BEGIN
     JOIN pg_namespace n ON c.relnamespace = n.oid
     WHERE p.polname = 'Company members can select' AND n.nspname = 'public' AND c.relname = 'equipment'
   ) THEN
-    CREATE POLICY "Company members can select"
-    ON "public"."equipment"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))));
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+        CREATE POLICY "Company members can select"
+        ON "public"."equipment"
+        AS permissive
+        FOR select
+        TO public
+        USING ((EXISTS ( SELECT 1
+           FROM public.profiles p
+          WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))));
+      END IF;
+    END IF;
   END IF;
 END
 $$;
@@ -2036,24 +2179,26 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'equipment'
-  ) THEN
-    CREATE POLICY "Company members can update"
-    ON "public"."equipment"
-    AS permissive
-    FOR update
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))))
-    WITH CHECK ((company = ( SELECT p.company
-       FROM public.profiles p
-      WHERE (p."user" = auth.uid())
-     LIMIT 1)));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'Company members can update' AND n.nspname = 'public' AND c.relname = 'equipment'
+    ) THEN
+      CREATE POLICY "Company members can update"
+      ON "public"."equipment"
+      AS permissive
+      FOR update
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = equipment.company)))))
+      WITH CHECK ((company = ( SELECT p.company
+         FROM public.profiles p
+        WHERE (p."user" = auth.uid())
+       LIMIT 1)));
+    END IF;
   END IF;
 END
 $$;
@@ -2061,20 +2206,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'equipment_select_company' AND n.nspname = 'public' AND c.relname = 'equipment'
-  ) THEN
-    CREATE POLICY "equipment_select_company"
-    ON "public"."equipment"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.company = equipment.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'equipment_select_company' AND n.nspname = 'public' AND c.relname = 'equipment'
+    ) THEN
+      CREATE POLICY "equipment_select_company"
+      ON "public"."equipment"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.company = equipment.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -2082,23 +2229,25 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'equipment_write_company' AND n.nspname = 'public' AND c.relname = 'equipment'
-  ) THEN
-    CREATE POLICY "equipment_write_company"
-    ON "public"."equipment"
-    AS permissive
-    FOR all
-    TO public
-    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = equipment.company))))))
-    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'equipment_write_company' AND n.nspname = 'public' AND c.relname = 'equipment'
+    ) THEN
+      CREATE POLICY "equipment_write_company"
+      ON "public"."equipment"
+      AS permissive
+      FOR all
+      TO public
+      USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = equipment.company))))))
+      WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    END IF;
   END IF;
 END
 $$;
@@ -2145,20 +2294,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_delete_company_members' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_delete_company_members"
-    ON "public"."events"
-    AS permissive
-    FOR delete
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_delete_company_members' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_delete_company_members"
+      ON "public"."events"
+      AS permissive
+      FOR delete
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p."user" = auth.uid()) AND (p.company = events.company)))));
+    END IF;
   END IF;
 END
 $$;
@@ -2166,20 +2317,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_delete_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_delete_professional_or_service"
-    ON "public"."events"
-    AS permissive
-    FOR delete
-    TO public
-    USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_delete_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_delete_professional_or_service"
+      ON "public"."events"
+      AS permissive
+      FOR delete
+      TO public
+      USING (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = events.company))))));
+    END IF;
   END IF;
 END
 $$;
@@ -2187,20 +2340,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_insert_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_insert_professional_or_service"
-    ON "public"."events"
-    AS permissive
-    FOR insert
-    TO public
-    WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_insert_professional_or_service' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_insert_professional_or_service"
+      ON "public"."events"
+      AS permissive
+      FOR insert
+      TO public
+      WITH CHECK (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    END IF;
   END IF;
 END
 $$;
