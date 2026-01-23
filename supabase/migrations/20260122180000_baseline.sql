@@ -2481,20 +2481,22 @@ $$;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policy p
-    JOIN pg_class c ON p.polrelid = c.oid
-    JOIN pg_namespace n ON c.relnamespace = n.oid
-    WHERE p.polname = 'events_select_company_member' AND n.nspname = 'public' AND c.relname = 'events'
-  ) THEN
-    CREATE POLICY "events_select_company_member"
-    ON "public"."events"
-    AS permissive
-    FOR select
-    TO public
-    USING ((EXISTS ( SELECT 1
-       FROM public.profiles p
-      WHERE ((p.id = auth.uid()) AND (p.company = events.company)))));
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policy p
+      JOIN pg_class c ON p.polrelid = c.oid
+      JOIN pg_namespace n ON c.relnamespace = n.oid
+      WHERE p.polname = 'events_select_company_member' AND n.nspname = 'public' AND c.relname = 'events'
+    ) THEN
+      CREATE POLICY "events_select_company_member"
+      ON "public"."events"
+      AS permissive
+      FOR select
+      TO public
+      USING ((EXISTS ( SELECT 1
+         FROM public.profiles p
+        WHERE ((p.id = auth.uid()) AND (p.company = events.company)))));
+    END IF;
   END IF;
 END
 $$;
