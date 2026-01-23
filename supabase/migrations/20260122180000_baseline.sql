@@ -425,11 +425,13 @@ DO $$ BEGIN
 END $$;
 
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
-    ALTER TABLE "public"."equipment" ADD CONSTRAINT "equipment_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
-    ALTER TABLE "public"."equipment" VALIDATE CONSTRAINT "equipment_company_fkey";
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'equipment') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
+      ALTER TABLE "public"."equipment" ADD CONSTRAINT "equipment_company_fkey" FOREIGN KEY (company) REFERENCES public.companies(id) ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey') THEN
+      ALTER TABLE "public"."equipment" VALIDATE CONSTRAINT "equipment_company_fkey";
+    END IF;
   END IF;
 END $$;
 
