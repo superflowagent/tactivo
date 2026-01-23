@@ -1,10 +1,56 @@
 
-  create table if not exists "public"."anatomy" (
-    "id" uuid not null default gen_random_uuid(),
-    "name" text,
-    "created" timestamp without time zone,
-    "company" uuid
-      );
+DO $$ BEGIN
+  -- Minimal idempotent stubs for core tables so later functions/policies can be created safely
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='companies') THEN
+    CREATE TABLE public.companies (
+      id uuid NOT NULL DEFAULT gen_random_uuid(),
+      name text,
+      domain text
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
+    CREATE TABLE public.profiles (
+      id uuid NOT NULL DEFAULT gen_random_uuid(),
+      "user" uuid,
+      company uuid,
+      name text,
+      last_name text,
+      email text,
+      role text,
+      phone text,
+      invite_token uuid,
+      invite_expires_at timestamp without time zone
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='classes_templates') THEN
+    CREATE TABLE public.classes_templates (
+      id uuid NOT NULL DEFAULT gen_random_uuid(),
+      name text,
+      company uuid
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='events') THEN
+    CREATE TABLE public.events (
+      id uuid NOT NULL DEFAULT gen_random_uuid(),
+      company uuid,
+      datetime timestamp without time zone,
+      client uuid[],
+      professional uuid[]
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='anatomy') THEN
+    create table if not exists "public"."anatomy" (
+      "id" uuid not null default gen_random_uuid(),
+      "name" text,
+      "created" timestamp without time zone,
+      "company" uuid
+    );
+  END IF;
+END $$;
 
 
 alter table "public"."anatomy" enable row level security;
@@ -94,6 +140,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS exercises_pkey ON public.exercises USING btree
 
 CREATE UNIQUE INDEX IF NOT EXISTS plans_pkey ON public.programs USING btree (id);
 
+-- Core table primary keys so FK additions succeed on empty DBs
+CREATE UNIQUE INDEX IF NOT EXISTS companies_pkey ON public.companies USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_pkey ON public.profiles USING btree (id);
+
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'anatomy') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'anatomy_pkey') THEN
@@ -130,6 +180,22 @@ DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'programs') THEN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'plans_pkey') THEN
       alter table "public"."programs" add constraint "plans_pkey" PRIMARY KEY using index "plans_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'companies') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'companies_pkey') THEN
+      alter table "public"."companies" add constraint "companies_pkey" PRIMARY KEY using index "companies_pkey";
+    END IF;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = 'profiles') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_pkey') THEN
+      alter table "public"."profiles" add constraint "profiles_pkey" PRIMARY KEY using index "profiles_pkey";
     END IF;
   END IF;
 END $$;
@@ -1551,7 +1617,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'anatomy_select_company' AND n.nspname = 'public' AND c.relname = 'anatomy') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'anatomy_select_company' AND n.nspname = 'public' AND c.relname = 'anatomy') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "anatomy_select_company"
   on "public"."anatomy"
   as permissive
@@ -1568,7 +1634,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'anatomy_write_company' AND n.nspname = 'public' AND c.relname = 'anatomy') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'anatomy_write_company' AND n.nspname = 'public' AND c.relname = 'anatomy') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "anatomy_write_company"
   on "public"."anatomy"
   as permissive
@@ -1661,7 +1727,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_select_company' AND n.nspname = 'public' AND c.relname = 'equipment') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_select_company' AND n.nspname = 'public' AND c.relname = 'equipment') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "equipment_select_company"
   on "public"."equipment"
   as permissive
@@ -1678,7 +1744,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_write_company' AND n.nspname = 'public' AND c.relname = 'equipment') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_write_company' AND n.nspname = 'public' AND c.relname = 'equipment') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "equipment_write_company"
   on "public"."equipment"
   as permissive
@@ -1769,7 +1835,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'company_resource_select' AND n.nspname = 'public' AND c.relname = 'exercises') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'company_resource_select' AND n.nspname = 'public' AND c.relname = 'exercises') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "company_resource_select"
   on "public"."exercises"
   as permissive
@@ -1786,7 +1852,7 @@ $$;
 
   DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'company_resource_write' AND n.nspname = 'public' AND c.relname = 'exercises') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'company_resource_write' AND n.nspname = 'public' AND c.relname = 'exercises') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
     create policy "company_resource_write"
   on "public"."exercises"
   as permissive
