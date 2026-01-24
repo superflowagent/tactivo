@@ -2,7 +2,7 @@
 /// <reference path="./deno.d.ts" />
 // @ts-ignore: Deno remote module resolution is fine at runtime
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -18,7 +18,7 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
+  const jsonResponse = (body, status = 200)=>{
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -36,7 +36,7 @@ serve(async (req) => {
       error: 'Supabase not configured'
     }, 500);
     // Helper to call Supabase REST using Service Role key
-    const rest = async (resource, method, body, query) => {
+    const rest = async (resource, method, body, query)=>{
       const url = `${SUPABASE_URL}/rest/v1/${resource}${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -52,7 +52,7 @@ serve(async (req) => {
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch {
+      } catch  {
         data = text;
       }
       return {
@@ -83,10 +83,10 @@ serve(async (req) => {
         let authErr = null;
         try {
           authErr = await userResp.json();
-        } catch {
+        } catch  {
           try {
             authErr = await userResp.text();
-          } catch {
+          } catch  {
             authErr = null;
           }
         }
@@ -112,7 +112,7 @@ serve(async (req) => {
     if (req.method !== 'POST') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(()=>({}));
     const { company, month, year, templates } = body || {};
     if (!company) return jsonResponse({
       error: 'company is required'
@@ -125,8 +125,8 @@ serve(async (req) => {
     }, 400);
     // Normalize templates and generate events for the given month/year
     const daysInMonth = new Date(year, month, 0).getDate();
-    const formatDateWithOffset = (d) => {
-      const pad = (n) => n.toString().padStart(2, '0');
+    const formatDateWithOffset = (d)=>{
+      const pad = (n)=>n.toString().padStart(2, '0');
       const year = d.getFullYear();
       const month = pad(d.getMonth() + 1);
       const day = pad(d.getDate());
@@ -141,7 +141,7 @@ serve(async (req) => {
       return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${tzSign}${tzHours}:${tzMinutes}`;
     };
     const eventsToCreate = [];
-    for (const t of templates) {
+    for (const t of templates){
       // Determine day of week (0=Sunday..6=Saturday)
       let templateDay = null;
       if (typeof t.day === 'number') {
@@ -156,7 +156,7 @@ serve(async (req) => {
       let hours = 10;
       let minutes = 0;
       if (typeof t.time === 'string' && t.time.includes(':')) {
-        const [h, m] = t.time.split(':').map((s) => parseInt(s, 10) || 0);
+        const [h, m] = t.time.split(':').map((s)=>parseInt(s, 10) || 0);
         hours = h;
         minutes = m;
       } else if (t.datetime) {
@@ -164,7 +164,7 @@ serve(async (req) => {
         hours = dt.getHours();
         minutes = dt.getMinutes();
       }
-      for (let day = 1; day <= daysInMonth; day++) {
+      for(let day = 1; day <= daysInMonth; day++){
         const currentDate = new Date(year, month - 1, day);
         if (currentDate.getDay() === templateDay) {
           currentDate.setHours(hours, minutes, 0, 0);
@@ -200,11 +200,11 @@ serve(async (req) => {
     // Precompute client counts from the events we will create for auditing/debugging
     // (do not use these to update profiles here — the DB trigger handles credits).
     const clientCounts = {};
-    for (const ev of eventsToCreate) {
+    for (const ev of eventsToCreate){
       const clients = Array.isArray(ev.client) ? ev.client : ev.client ? [
         ev.client
       ] : [];
-      for (const c of clients) {
+      for (const c of clients){
         clientCounts[c] = (clientCounts[c] || 0) + 1;
       }
     }

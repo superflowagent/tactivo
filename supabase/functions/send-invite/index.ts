@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -15,7 +15,7 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
+  const jsonResponse = (body, status = 200)=>{
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -35,8 +35,7 @@ serve(async (req) => {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return jsonResponse({
       error: 'Supabase not configured'
     }, 500);
-
-    const getAdminSecret = async () => {
+    const getAdminSecret = async ()=>{
       try {
         const env = Deno.env.get('ADMIN_SECRET');
         if (env) return env;
@@ -44,7 +43,7 @@ serve(async (req) => {
           const txt = await Deno.readTextFile('./.local_admin_secret');
           if (txt) return txt.trim();
         } catch (e) {
-          // ignore
+        // ignore
         }
         const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/app_settings?select=value&key=eq.ADMIN_SECRET`;
         const res = await fetch(url, {
@@ -55,7 +54,7 @@ serve(async (req) => {
           }
         });
         if (!res.ok) return null;
-        const json = await res.json().catch(() => null);
+        const json = await res.json().catch(()=>null);
         if (Array.isArray(json) && json.length) return json[0].value || null;
         return null;
       } catch (e) {
@@ -63,7 +62,7 @@ serve(async (req) => {
       }
     };
     // Helper to call Supabase REST for profiles using Service Role key
-    const restProfiles = async (method, body, query) => {
+    const restProfiles = async (method, body, query)=>{
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -79,7 +78,7 @@ serve(async (req) => {
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch {
+      } catch  {
         data = text;
       }
       return {
@@ -118,10 +117,10 @@ serve(async (req) => {
         let authErr = null;
         try {
           authErr = await userResp.json();
-        } catch {
+        } catch  {
           try {
             authErr = await userResp.text();
-          } catch {
+          } catch  {
             authErr = null;
           }
         }
@@ -158,7 +157,7 @@ serve(async (req) => {
         let wwwAuth = null;
         try {
           wwwAuth = userResp.headers?.get ? userResp.headers.get('www-authenticate') : null;
-        } catch {
+        } catch  {
           wwwAuth = null;
         }
         const authDebug = {
@@ -197,7 +196,7 @@ serve(async (req) => {
     if (req.method !== 'POST') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(()=>({}));
     const { profile_id, email, expires_in_days } = body;
     if (!profile_id && !email) return new Response(JSON.stringify({
       error: 'profile_id or email is required'
@@ -290,11 +289,11 @@ serve(async (req) => {
           email_confirm: false
         })
       });
-      const cuText = await cuResp.text().catch(() => null);
+      const cuText = await cuResp.text().catch(()=>null);
       let cuJson = null;
       try {
         if (cuText) cuJson = JSON.parse(cuText);
-      } catch {
+      } catch  {
         cuJson = null;
       }
       createUserResult = {
@@ -308,7 +307,7 @@ serve(async (req) => {
         if (newUserId) {
           // Retry PATCH a couple times in case of transient failures
           let lastPatchRes = null;
-          for (let attempt = 0; attempt < 3; attempt++) {
+          for(let attempt = 0; attempt < 3; attempt++){
             try {
               const patchRes = await restProfiles('PATCH', {
                 user: String(newUserId)
@@ -340,7 +339,7 @@ serve(async (req) => {
               });
             }
             // small backoff
-            await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+            await new Promise((r)=>setTimeout(r, 200 * (attempt + 1)));
           }
           if (lastPatchRes && !lastPatchRes.ok) {
             createUserResult.patch = lastPatchRes;
@@ -381,11 +380,11 @@ serve(async (req) => {
         })
       });
       // Capture both raw text and JSON (if any) for diagnostics
-      const mailText = await mailResp.text().catch(() => null);
+      const mailText = await mailResp.text().catch(()=>null);
       let mailJson = null;
       try {
         if (mailText) mailJson = JSON.parse(mailText);
-      } catch {
+      } catch  {
         mailJson = null;
       }
       if (!mailResp.ok) {
@@ -417,7 +416,7 @@ serve(async (req) => {
       const m = raw.match(/(https?:\/\/[^\s"']+\/functions\/v1\/password-reset\?access_token=[^&\s"']+)/);
       if (m && m[1]) email_link = m[1];
     } catch (e) {
-      // ignore
+    // ignore
     }
     // Log both results for diagnostics so dashboard logs show whether user creation and send were accepted
     return jsonResponse({

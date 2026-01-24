@@ -795,7 +795,7 @@ AS $function$
     e.cost,
     e.paid
   FROM public.events e
-  JOIN public.profiles p ON p."user" = auth.uid()
+  JOIN public.profiles p ON p."user" = auth.uid()::uuid
   WHERE e.company = p.company
   ORDER BY e.datetime ASC;
 $function$
@@ -1060,7 +1060,7 @@ BEGIN
         (auth.uid() IS NOT NULL AND auth.uid() = ANY(v_client))
         OR EXISTS (
           SELECT 1 FROM public.profiles p
-          WHERE p.user = auth.uid()
+          WHERE p.user = auth.uid()::uuid
             AND p.company = v_company
             AND p.role = 'client'
             AND (
@@ -1116,7 +1116,7 @@ CREATE OR REPLACE FUNCTION public.is_profile_admin_of(company_id uuid)
 AS $function$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles p
-    WHERE p.user = auth.uid() AND p.role = 'admin' AND p.company = company_id
+    WHERE p.user = auth.uid()::uuid AND p.role = 'admin' AND p.company = company_id
   );
 $function$
 ;
@@ -1128,7 +1128,7 @@ CREATE OR REPLACE FUNCTION public.is_profile_member_of(company_id uuid)
 AS $function$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles p
-    WHERE (p.user = auth.uid() OR p.id = auth.uid()) AND p.company = company_id
+    WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid) AND p.company = company_id
   );
 $function$
 ;
@@ -1542,55 +1542,13 @@ grant truncate on table "public"."programs" to "service_role";
 grant update on table "public"."programs" to "service_role";
 
 
-  DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'anatomy') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "Company members can delete"
-  on "public"."anatomy"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))));
-  END IF;
-END
-$$;
 
 
 
-  DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'Company members can insert' AND n.nspname = 'public' AND c.relname = 'anatomy') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "Company members can insert"
-  on "public"."anatomy"
-  as permissive
-  for insert
-  to public
-with check ((company = ( SELECT p.company
-   FROM public.profiles p
-  WHERE (p."user" = auth.uid())
- LIMIT 1)));
-  END IF;
-END
-$$;
 
 
 
-  DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'Company members can select' AND n.nspname = 'public' AND c.relname = 'anatomy') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "Company members can select"
-  on "public"."anatomy"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = anatomy.company)))));
-  END IF;
-END
-$$;
+
 
 
 
@@ -1625,7 +1583,7 @@ BEGIN
   to public
 using ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.company = anatomy.company)))));
+  WHERE ((p.id = auth.uid()::uuid) AND (p.company = anatomy.company)))));
   END IF;
 END
 $$;
@@ -1642,7 +1600,7 @@ BEGIN
   to public
 using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = anatomy.company))))))
+  WHERE ((p.id = auth.uid()::uuid) AND (p.role = 'professional'::text) AND (p.company = anatomy.company))))))
 with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
@@ -1728,14 +1686,7 @@ $$;
   DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_select_company' AND n.nspname = 'public' AND c.relname = 'equipment') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "equipment_select_company"
-  on "public"."equipment"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.company = equipment.company)))));
+    EXECUTE $policy$CREATE POLICY "equipment_select_company" ON public.equipment AS permissive FOR SELECT TO public USING (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()::uuid) AND (p.company = equipment.company))));$policy$;
   END IF;
 END
 $$;
@@ -1745,17 +1696,7 @@ $$;
   DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'equipment_write_company' AND n.nspname = 'public' AND c.relname = 'equipment') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "equipment_write_company"
-  on "public"."equipment"
-  as permissive
-  for all
-  to public
-using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = equipment.company))))))
-with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));
+    EXECUTE $policy$CREATE POLICY "equipment_write_company" ON public.equipment AS permissive FOR ALL TO public USING ((auth.role() = 'service_role'::text) OR (EXISTS (SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()::uuid) AND (p.role = 'professional'::text) AND (p.company = equipment.company))))) WITH CHECK ((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()::uuid) AND (p.role = 'professional'::text)))));$policy$;
   END IF;
 END
 $$;
@@ -1765,14 +1706,7 @@ $$;
   DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'Company members can delete' AND n.nspname = 'public' AND c.relname = 'exercises') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "Company members can delete"
-  on "public"."exercises"
-  as permissive
-  for delete
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p."user" = auth.uid()) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text))))));
+    EXECUTE $policy$CREATE POLICY "Company members can delete" ON public.exercises AS permissive FOR DELETE TO public USING (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p."user" = auth.uid()::uuid) AND (p.company = exercises.company) AND ((p.role = 'professional'::text) OR (p.role = 'admin'::text)))));$policy$;
   END IF;
 END
 $$;
@@ -1836,14 +1770,7 @@ $$;
   DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policy p JOIN pg_class c ON p.polrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE p.polname = 'company_resource_select' AND n.nspname = 'public' AND c.relname = 'exercises') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
-    create policy "company_resource_select"
-  on "public"."exercises"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.company = exercises.company)))));
+    EXECUTE $policy$CREATE POLICY "company_resource_select" ON public.exercises AS permissive FOR SELECT TO public USING (EXISTS ( SELECT 1 FROM public.profiles p WHERE ((p.id = auth.uid()::uuid) AND (p.company = exercises.company))));$policy$;
   END IF;
 END
 $$;
@@ -1860,7 +1787,7 @@ BEGIN
   to public
 using (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text) AND (p.company = exercises.company))))))
+  WHERE ((p.id = auth.uid()::uuid) AND (p.role = 'professional'::text) AND (p.company = exercises.company))))))
 with check (((auth.role() = 'service_role'::text) OR (EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.id = auth.uid()) AND (p.role = 'professional'::text))))));

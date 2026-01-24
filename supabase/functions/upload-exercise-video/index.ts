@@ -1,7 +1,7 @@
 // @ts-nocheck
 /// <reference path="./deno.d.ts" />
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -17,7 +17,7 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
+  const jsonResponse = (body, status = 200)=>{
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -34,8 +34,7 @@ serve(async (req) => {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return jsonResponse({
       error: 'Supabase not configured'
     }, 500);
-
-    const getAdminSecret = async () => {
+    const getAdminSecret = async ()=>{
       try {
         const env = globalThis.Deno?.env?.get('ADMIN_SECRET');
         if (env) return env;
@@ -44,7 +43,7 @@ serve(async (req) => {
           const txt = await Deno.readTextFile('./.local_admin_secret');
           if (txt) return txt.trim();
         } catch (e) {
-          // ignore missing file
+        // ignore missing file
         }
         const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/app_settings?select=value&key=eq.ADMIN_SECRET`;
         const res = await fetch(url, {
@@ -55,7 +54,7 @@ serve(async (req) => {
           }
         });
         if (!res.ok) return null;
-        const json = await res.json().catch(() => null);
+        const json = await res.json().catch(()=>null);
         if (Array.isArray(json) && json.length) return json[0].value || null;
         return null;
       } catch (e) {
@@ -103,7 +102,7 @@ serve(async (req) => {
     if (req.method !== 'POST') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(()=>({}));
     const { bucket, company_id, exercise_id, filename, content_b64, content_type } = body || {};
     // If root flag is provided, company_id and exercise_id are not required. Otherwise both are mandatory.
     if (!bucket || !filename || !content_b64 || !content_type || !body.root && (!company_id || !exercise_id)) {
@@ -127,7 +126,7 @@ serve(async (req) => {
       let profileData = null;
       try {
         profileData = JSON.parse(txt);
-      } catch {
+      } catch  {
         profileData = txt;
       }
       const profile = Array.isArray(profileData) ? profileData[0] : profileData;
@@ -141,7 +140,7 @@ serve(async (req) => {
     // If 'root' flag provided, upload to bucket root (filename only). Otherwise store under company/exercise folder for legacy behavior.
     const path = body.root ? `${filename}` : `${company_id}/${exercise_id}/${filename}`;
     // Decode base64 to bytes
-    const bytes = Uint8Array.from(atob(content_b64), (c) => c.charCodeAt(0));
+    const bytes = Uint8Array.from(atob(content_b64), (c)=>c.charCodeAt(0));
     // Call Supabase Storage REST as service role to upload the file
     const uploadUrl = `${SUPABASE_URL.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(bucket)}/${encodeURIComponent(path)}`;
     const uploadResp = await fetch(uploadUrl, {
@@ -158,7 +157,7 @@ serve(async (req) => {
     let uploadJson = null;
     try {
       uploadJson = JSON.parse(uploadTxt);
-    } catch {
+    } catch  {
       uploadJson = uploadTxt;
     }
     if (!uploadResp.ok) {

@@ -2,7 +2,7 @@
 /// <reference path="./deno.d.ts" />
 // @ts-ignore: Deno remote module resolution is fine at runtime
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -18,7 +18,7 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
+  const jsonResponse = (body, status = 200)=>{
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -35,8 +35,7 @@ serve(async (req) => {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return jsonResponse({
       error: 'Supabase not configured'
     }, 500);
-
-    const getAdminSecret = async () => {
+    const getAdminSecret = async ()=>{
       try {
         const env = globalThis.Deno?.env?.get('ADMIN_SECRET');
         if (env) return env;
@@ -44,7 +43,7 @@ serve(async (req) => {
           const txt = await Deno.readTextFile('./.local_admin_secret');
           if (txt) return txt.trim();
         } catch (e) {
-          // ignore
+        // ignore
         }
         const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/app_settings?select=value&key=eq.ADMIN_SECRET`;
         const res = await fetch(url, {
@@ -55,7 +54,7 @@ serve(async (req) => {
           }
         });
         if (!res.ok) return null;
-        const json = await res.json().catch(() => null);
+        const json = await res.json().catch(()=>null);
         if (Array.isArray(json) && json.length) return json[0].value || null;
         return null;
       } catch (e) {
@@ -63,7 +62,7 @@ serve(async (req) => {
       }
     };
     // Helper to call Supabase REST for profiles using Service Role key
-    const restProfiles = async (method, body, query) => {
+    const restProfiles = async (method, body, query)=>{
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -79,7 +78,7 @@ serve(async (req) => {
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch {
+      } catch  {
         data = text;
       }
       return {
@@ -115,10 +114,10 @@ serve(async (req) => {
         let authErr = null;
         try {
           authErr = await userResp.json();
-        } catch {
+        } catch  {
           try {
             authErr = await userResp.text();
-          } catch {
+          } catch  {
             authErr = null;
           }
         }
@@ -144,7 +143,7 @@ serve(async (req) => {
     if (req.method !== 'PATCH') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(()=>({}));
     const { profile_id, id, user } = body || {};
     const targetId = profile_id || id || user;
     if (!targetId) return jsonResponse({
@@ -194,8 +193,7 @@ serve(async (req) => {
         }
       }
     } catch (e) {
-      /* ignore */
-}
+    /* ignore */ }
     const upd = await restProfiles('PATCH', sanitizedBody, `id=eq.${targetId}`);
     if (!upd.ok) return jsonResponse({
       error: 'failed_to_update_profile',

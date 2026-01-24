@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js';
-serve(async (req) => {
+serve(async (req)=>{
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -100,8 +100,8 @@ serve(async (req) => {
         accessToken = data.access_token;
         refreshToken = data.refresh_token || null;
       }
-    } catch {
-      // ignore
+    } catch  {
+    // ignore
     }
     // If we have real tokens, redirect using fragment (safer: fragments aren't sent to server logs)
     if (accessToken) {
@@ -120,9 +120,8 @@ serve(async (req) => {
   } catch (e) {
     try {
       console.warn('password-reset exchange error', String(e?.message || e));
-    } catch {
-      /* ignore */
-    }
+    } catch  {
+    /* ignore */ }
     const APP_URL = Deno.env.get('APP_URL') || (req.headers.get('origin') ?? '');
     const fail = `${APP_URL.replace(/\/$/, '')}/auth/password-reset?error=server_error`;
     return Response.redirect(fail, 302);

@@ -2,7 +2,7 @@
 /// <reference path="./deno.d.ts" />
 // @ts-ignore: Deno remote module resolution is fine at runtime
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+serve(async (req)=>{
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -18,7 +18,7 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
+  const jsonResponse = (body, status = 200)=>{
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -37,13 +37,13 @@ serve(async (req) => {
     if (req.method !== 'POST') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(()=>({}));
     const { email, centro, name, last_name, movil } = body || {};
     if (!email || !centro || !name || !last_name) return jsonResponse({
       error: 'email, centro, name and last_name are required'
     }, 400);
     // Helpers to call REST endpoints with service role key
-    const restCompanies = async (method, body, query) => {
+    const restCompanies = async (method, body, query)=>{
       const url = `${SUPABASE_URL}/rest/v1/companies${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -59,7 +59,7 @@ serve(async (req) => {
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch {
+      } catch  {
         data = text;
       }
       return {
@@ -68,7 +68,7 @@ serve(async (req) => {
         data
       };
     };
-    const restProfiles = async (method, body, query) => {
+    const restProfiles = async (method, body, query)=>{
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -84,7 +84,7 @@ serve(async (req) => {
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch {
+      } catch  {
         data = text;
       }
       return {
@@ -94,7 +94,7 @@ serve(async (req) => {
       };
     };
     // Normalize centro -> domain
-    const normalize = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    const normalize = (s)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
     const baseDomain = normalize(centro);
     if (!baseDomain) return jsonResponse({
       error: 'invalid_centro_name'
@@ -102,7 +102,7 @@ serve(async (req) => {
     // Ensure unique domain
     let domain = baseDomain;
     let suffix = 0;
-    while (true) {
+    while(true){
       const check = await restCompanies('GET', undefined, `domain=eq.${encodeURIComponent(domain)}`);
       if (!check.ok) return jsonResponse({
         error: 'failed_check_domain',
@@ -139,11 +139,11 @@ serve(async (req) => {
           email_confirm: false
         })
       });
-      const cuText = await cuResp.text().catch(() => null);
+      const cuText = await cuResp.text().catch(()=>null);
       let cuJson = null;
       try {
         if (cuText) cuJson = JSON.parse(cuText);
-      } catch {
+      } catch  {
         cuJson = null;
       }
       createUserResult = {
@@ -178,9 +178,7 @@ serve(async (req) => {
         // Prefer APP_URL (frontend) in local dev so email links open the app directly.
         // Fallback to the Supabase functions URL in production if APP_URL is not set.
         const APP_URL = globalThis.Deno?.env?.get('APP_URL') || '';
-        const resetUrl = APP_URL
-          ? `${APP_URL.replace(/\/$/, '')}/auth/password-reset?token={{ .TokenHash }}`
-          : `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/password-reset?access_token={{ .TokenHash }}`;
+        const resetUrl = APP_URL ? `${APP_URL.replace(/\/$/, '')}/auth/password-reset?token={{ .TokenHash }}` : `${SUPABASE_URL.replace(/\/$/, '')}/functions/v1/password-reset?access_token={{ .TokenHash }}`;
         const mailResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/recover`, {
           method: 'POST',
           headers: {
@@ -193,11 +191,11 @@ serve(async (req) => {
             redirect_to: resetUrl
           })
         });
-        const mailText = await mailResp.text().catch(() => null);
+        const mailText = await mailResp.text().catch(()=>null);
         let mailJson = null;
         try {
           if (mailText) mailJson = JSON.parse(mailText);
-        } catch {
+        } catch  {
           mailJson = null;
         }
         if (!mailResp.ok) {
