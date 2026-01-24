@@ -94,20 +94,20 @@ export function LoginView() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6 relative">
+      <div className="absolute top-4 right-4">
+        <Button variant="outline" onClick={() => navigate('/')}> 
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Volver
+        </Button>
+      </div>
+
       <Card className="w-full max-w-md mx-4">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Bienvenido a Tactivo</CardTitle>
           <CardDescription>Iniciar sesión</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-            <Button variant="outline" onClick={() => navigate('/')}> 
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Volver
-            </Button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
