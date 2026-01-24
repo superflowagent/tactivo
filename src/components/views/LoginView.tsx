@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { error as logError } from '@/lib/logger';
-import { AlertCircle, CheckCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import RegisterDialog from '@/components/auth/RegisterDialog';
 
@@ -101,6 +101,13 @@ export function LoginView() {
           <CardDescription>Iniciar sesión</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Button variant="outline" onClick={() => navigate('/')}> 
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver
+            </Button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
