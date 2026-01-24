@@ -1478,32 +1478,80 @@ CREATE OR REPLACE TRIGGER "trg_unlink_equipment_from_exercises" AFTER DELETE ON 
 
 
 ALTER TABLE ONLY "public"."anatomy"
-    ADD CONSTRAINT "anatomy_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'anatomy_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."anatomy"
+      ADD CONSTRAINT "anatomy_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."classes_templates"
-    ADD CONSTRAINT "classes_templates_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."classes_templates"
+      ADD CONSTRAINT "classes_templates_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'classes_templates_company_fkey1'
+  ) THEN
+    ALTER TABLE ONLY "public"."classes_templates"
+      ADD CONSTRAINT "classes_templates_company_fkey1" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."classes_templates"
-    ADD CONSTRAINT "classes_templates_company_fkey1" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'equipment_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."equipment"
+      ADD CONSTRAINT "equipment_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."equipment"
-    ADD CONSTRAINT "equipment_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'events_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."events"
+      ADD CONSTRAINT "events_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."events"
-    ADD CONSTRAINT "events_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."program_exercises"
-    ADD CONSTRAINT "exercises_aux_exercise_fkey" FOREIGN KEY ("exercise") REFERENCES "public"."exercises"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'exercises_aux_exercise_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."program_exercises"
+      ADD CONSTRAINT "exercises_aux_exercise_fkey" FOREIGN KEY ("exercise") REFERENCES "public"."exercises"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
@@ -1512,28 +1560,68 @@ ALTER TABLE ONLY "public"."exercises"
 
 
 
-ALTER TABLE ONLY "public"."programs"
-    ADD CONSTRAINT "plans_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'plans_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."programs"
+      ADD CONSTRAINT "plans_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."programs"
-    ADD CONSTRAINT "plans_profile_fkey" FOREIGN KEY ("profile") REFERENCES "public"."profiles"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'plans_profile_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."programs"
+      ADD CONSTRAINT "plans_profile_fkey" FOREIGN KEY ("profile") REFERENCES "public"."profiles"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."profiles"
+      ADD CONSTRAINT "profiles_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES "auth"."users"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'profiles_user_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."profiles"
+      ADD CONSTRAINT "profiles_user_fkey" FOREIGN KEY ("user") REFERENCES "auth"."users"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."program_exercises"
-    ADD CONSTRAINT "program_exercises_program_fkey" FOREIGN KEY ("program") REFERENCES "public"."programs"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'program_exercises_program_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."program_exercises"
+      ADD CONSTRAINT "program_exercises_program_fkey" FOREIGN KEY ("program") REFERENCES "public"."programs"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
