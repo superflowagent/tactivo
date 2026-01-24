@@ -1286,48 +1286,131 @@ CREATE TABLE IF NOT EXISTS "public"."programs" (
 ALTER TABLE "public"."programs" OWNER TO "postgres";
 
 
-ALTER TABLE ONLY "public"."anatomy"
-    ADD CONSTRAINT "anatomy_pkey" PRIMARY KEY ("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'anatomy'
+  ) THEN
+    ALTER TABLE ONLY "public"."anatomy"
+      ADD CONSTRAINT "anatomy_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'classes_templates'
+  ) THEN
+    ALTER TABLE ONLY "public"."classes_templates"
+      ADD CONSTRAINT "classes_templates_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'companies'
+  ) THEN
+    ALTER TABLE ONLY "public"."companies"
+      ADD CONSTRAINT "companies_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'equipment'
+  ) THEN
+    ALTER TABLE ONLY "public"."equipment"
+      ADD CONSTRAINT "equipment_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'events'
+  ) THEN
+    ALTER TABLE ONLY "public"."events"
+      ADD CONSTRAINT "events_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'program_exercises'
+  ) THEN
+    ALTER TABLE ONLY "public"."program_exercises"
+      ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'exercises'
+  ) THEN
+    ALTER TABLE ONLY "public"."exercises"
+      ADD CONSTRAINT "exercises_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
+
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'programs'
+  ) THEN
+    ALTER TABLE ONLY "public"."programs"
+      ADD CONSTRAINT "plans_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
 
 
 
-ALTER TABLE ONLY "public"."classes_templates"
-    ADD CONSTRAINT "classes_templates_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."companies"
-    ADD CONSTRAINT "companies_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."equipment"
-    ADD CONSTRAINT "equipment_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."events"
-    ADD CONSTRAINT "events_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."program_exercises"
-    ADD CONSTRAINT "exercises_aux_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."exercises"
-    ADD CONSTRAINT "exercises_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."programs"
-    ADD CONSTRAINT "plans_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."profiles"
-    ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.contype = 'p' AND t.relname = 'profiles'
+  ) THEN
+    ALTER TABLE ONLY "public"."profiles"
+      ADD CONSTRAINT "profiles_pkey" PRIMARY KEY ("id");
+  END IF;
+END
+$$;
 
 
 
