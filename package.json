@@ -11,15 +11,7 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "preview": "vite preview",
-    "test": "vitest",
-    "upload:exercise-videos": "node scripts/upload-exercise-videos.js",
-    "supabase:secrets:ps": "pwsh ./scripts/apply-secrets.ps1",
-    "supabase:secrets:sh": "bash ./scripts/apply-secrets.sh",
-    "supabase:secrets": "npm run supabase:secrets:ps || npm run supabase:secrets:sh",
-    "supabase:dev": "npm run supabase:secrets && supabase start",
-    "supabase:ensure-secret-db": "pwsh ./scripts/ensure-secret-in-db.ps1 || bash ./scripts/ensure-secret-in-db.sh",
-    "supabase:make-local-admin-secret": "pwsh ./scripts/make-local-admin-secret.ps1 || bash ./scripts/make-local-admin-secret.sh",
-    "supabase:dev:all": "npm run supabase:secrets && npm run supabase:make-local-admin-secret && supabase start"
+    "test": "vitest"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",
