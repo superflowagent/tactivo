@@ -11,7 +11,8 @@
     "lint:fix": "eslint --fix .",
     "format": "prettier --write .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "sync:landing": "node scripts/sync-landing.js"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.19",

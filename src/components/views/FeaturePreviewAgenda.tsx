@@ -16,8 +16,6 @@ const slots = [
         name: 'Víctor Romero',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
-
-
     {
         time: 'Jueves 15 ene 2026, 9:45',
         duration: '60 min',
@@ -31,19 +29,7 @@ const slots = [
         photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
     },
     {
-        time: 'Viernes 16 ene 2026, 10:15',
-        duration: '60 min',
-        name: 'Víctor Romero',
-        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
-    },
-    {
         time: 'Jueves 15 ene 2026, 10:15',
-        duration: '60 min',
-        name: 'Víctor Romero',
-        photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
-    },
-    {
-        time: 'Viernes 16 ene 2026, 10:30',
         duration: '60 min',
         name: 'Víctor Romero',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
@@ -78,11 +64,31 @@ export default function FeaturePreviewAgenda() {
         { id: 'jorge', name: 'Jorge Polo' },
     ];
 
+    const parseSlotTime = (t: string) => {
+        // Expected format: 'Jueves 15 ene 2026, 8:00' (Spanish month abbrev)
+        try {
+            const m = String(t).match(/(\d{1,2})\s+([a-zñ]+)\s+(\d{4}),?\s*(\d{1,2}:\d{2})$/i);
+            if (!m) return Number.POSITIVE_INFINITY;
+            const day = Number(m[1]);
+            const monthAbbr = m[2].toLowerCase();
+            const year = Number(m[3]);
+            const timePart = m[4];
+            const months: Record<string, number> = { ene: 0, feb: 1, mar: 2, abr: 3, may: 4, jun: 5, jul: 6, ago: 7, sep: 8, oct: 9, nov: 10, dic: 11 };
+            const month = months[monthAbbr] ?? 0;
+            const [hh, mm] = timePart.split(':').map(Number);
+            const d = new Date(year, month, day, hh, mm);
+            return d.getTime();
+        } catch {
+            return Number.POSITIVE_INFINITY;
+        }
+    };
+
     const filteredSlots = React.useMemo(() => {
-        if (selected === 'all') return slots;
-        if (selected === 'victor') return slots.filter((s) => s.name.includes('Víctor'));
-        if (selected === 'jorge') return slots.filter((s) => s.name.includes('Jorge'));
-        return slots;
+        let base = slots;
+        if (selected === 'victor') base = base.filter((s) => s.name.includes('Víctor'));
+        if (selected === 'jorge') base = base.filter((s) => s.name.includes('Jorge'));
+        // Return a new sorted array (ascending by datetime)
+        return base.slice().sort((a, b) => parseSlotTime(a.time) - parseSlotTime(b.time));
     }, [selected]);
 
     return (
@@ -132,7 +138,7 @@ export default function FeaturePreviewAgenda() {
                                 <div className="min-w-0">
                                     <div className="px-2 py-0.5 rounded-md bg-muted/20 text-muted-foreground flex items-center gap-2">
                                         <Avatar name={s.name} src={s.photo} />
-                                        <span className="text-sm">{String(s.name).split(' ')[0]}</span>
+                                        <span className="text-sm text-black">{String(s.name).split(' ')[0]}</span>
                                     </div>
                                 </div>
 
