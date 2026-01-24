@@ -1413,16 +1413,37 @@ END
 $$;
 
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class WHERE relname = 'classes_templates_company_idx' AND relkind = 'i'
+  ) THEN
+    CREATE INDEX "classes_templates_company_idx" ON "public"."classes_templates" USING "btree" ("company");
+  END IF;
+END
+$$;
 
-CREATE INDEX "classes_templates_company_idx" ON "public"."classes_templates" USING "btree" ("company");
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class WHERE relname = 'idx_classes_templates_company' AND relkind = 'i'
+  ) THEN
+    CREATE INDEX "idx_classes_templates_company" ON "public"."classes_templates" USING "btree" ("company");
+  END IF;
+END
+$$;
 
 
-
-CREATE INDEX "idx_classes_templates_company" ON "public"."classes_templates" USING "btree" ("company");
-
-
-
-CREATE INDEX "idx_events_company" ON "public"."events" USING "btree" ("company");
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class WHERE relname = 'idx_events_company' AND relkind = 'i'
+  ) THEN
+    CREATE INDEX "idx_events_company" ON "public"."events" USING "btree" ("company");
+  END IF;
+END
+$$;
 
 
 
