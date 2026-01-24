@@ -2,7 +2,7 @@
 /// <reference path="./deno.d.ts" />
 // @ts-ignore: Deno remote module resolution is fine at runtime
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req)=>{
+serve(async (req) => {
   const origin = req.headers.get('origin') || '*';
   const corsHeaders = {
     'Access-Control-Allow-Origin': origin,
@@ -18,7 +18,7 @@ serve(async (req)=>{
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200)=>{
+  const jsonResponse = (body, status = 200) => {
     const h = {
       'Content-Type': 'application/json',
       ...corsHeaders
@@ -37,13 +37,13 @@ serve(async (req)=>{
     if (req.method !== 'POST') return jsonResponse({
       error: 'Method not allowed'
     }, 405);
-    const body = await req.json().catch(()=>({}));
+    const body = await req.json().catch(() => ({}));
     const { email, centro, name, last_name, movil } = body || {};
     if (!email || !centro || !name || !last_name) return jsonResponse({
       error: 'email, centro, name and last_name are required'
     }, 400);
     // Helpers to call REST endpoints with service role key
-    const restCompanies = async (method, body, query)=>{
+    const restCompanies = async (method, body, query) => {
       const url = `${SUPABASE_URL}/rest/v1/companies${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -59,7 +59,7 @@ serve(async (req)=>{
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch  {
+      } catch {
         data = text;
       }
       return {
@@ -68,7 +68,7 @@ serve(async (req)=>{
         data
       };
     };
-    const restProfiles = async (method, body, query)=>{
+    const restProfiles = async (method, body, query) => {
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -84,7 +84,7 @@ serve(async (req)=>{
       let data = null;
       try {
         data = JSON.parse(text);
-      } catch  {
+      } catch {
         data = text;
       }
       return {
@@ -94,7 +94,7 @@ serve(async (req)=>{
       };
     };
     // Normalize centro -> domain
-    const normalize = (s)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+    const normalize = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
     const baseDomain = normalize(centro);
     if (!baseDomain) return jsonResponse({
       error: 'invalid_centro_name'
@@ -102,7 +102,7 @@ serve(async (req)=>{
     // Ensure unique domain
     let domain = baseDomain;
     let suffix = 0;
-    while(true){
+    while (true) {
       const check = await restCompanies('GET', undefined, `domain=eq.${encodeURIComponent(domain)}`);
       if (!check.ok) return jsonResponse({
         error: 'failed_check_domain',
@@ -136,14 +136,15 @@ serve(async (req)=>{
         body: JSON.stringify({
           email,
           password: tmpPwd,
-          email_confirm: false
+          // create the user already confirmed
+          email_confirm: true
         })
       });
-      const cuText = await cuResp.text().catch(()=>null);
+      const cuText = await cuResp.text().catch(() => null);
       let cuJson = null;
       try {
         if (cuText) cuJson = JSON.parse(cuText);
-      } catch  {
+      } catch {
         cuJson = null;
       }
       createUserResult = {
@@ -155,7 +156,54 @@ serve(async (req)=>{
         createUserResult.note = 'user_not_created';
       }
       // store id for profile if available
-      const newUserId = cuJson && cuJson.id ? cuJson.id : null;
+      let newUserId = cuJson && cuJson.id ? cuJson.id : null;
+      // If the user wasn't created (likely already exists), try to find existing auth user by email and mark as confirmed
+      if (!newUserId) {
+        try {
+          const listResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, {
+            headers: {
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+            }
+          });
+          if (listResp.ok) {
+            const users = await listResp.json();
+            const found = users && users.find && users.find(u => String(u.email) === String(email));
+            if (found && found.id) {
+              newUserId = found.id;
+              createUserResult.note = createUserResult.note || 'user_existed';
+              createUserResult.found = found;
+            }
+          }
+        } catch (e) {
+          // ignore lookup failures
+        }
+      }
+      // Ensure email is marked confirmed for any found/created user
+      if (newUserId) {
+        try {
+          const confirmResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users/${newUserId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: SUPABASE_SERVICE_ROLE_KEY,
+              Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+            },
+            body: JSON.stringify({ email_confirm: true })
+          });
+          const confirmText = await confirmResp.text().catch(() => null);
+          let confirmJson = null;
+          try {
+            if (confirmText) confirmJson = JSON.parse(confirmText);
+          } catch (e) {
+            confirmJson = null;
+          }
+          createUserResult.confirmResult = { status: confirmResp.status, body: confirmJson || confirmText };
+        } catch (e) {
+          // ignore confirmation failure
+          createUserResult.confirmResult = { error: String(e?.message || e) };
+        }
+      }
       // Create profile with role professional
       const profilePayload = {
         name,
@@ -191,11 +239,11 @@ serve(async (req)=>{
             redirect_to: resetUrl
           })
         });
-        const mailText = await mailResp.text().catch(()=>null);
+        const mailText = await mailResp.text().catch(() => null);
         let mailJson = null;
         try {
           if (mailText) mailJson = JSON.parse(mailText);
-        } catch  {
+        } catch {
           mailJson = null;
         }
         if (!mailResp.ok) {

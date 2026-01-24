@@ -96,7 +96,7 @@ export function LoginView() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 md:p-6 relative">
       <div className="absolute top-4 right-4">
-        <Button variant="outline" onClick={() => navigate('/')}> 
+        <Button variant="outline" onClick={() => navigate('/')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver
         </Button>
