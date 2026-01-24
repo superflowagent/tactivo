@@ -1554,8 +1554,16 @@ $$;
 
 
 
-ALTER TABLE ONLY "public"."exercises"
-    ADD CONSTRAINT "exercises_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'exercises_company_fkey'
+  ) THEN
+    ALTER TABLE ONLY "public"."exercises"
+      ADD CONSTRAINT "exercises_company_fkey" FOREIGN KEY ("company") REFERENCES "public"."companies"("id") ON UPDATE CASCADE ON DELETE CASCADE;
+  END IF;
+END
+$$;
 
 
 
