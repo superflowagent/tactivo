@@ -1477,7 +1477,6 @@ CREATE OR REPLACE TRIGGER "trg_unlink_equipment_from_exercises" AFTER DELETE ON 
 
 
 
-ALTER TABLE ONLY "public"."anatomy"
 DO $$
 BEGIN
   IF NOT EXISTS (
