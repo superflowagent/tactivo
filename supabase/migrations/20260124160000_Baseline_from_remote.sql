@@ -1446,9 +1446,15 @@ END
 $$;
 
 
-
-CREATE UNIQUE INDEX "profiles_invite_token_unique" ON "public"."profiles" USING "btree" ("invite_token") WHERE ("invite_token" IS NOT NULL);
-
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class WHERE relname = 'profiles_invite_token_unique' AND relkind = 'i'
+  ) THEN
+    CREATE UNIQUE INDEX "profiles_invite_token_unique" ON "public"."profiles" USING "btree" ("invite_token") WHERE ("invite_token" IS NOT NULL);
+  END IF;
+END
+$$;
 
 
 CREATE OR REPLACE TRIGGER "trg_adjust_class_credits" AFTER INSERT OR DELETE OR UPDATE ON "public"."events" FOR EACH ROW EXECUTE FUNCTION "public"."adjust_class_credits_on_events_change"();
