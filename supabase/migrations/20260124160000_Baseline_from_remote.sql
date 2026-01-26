@@ -2436,3 +2436,130 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 -- Remove local-only columns from previous local schema
 ALTER TABLE IF EXISTS public.profiles DROP COLUMN IF EXISTS hola;
 ALTER TABLE IF EXISTS public.classes_templates DROP COLUMN IF EXISTS name;
+
+-- Storage bucket policies for profile photos, company logos and exercise videos
+-- These policies allow authenticated users to upload to the respective buckets
+-- and to update/delete objects they own; for `exercise_videos` we additionally
+-- allow company members to manage files under their company path (first path segment).
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_authenticated_uploads_profile_photos') THEN
+    CREATE POLICY allow_authenticated_uploads_profile_photos
+    ON storage.objects
+    FOR INSERT
+    WITH CHECK (bucket_id = 'profile_photos' AND auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_update_own_profile_photos') THEN
+    CREATE POLICY allow_update_own_profile_photos
+    ON storage.objects
+    FOR UPDATE
+    USING (bucket_id = 'profile_photos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid)
+    WITH CHECK (bucket_id = 'profile_photos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_delete_own_profile_photos') THEN
+    CREATE POLICY allow_delete_own_profile_photos
+    ON storage.objects
+    FOR DELETE
+    USING (bucket_id = 'profile_photos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid);
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_authenticated_uploads_company_logos') THEN
+    CREATE POLICY allow_authenticated_uploads_company_logos
+    ON storage.objects
+    FOR INSERT
+    WITH CHECK (bucket_id = 'company_logos' AND auth.role() = 'authenticated');
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_update_own_company_logos') THEN
+    CREATE POLICY allow_update_own_company_logos
+    ON storage.objects
+    FOR UPDATE
+    USING (bucket_id = 'company_logos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid)
+    WITH CHECK (bucket_id = 'company_logos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_delete_own_company_logos') THEN
+    CREATE POLICY allow_delete_own_company_logos
+    ON storage.objects
+    FOR DELETE
+    USING (bucket_id = 'company_logos' AND auth.role() = 'authenticated' AND owner = auth.uid()::uuid);
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_authenticated_uploads_exercise_videos') THEN
+    CREATE POLICY allow_authenticated_uploads_exercise_videos
+    ON storage.objects
+    FOR INSERT
+    WITH CHECK (
+      bucket_id = 'exercise_videos'
+      AND auth.role() = 'authenticated'
+      AND (
+        owner = auth.uid()::uuid
+        OR EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
+            AND p.company = split_part(name, '/', 1)::uuid
+        )
+      )
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_update_exercise_videos_by_owner_or_company') THEN
+    CREATE POLICY allow_update_exercise_videos_by_owner_or_company
+    ON storage.objects
+    FOR UPDATE
+    USING (
+      bucket_id = 'exercise_videos'
+      AND auth.role() = 'authenticated'
+      AND (
+        owner = auth.uid()::uuid
+        OR EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
+            AND p.company = split_part(name, '/', 1)::uuid
+        )
+      )
+    )
+    WITH CHECK (
+      bucket_id = 'exercise_videos'
+      AND auth.role() = 'authenticated'
+      AND (
+        owner = auth.uid()::uuid
+        OR EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
+            AND p.company = split_part(name, '/', 1)::uuid
+        )
+      )
+    );
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_delete_exercise_videos_by_owner_or_company') THEN
+    CREATE POLICY allow_delete_exercise_videos_by_owner_or_company
+    ON storage.objects
+    FOR DELETE
+    USING (
+      bucket_id = 'exercise_videos'
+      AND auth.role() = 'authenticated'
+      AND (
+        owner = auth.uid()::uuid
+        OR EXISTS (
+          SELECT 1 FROM public.profiles p
+          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
+            AND p.company = split_part(name, '/', 1)::uuid
+        )
+      )
+    );
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
