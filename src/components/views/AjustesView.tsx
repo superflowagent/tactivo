@@ -193,7 +193,7 @@ export function AjustesView() {
             ) {
               throw new Error(
                 'No se pudo subir el logo al bucket en la raíz. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Intenté función de servicio y subida directa a raíz; Detalle: ' +
-                  String((e2 as any)?.message || e2)
+                String((e2 as any)?.message || e2)
               );
             }
             throw e2;
@@ -253,7 +253,7 @@ export function AjustesView() {
                 // Provide a more actionable message when RLS prevents the insert and function failed
                 throw new Error(
                   'No se pudo subir el logo al bucket. Comprueba que tu sesión está activa y las políticas RLS/Storage del bucket `company_logos`. Detalle: ' +
-                    String((e2 as any)?.message || e2)
+                  String((e2 as any)?.message || e2)
                 );
               }
             }
@@ -561,11 +561,16 @@ export function AjustesView() {
             <div className="flex justify-end gap-2 pt-4">
               <Button type="submit" disabled={saving} aria-busy={saving}>
                 {saving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <>
+                    Guardando
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  </>
                 ) : (
-                  <Save className="mr-0 h-4 w-4" />
+                  <>
+                    <Save className="mr-0 h-4 w-4" />
+                    Guardar Ajustes
+                  </>
                 )}
-                {saving ? 'Guardando...' : 'Guardar Ajustes'}
               </Button>
             </div>
           </CardContent>

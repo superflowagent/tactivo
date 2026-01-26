@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { AlertCircle, Plus, Trash, Image as ImageIcon, ChevronDown } from 'lucide-react';
+import { AlertCircle, Plus, Trash, Image as ImageIcon, ChevronDown, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   AlertDialog,
@@ -323,7 +323,7 @@ export default function ExerciseDialog({
           if (!fetchErr && updatedRow) {
             try {
               window.dispatchEvent(new CustomEvent('exercise-updated', { detail: updatedRow }));
-            } catch {}
+            } catch { }
           }
         } catch {
           /* non-fatal */
@@ -340,7 +340,7 @@ export default function ExerciseDialog({
                 window.dispatchEvent(
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
-              } catch {}
+              } catch { }
               // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
               const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
 
@@ -371,7 +371,7 @@ export default function ExerciseDialog({
                       },
                     })
                   );
-                } catch {}
+                } catch { }
                 setError(
                   'El archivo no se pudo subir. El ejercicio fue actualizado sin nuevo video.'
                 );
@@ -390,7 +390,7 @@ export default function ExerciseDialog({
                       detail: { exerciseId, success: false, error: String(upErr) },
                     })
                   );
-                } catch {}
+                } catch { }
                 return;
               }
               // Use returned path if provided (edge function may store at root)
@@ -414,7 +414,7 @@ export default function ExerciseDialog({
                       detail: { exerciseId, success: false, error: String(updateFileErr) },
                     })
                   );
-                } catch {}
+                } catch { }
               } else {
                 try {
                   window.dispatchEvent(
@@ -422,7 +422,7 @@ export default function ExerciseDialog({
                       detail: { exerciseId, success: true, filename: returnedPath },
                     })
                   );
-                } catch {}
+                } catch { }
               }
             } catch (bgErr) {
               logError('backgroundUploadEdit: unexpected error', bgErr);
@@ -437,7 +437,7 @@ export default function ExerciseDialog({
                     },
                   })
                 );
-              } catch {}
+              } catch { }
             }
           })();
         }
@@ -459,7 +459,7 @@ export default function ExerciseDialog({
         // Dispatch created exercise to listeners so UI can update
         try {
           window.dispatchEvent(new CustomEvent('exercise-updated', { detail: newEx }));
-        } catch {}
+        } catch { }
 
         // If there's a file, upload it in background so the UI doesn't hang.
         if (imageFile) {
@@ -472,7 +472,7 @@ export default function ExerciseDialog({
                 window.dispatchEvent(
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
-              } catch {}
+              } catch { }
               // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
               const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
 
@@ -500,7 +500,7 @@ export default function ExerciseDialog({
                       },
                     })
                   );
-                } catch {}
+                } catch { }
                 setError('El archivo no se pudo subir. El ejercicio fue creado sin video.');
                 return;
               }
@@ -517,7 +517,7 @@ export default function ExerciseDialog({
                       detail: { exerciseId, success: false, error: String(upErr) },
                     })
                   );
-                } catch {}
+                } catch { }
                 return;
               }
               const filename = uploadPath; // store filename at bucket root
@@ -542,7 +542,7 @@ export default function ExerciseDialog({
                       },
                     })
                   );
-                } catch {}
+                } catch { }
               } else {
                 try {
                   window.dispatchEvent(
@@ -550,7 +550,7 @@ export default function ExerciseDialog({
                       detail: { exerciseId, success: true, filename: resolvedPath },
                     })
                   );
-                } catch {}
+                } catch { }
               }
             } catch (bgErr) {
               logError('backgroundUpload: unexpected error', bgErr);
@@ -561,7 +561,7 @@ export default function ExerciseDialog({
                     detail: { exerciseId, success: false, error: String(bgErr) },
                   })
                 );
-              } catch {}
+              } catch { }
             }
           })();
         }
@@ -623,9 +623,9 @@ export default function ExerciseDialog({
             trigger
           )
         ) : // Uncontrolled usage: let the trigger open the internal dialog
-        trigger ? (
-          <DialogTrigger asChild>{trigger}</DialogTrigger>
-        ) : null}
+          trigger ? (
+            <DialogTrigger asChild>{trigger}</DialogTrigger>
+          ) : null}
         <DialogContent className="max-w-2xl max-h-[90vh] w-[95vw] sm:w-full flex flex-col p-0">
           <div className="px-6 pt-6">
             <DialogHeader>
@@ -950,7 +950,14 @@ export default function ExerciseDialog({
                 Cancelar
               </Button>
               <Button onClick={handleSave} disabled={loading || !name.trim()}>
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? (
+                  <>
+                    Guardando
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  </>
+                ) : (
+                  'Guardar'
+                )}
               </Button>
             </div>
           </div>

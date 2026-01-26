@@ -8,7 +8,7 @@ const slots = [
     {
         time: 'Jueves 15 ene 2026, 8:00',
         duration: '60 min',
-        name: 'Víctor Romero',
+        name: 'Victoria',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
     {
@@ -26,7 +26,7 @@ const slots = [
     {
         time: 'Jueves 15 ene 2026, 10:15',
         duration: '60 min',
-        name: 'Víctor Romero',
+        name: 'Victoria',
         photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
     },
 ];
@@ -35,7 +35,13 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
     const firstName = String(name).split(' ')[0] || name;
 
     if (src) {
-        return <img src={src} alt={firstName} loading="eager" decoding="async" width={28} height={28} className="w-7 h-7 sm:w-8 sm:h-8 rounded-md object-cover" />;
+        const base = String(src).replace(/\?.*$/, '').replace(/\.(jpe?g|png)$/i, '');
+        return (
+            <picture>
+                <source type="image/avif" srcSet={`${base}-320.avif 320w, ${base}-640.avif 640w, ${base}-1200.avif 1200w`} />
+                <img src={src} alt={firstName} loading="eager" decoding="async" width={28} height={28} className="w-7 h-7 sm:w-8 sm:h-8 rounded-md object-cover" />
+            </picture>
+        );
     }
 
     const initials = firstName

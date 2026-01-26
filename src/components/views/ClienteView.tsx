@@ -29,6 +29,7 @@ import {
   XCircle,
   HelpCircle,
   Trash,
+  Loader2,
 } from 'lucide-react';
 import ActionButton from '@/components/ui/ActionButton';
 import { cn } from '@/lib/utils';
@@ -1512,7 +1513,14 @@ export default function ClienteView() {
                 onClick={(e) => handleSubmit(e as any)}
                 disabled={isSaveDisabled}
               >
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? (
+                  <>
+                    Guardando
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  </>
+                ) : (
+                  'Guardar'
+                )}
               </Button>
             </div>
           </div>

@@ -1,86 +1,95 @@
 import React from 'react';
-import Typewriter from '@/components/ui/typewriter';
+
+import { NeonGradientCard } from '@/registry/magicui/neon-gradient-card';
 
 export default function PlanesSection() {
-  const headingRef = React.useRef<HTMLHeadingElement | null>(null);
-  const [playAnimatedTitle, setPlayAnimatedTitle] = React.useState(false);
-  const triggeredRef = React.useRef(false);
 
-  React.useEffect(() => {
-    const el = headingRef.current;
-    if (!el) return;
 
-    let timerId: number | undefined;
-    let observer: IntersectionObserver | null = null;
+    return (
+        <section aria-labelledby="planes" className="w-full py-16">
+            <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
+                <h2 id="planes" className="text-3xl font-extrabold mb-6 text-center">Planes</h2>
 
-    const onScroll = (ev?: Event) => {
-      if (ev && (ev as Event).isTrusted === false) return;
+                <div className="rounded-md p-6">
+                    <div className="flex justify-center">
+                        <NeonGradientCard className="max-w-md w-full">
+                            <div className="text-left">
+                                <div className="relative mb-2">
 
-      const rect = headingRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const isVisible = rect.top >= 0 && rect.top < (window.innerHeight || document.documentElement.clientHeight);
-      if (isVisible && !triggeredRef.current) {
-        triggeredRef.current = true;
-        if (timerId) {
-          window.clearTimeout(timerId);
-          timerId = undefined;
-        }
-        setPlayAnimatedTitle(true);
-        window.removeEventListener('scroll', onScroll);
-        if (observer) {
-          observer.disconnect();
-          observer = null;
-        }
-      }
-    };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
+                                    <div className="flex items-start">
+                                        <div>
+                                            <h3 className="text-xl font-semibold">Plan Fundador</h3>
+                                            <div className="text-sm text-muted-foreground">0€/mes</div>
+                                        </div>
+                                    </div>
+                                </div>
 
-    observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (entry.isIntersecting && window.scrollY === 0 && !triggeredRef.current) {
-          triggeredRef.current = true;
-          timerId = window.setTimeout(() => {
-            setPlayAnimatedTitle(true);
-            window.removeEventListener('scroll', onScroll);
-            if (observer) {
-              observer.disconnect();
-              observer = null;
-            }
-          }, 5000);
-        }
-      },
-      { threshold: 0.2 }
+                                <p className="mt-4 text-sm text-muted-foreground">Todo lo esencial para poner en marcha tu clínica.</p>
+
+                                <ul className="mt-4 space-y-3 text-sm text-neutral-700">
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Calendario de la clínica</span>
+                                    </li>
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Base de datos de fichas de pacientes</span>
+                                    </li>
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Soporte multi-profesional</span>
+                                    </li>
+
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Gestión de clases en grupo</span>
+                                    </li>
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Librería de ejercicios global</span>
+                                    </li>
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Programas de ejercicios</span>
+                                    </li>
+
+                                    <li className="flex items-start gap-3">
+                                        <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                            <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                        <span>Cumplimiento RGPD</span>
+                                    </li>
+                                </ul>
+
+                                <div className="mt-6">
+                                    <a href="/login" className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md text-white font-semibold" style={{ background: 'var(--primary-gradient)' }}>
+                                        Crear cuenta
+                                    </a>
+                                    <div className="mt-2 text-xs text-muted-foreground">Sin tarjeta de crédito</div>
+                                </div>
+                            </div>
+                        </NeonGradientCard>
+                    </div>
+                </div>
+            </div>
+        </section>
     );
-
-    observer.observe(el);
-    return () => {
-      if (observer) observer.disconnect();
-      window.removeEventListener('scroll', onScroll);
-      if (timerId) window.clearTimeout(timerId);
-    };
-  }, []);
-
-  return (
-    <section aria-labelledby="planes" className="w-full py-16">
-      <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-        <h2 id="planes" ref={headingRef} className="text-3xl font-extrabold mb-6 text-center">
-          {playAnimatedTitle ? (
-            <Typewriter phrases={["Planes"]} loop={false} typingSpeed={60} className="inline-block" />
-          ) : (
-            <span className="inline-block">Planes</span>
-          )}
-        </h2>
-
-        <div className="rounded-md p-6">
-          {/* Placeholder content for Planes */}
-          <div className="w-full rounded-lg border border-dashed border-muted/40 p-8 text-center text-neutral-700">
-            <div className="text-lg font-semibold mb-2">Planes (placeholder)</div>
-            <div className="text-sm">Aquí irá el contenido de la sección Planes. Puedes añadir tarjetas, comparativas o un CTA.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 }

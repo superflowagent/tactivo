@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import LazyVideo from '@/components/ui/LazyVideo';
 
 const VIDEO_BASE = import.meta.env.VITE_EXERCISE_VIDEO_BASE || `${import.meta.env.BASE_URL}landing/exercises/`;
 
@@ -69,15 +70,10 @@ export default function FeaturePreviewProgramas() {
 
                                 <div className="relative bg-slate-200 overflow-hidden cursor-auto">
                                     <div className="w-full pt-[62.5%] relative">
-                                        <video
-                                            className="absolute inset-0 w-full h-full object-cover"
+                                        <LazyVideo
                                             src={ex.video}
-                                            muted
-                                            loop
-                                            playsInline
-                                            autoPlay
-                                            preload="metadata"
-                                            aria-hidden
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            poster={ex.video.replace(/\.mp4$/i, '.avif')}
                                             onError={(e) => { console.error('Video failed to load:', ex.video, e); }}
                                         />
                                     </div>

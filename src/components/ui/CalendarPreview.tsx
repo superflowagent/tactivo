@@ -82,7 +82,7 @@ export default function CalendarPreview() {
 
   const professionals = [
     { id: 'all', name: 'Profesionales' },
-    { id: 'victor', name: 'Víctor Romero' },
+    { id: 'victor', name: 'Victoria' },
     { id: 'jorge', name: 'Jorge Polo' },
   ];
 

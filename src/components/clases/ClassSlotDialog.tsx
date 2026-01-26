@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Dumbbell, AlertCircle } from 'lucide-react';
+import { Dumbbell, AlertCircle, Loader2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -674,7 +674,14 @@ export function ClassSlotDialog({
                   form="class-form"
                   disabled={loading || missingProfiles.length > 0}
                 >
-                  {loading ? 'Guardando...' : 'Guardar'}
+                  {loading ? (
+                    <>
+                      Guardando
+                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    </>
+                  ) : (
+                    'Guardar'
+                  )}
                 </Button>
               </div>
             </div>

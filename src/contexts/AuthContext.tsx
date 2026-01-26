@@ -19,6 +19,8 @@ interface AuthContextType {
   companyId: string | null;
   login: (email: string, password: string) => Promise<string | void>;
   logout: () => Promise<void>;
+  /** Force refresh of the current authenticated user's profile data (silent by default) */
+  refreshProfile: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -201,6 +203,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Allow callers/components to refresh the current authenticated profile data
+  const refreshProfile = async () => {
+    try {
+      await checkAuth(true);
+    } catch (e) {
+      // swallow errors - callers can handle/report as needed
+      debug('refreshProfile failed', e);
+    }
+  };
+
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -209,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, companyName, companyId, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, companyName, companyId, login, logout, refreshProfile, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

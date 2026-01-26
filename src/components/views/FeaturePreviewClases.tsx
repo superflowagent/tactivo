@@ -9,8 +9,8 @@ const WEEKDAYS = [
 ];
 
 const sampleProfessionals = [
-    { name: 'Alberto Mirapeix', photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2` },
-    { name: 'Pedro Coba', photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2` },
+    { name: 'Victoria', photo: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2` },
+    { name: 'Jorge', photo: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2` },
     { name: 'Ana Muñoz', photo: `${import.meta.env.BASE_URL}landing/professional3.jpg?v=2` },
 ];
 
@@ -18,7 +18,13 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
     const firstName = String(name).split(' ')[0] || name;
 
     if (src) {
-        return <img src={src} alt={firstName} loading="eager" decoding="async" width={24} height={24} className="w-6 h-6 rounded-md object-cover" />;
+        const base = String(src).replace(/\?.*$/, '').replace(/\.(jpe?g|png)$/i, '');
+        return (
+            <picture>
+                <source type="image/avif" srcSet={`${base}-320.avif 320w, ${base}-640.avif 640w, ${base}-1200.avif 1200w`} />
+                <img src={src} alt={firstName} loading="eager" decoding="async" width={24} height={24} className="w-6 h-6 rounded-md object-cover" />
+            </picture>
+        );
     }
 
     const initials = firstName

@@ -16,7 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
-import { CalendarIcon, UserStar, X, Mail, CheckCircle, HelpCircle } from 'lucide-react';
+import { CalendarIcon, UserStar, X, Mail, CheckCircle, HelpCircle, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { debug, error } from '@/lib/logger';
@@ -54,7 +54,7 @@ export function ProfesionalDialog({
   profesional,
   onSave,
 }: ProfesionalDialogProps) {
-  const { companyId } = useAuth();
+  const { companyId, user: authUser, refreshProfile } = useAuth();
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const [formData, setFormData] = useState<Profesional>({
     name: '',
@@ -347,6 +347,15 @@ export function ProfesionalDialog({
             throw new Error('photo_path no persistió después del upload');
           }
 
+          // If we updated the currently authenticated user's profile, refresh the global auth profile
+          try {
+            if (refreshProfile && authUser && String(verified.user) === String(authUser.id)) {
+              await refreshProfile();
+            }
+          } catch {
+            // ignore refresh errors
+          }
+
           // Update preview to public/signed URL — prefer root filename then fallback to id-prefixed path
           let previewUrl =
             getFilePublicUrl('profile_photos', null, filename) ||
@@ -382,6 +391,15 @@ export function ProfesionalDialog({
           const rem = await api.updateProfileByUserId(savedUserId, { photo_path: null });
           if (rem?.error) throw rem.error;
           setPhotoPreview(null);
+
+          // If we removed our own photo, refresh global auth profile so sidebar updates
+          try {
+            if (refreshProfile && authUser && rem?.data && String(rem.data.user) === String(authUser.id)) {
+              await refreshProfile();
+            }
+          } catch {
+            // ignore
+          }
         } catch (e) {
           error('Error removiendo foto:', e);
         }
@@ -418,12 +436,12 @@ export function ProfesionalDialog({
                         'tactivo.inviteToast',
                         JSON.stringify({ title, durationMs: 4000 })
                       );
-                    } catch {}
+                    } catch { }
                     try {
                       window.dispatchEvent(
                         new CustomEvent('tactivo.invite', { detail: { title, durationMs: 4000 } })
                       );
-                    } catch {}
+                    } catch { }
                   } else {
                     // Show helpful info to user
                     const hint =
@@ -438,8 +456,8 @@ export function ProfesionalDialog({
                       : '';
                     alert(
                       'La invitación fue creada pero no se pudo ejecutar la función de envío: ' +
-                        hint +
-                        debug
+                      hint +
+                      debug
                     );
                   }
                 } catch (e: any) {
@@ -744,7 +762,14 @@ export function ProfesionalDialog({
               </Button>
 
               <Button type="submit" form="profesional-form" disabled={loading}>
-                {loading ? 'Guardando...' : 'Guardar'}
+                {loading ? (
+                  <>
+                    Guardando
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                  </>
+                ) : (
+                  'Guardar'
+                )}
               </Button>
             </div>
           </DialogFooter>

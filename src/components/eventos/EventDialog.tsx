@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
-import { CalendarIcon, CalendarPlus, Edit, AlertCircle } from 'lucide-react';
+import { CalendarIcon, CalendarPlus, Edit, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { error as logError } from '@/lib/logger';
 import type { Event } from '@/types/event';
@@ -1597,7 +1597,14 @@ export function EventDialog({
                         (formData.type === 'vacation' && selectedProfessionals.length === 0)
                       }
                     >
-                      {loading ? 'Guardando...' : 'Guardar'}
+                      {loading ? (
+                        <>
+                          Guardando
+                          <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                        </>
+                      ) : (
+                        'Guardar'
+                      )}
                     </Button>
                   </div>
                 </div>

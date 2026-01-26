@@ -17,12 +17,14 @@ const clients = [
 export default function FeaturePreviewMultidispositivo() {
     // Search state
     const [searchQuery, setSearchQuery] = React.useState('');
+    // Unique id to avoid duplicate id issues when component is rendered multiple times
+    const uid = React.useId();
 
     // Confetti ref for delete action
     const confettiRef = React.useRef<ConfettiRef | null>(null);
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     return (
-        <Iphone className="w-[240px] h-[480px] max-w-full max-h-full shadow-md transform-gpu transition-transform duration-150 ease-out sm:hover:scale-[1.04]">
+        <Iphone className="w-[260px] h-[520px] my-8 max-w-full max-h-full shadow-md transform-gpu transition-transform duration-150 ease-out sm:hover:scale-[1.04]">
             <div className="relative h-full flex flex-col min-h-0">
                 <Confetti ref={confettiRef} className="absolute inset-0 z-50 pointer-events-none" />
 
@@ -51,8 +53,8 @@ export default function FeaturePreviewMultidispositivo() {
 
                     <div className="mb-1 flex items-center gap-2">
                         <input
-                            id="fp-search"
-                            name="fp-search"
+                            id={`${uid}-fp-search`}
+                            name={`${uid}-fp-search`}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Buscar cliente..."
@@ -95,9 +97,17 @@ export default function FeaturePreviewMultidispositivo() {
                                         return filtered.map((c) => (
                                             <div
                                                 key={c.id}
-                                                className="flex items-center gap-0 pl-2 pr-2 py-1 hover:bg-muted/50 text-xs hover:cursor-pointer"
+                                                className="flex items-center gap-0 pl-2 pr-2 py-1 text-xs"
                                             >
-                                                <img src={c.photo} alt={c.name} loading="eager" decoding="async" width={28} height={28} className="w-7 aspect-square rounded-md object-cover mr-2" />
+                                                {(() => {
+                                                    const base = String(c.photo).replace(/\?.*$/, '').replace(/\.(jpe?g|png)$/i, '');
+                                                    return (
+                                                        <picture>
+                                                            <source type="image/avif" srcSet={`${base}-320.avif 320w, ${base}-640.avif 640w, ${base}-1200.avif 1200w`} />
+                                                            <img src={c.photo} alt={c.name} loading="eager" decoding="async" width={28} height={28} className="w-7 aspect-square rounded-md object-cover mr-2" />
+                                                        </picture>
+                                                    );
+                                                })()}
 
                                                 <div className="w-[56px] flex-none">
                                                     <div className="font-medium truncate">{String(c.name || '').split(' ')[0]}</div>
@@ -107,9 +117,8 @@ export default function FeaturePreviewMultidispositivo() {
 
                                                 <div className="flex-none w-5 flex justify-end">
                                                     <button
-                                                        className="p-1 text-muted-foreground hover:text-destructive transition-transform"
+                                                        className="p-1 text-muted-foreground"
                                                         aria-label="Eliminar"
-                                                        onPointerDown={() => { }}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Loader2 } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -145,7 +145,14 @@ export default function ProgramExerciseDialog({
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? (
+                <>
+                  Guardando
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                'Guardar'
+              )}
             </Button>
           </div>
         </div>
