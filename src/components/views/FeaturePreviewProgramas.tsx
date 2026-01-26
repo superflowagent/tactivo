@@ -6,8 +6,8 @@ const VIDEO_BASE = import.meta.env.VITE_EXERCISE_VIDEO_BASE || `${import.meta.en
 
 const exercisesA = [
     { name: 'Rotación externa', equipment: ['Banco', 'Mancuerna'], anatomy: ['Hombro'], series: 4, reps: 10, kg: 5, video: encodeURI(`${VIDEO_BASE}rotacion-externa.mp4`) },
-    { name: 'Rezo al cielo', equipment: ['Pared'], anatomy: ['Hombro'], series: 4, reps: 6, kg: undefined, video: encodeURI(`${VIDEO_BASE}rezo-al-cielo.mp4`) },
     { name: 'Movilidad escapular', equipment: [], anatomy: ['Escápula', 'Trapecio'], series: 3, reps: 6, kg: undefined, video: encodeURI(`${VIDEO_BASE}movilidad-escapular.mp4`) },
+    { name: 'Rezo al cielo', equipment: ['Pared'], anatomy: ['Hombro'], series: 4, reps: 6, kg: undefined, video: encodeURI(`${VIDEO_BASE}rezo-al-cielo.mp4`) },
 ];
 
 const exercisesB = [
@@ -33,79 +33,7 @@ function titleFromVideo(video: string) {
 }
 
 export default function FeaturePreviewProgramas() {
-    // Small reusable hook-like handlers for drag-to-scroll per scroller
-    const makeDragHandlers = () => {
-        const ref = { current: null as HTMLDivElement | null };
-        let isDownLocal = false;
-        let startXLocal = 0;
-        let startScrollLeft = 0;
-        let raf: number | null = null;
-        let latestDxLocal = 0;
-
-        const onPointerDownLocal = (e: React.PointerEvent) => {
-            const el = ref.current;
-            if (!el) return;
-            isDownLocal = true;
-            try {
-                el.setPointerCapture(e.pointerId);
-            } catch {
-                /* ignore */
-            }
-            startXLocal = e.clientX;
-            startScrollLeft = el.scrollLeft;
-            latestDxLocal = 0;
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = null;
-            }
-        };
-
-        const onPointerMoveLocal = (e: React.PointerEvent) => {
-            const el = ref.current;
-            if (!el || !isDownLocal) return;
-            e.preventDefault();
-            latestDxLocal = e.clientX - startXLocal;
-            if (raf == null) {
-                raf = requestAnimationFrame(() => {
-                    raf = null;
-                    const el2 = ref.current;
-                    if (!el2) return;
-                    el2.scrollLeft = startScrollLeft - latestDxLocal;
-                });
-            }
-        };
-
-        const onPointerUpLocal = (e?: React.PointerEvent) => {
-            const el = ref.current;
-            if (!el) return;
-            isDownLocal = false;
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = null;
-            }
-            // persist current scrollLeft
-            startScrollLeft = el.scrollLeft;
-            if (e) {
-                try {
-                    el.releasePointerCapture(e.pointerId);
-                } catch {
-                    /* ignore */
-                }
-            }
-        };
-
-        return {
-            ref,
-            onPointerDown: onPointerDownLocal,
-            onPointerMove: onPointerMoveLocal,
-            onPointerUp: onPointerUpLocal,
-            onPointerCancel: onPointerUpLocal,
-            onPointerLeave: onPointerUpLocal,
-        } as const;
-    };
-
-    const dayAHandlers = React.useMemo(() => makeDragHandlers(), []);
-    const dayBHandlers = React.useMemo(() => makeDragHandlers(), []);
+    // Drag-to-scroll removed for landing preview to reduce main-thread work; columns remain horizontal but non-scrollable
 
     return (
         <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
@@ -117,16 +45,8 @@ export default function FeaturePreviewProgramas() {
                     <div className="text-sm font-semibold">Día A</div>
                 </div>
 
-                <div
-                    ref={dayAHandlers.ref as any}
-                    className="flex gap-2 pb-1 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
-                    style={{ touchAction: 'pan-x' }}
-                    onPointerDown={dayAHandlers.onPointerDown}
-                    onPointerMove={dayAHandlers.onPointerMove}
-                    onPointerUp={dayAHandlers.onPointerUp}
-                    onPointerCancel={dayAHandlers.onPointerCancel}
-                    onPointerLeave={dayAHandlers.onPointerLeave}
-                >
+                <div className="flex gap-2 pb-1 overflow-x-hidden px-1">
+
                     {exercisesA.map((ex, i) => (
                         <div key={i} className="flex-none w-52 min-h-[10rem]">
                             <Card className="overflow-hidden w-52 flex flex-col bg-white rounded-lg border">
@@ -189,16 +109,7 @@ export default function FeaturePreviewProgramas() {
                         <div className="text-sm font-semibold">Día B</div>
                     </div>
 
-                    <div
-                        ref={dayBHandlers.ref as any}
-                        className="flex gap-2 pb-1 overflow-x-auto hide-scrollbar cursor-grab select-none px-1"
-                        style={{ touchAction: 'pan-x' }}
-                        onPointerDown={dayBHandlers.onPointerDown}
-                        onPointerMove={dayBHandlers.onPointerMove}
-                        onPointerUp={dayBHandlers.onPointerUp}
-                        onPointerCancel={dayBHandlers.onPointerCancel}
-                        onPointerLeave={dayBHandlers.onPointerLeave}
-                    >
+                    <div className="flex gap-2 pb-1 overflow-x-hidden px-1">
                         {exercisesB.map((ex, i) => (
                             <div key={i} className="flex-none w-52 min-h-[10rem]">
                                 <Card className="overflow-hidden w-52 flex flex-col bg-white rounded-lg border">

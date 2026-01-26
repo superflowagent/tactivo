@@ -22,7 +22,7 @@ export default function FeaturePreviewMultidispositivo() {
     const confettiRef = React.useRef<ConfettiRef | null>(null);
     const [sidebarOpen, setSidebarOpen] = React.useState(false);
     return (
-        <Iphone className="w-[240px] h-[480px] max-w-full max-h-full shadow-lg transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03]">
+        <Iphone className="w-[240px] h-[480px] max-w-full max-h-full shadow-md transform-gpu transition-transform duration-150 ease-out sm:hover:scale-[1.04]">
             <div className="relative h-full flex flex-col min-h-0">
                 <Confetti ref={confettiRef} className="absolute inset-0 z-50 pointer-events-none" />
 

@@ -24,12 +24,25 @@ export const Confetti = React.forwardRef<ConfettiRef, React.HTMLAttributes<HTMLD
         const particlesRef = useRef<Particle[]>([]);
         const runningRef = useRef(false);
 
+        // Respect user motion preference and allow reducing particles
+        const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+        React.useEffect(() => {
+            if (typeof window === 'undefined') return;
+            const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+            setPrefersReducedMotion(mq.matches);
+            const handler = () => setPrefersReducedMotion(mq.matches);
+            mq.addEventListener?.('change', handler);
+            return () => mq.removeEventListener?.('change', handler);
+        }, []);
+
         useImperativeHandle(ref, () => ({
             fire: (opts = {}) => {
+                if (prefersReducedMotion) return; // don't fire if user prefers reduced motion
+
                 const canvas = canvasRef.current;
                 if (!canvas) return;
 
-                const count = opts.count ?? 12; // subtle by default
+                const count = opts.count ?? 8; // fewer particles by default
 
                 // Helper to actually add particles (accepts local canvas coords)
                 const addParticles = (localX: number, localY: number) => {

@@ -1,13 +1,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import Confetti, { type ConfettiRef } from '@/components/ui/Confetti';
-import {
-    Select,
-    SelectTrigger,
-    SelectValue,
-    SelectContent,
-    SelectItem,
-} from '@/components/ui/select';
+// Dropdown disabled in landing preview for performance - replaced with static text
+
 
 const slots = [
     {
@@ -57,12 +52,8 @@ function Avatar({ name, src }: { name: string; src?: string | null }) {
 
 export default function FeaturePreviewAgenda() {
     const confettiRef = React.useRef<ConfettiRef | null>(null);
-    const [selected, setSelected] = React.useState('all');
-    const professionals = [
-        { id: 'all', name: 'Todos los profesionales' },
-        { id: 'victor', name: 'Víctor Romero' },
-        { id: 'jorge', name: 'Jorge Polo' },
-    ];
+    // Selection dropdown removed from landing preview to reduce weight; show all slots by default
+
 
     const parseSlotTime = (t: string) => {
         // Expected format: 'Jueves 15 ene 2026, 8:00' (Spanish month abbrev)
@@ -84,12 +75,9 @@ export default function FeaturePreviewAgenda() {
     };
 
     const filteredSlots = React.useMemo(() => {
-        let base = slots;
-        if (selected === 'victor') base = base.filter((s) => s.name.includes('Víctor'));
-        if (selected === 'jorge') base = base.filter((s) => s.name.includes('Jorge'));
-        // Return a new sorted array (ascending by datetime)
-        return base.slice().sort((a, b) => parseSlotTime(a.time) - parseSlotTime(b.time));
-    }, [selected]);
+        // Show all demo slots in the landing preview (no interactive selection)
+        return slots.slice().sort((a, b) => parseSlotTime(a.time) - parseSlotTime(b.time));
+    }, []);
 
     return (
         <div className="w-full rounded-lg border bg-background dark:bg-surface-900 shadow-sm transform-gpu transition-transform duration-200 ease-out sm:hover:scale-[1.03] overflow-hidden relative h-full flex flex-col">
@@ -98,21 +86,7 @@ export default function FeaturePreviewAgenda() {
                 <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold">Agendar cita</h3>
 
-                    <div className="w-56">
-                        <Select value={selected} onValueChange={(v) => setSelected(v)}>
-                            <SelectTrigger className="w-full text-sm" aria-label="Seleccionar profesional">
-                                <SelectValue placeholder="Todos los profesionales" />
-                            </SelectTrigger>
 
-                            <SelectContent className="w-56">
-                                {professionals.map((p) => (
-                                    <SelectItem key={p.id} value={p.id} className="text-sm">
-                                        {p.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
                 </div>
 
                 <div className="mt-0.5">
@@ -147,10 +121,26 @@ export default function FeaturePreviewAgenda() {
                                         variant="outline"
                                         size="sm"
                                         onClick={(e) => {
-                                            const nativeEvent = e as React.MouseEvent;
-                                            const cx = nativeEvent.clientX;
-                                            const cy = nativeEvent.clientY;
-                                            confettiRef.current?.fire({ clientX: cx, clientY: cy, count: 12 });
+                                            const btn = e.currentTarget as HTMLButtonElement;
+
+                                            // Immediate tactile feedback: quick scale (no long transition)
+                                            btn.style.transition = 'transform 80ms linear';
+                                            btn.style.transform = 'scale(0.96)';
+
+                                            // Allow the browser to paint the pressed state, then revert and trigger confetti
+                                            requestAnimationFrame(() => {
+                                                requestAnimationFrame(() => {
+                                                    btn.style.transform = '';
+
+                                                    const cx = e.clientX;
+                                                    const cy = e.clientY;
+
+                                                    // Schedule confetti on the next frame so the UI update isn't blocked
+                                                    requestAnimationFrame(() => {
+                                                        confettiRef.current?.fire({ clientX: cx, clientY: cy, count: 8 });
+                                                    });
+                                                });
+                                            });
                                         }}
                                     >
                                         Reservar

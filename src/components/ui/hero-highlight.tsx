@@ -41,6 +41,16 @@ export const HeroHighlight = ({
     },
   };
 
+  // Respect user motion preference to avoid expensive updates
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mq.matches);
+    const handle = () => setPrefersReducedMotion(mq.matches);
+    mq.addEventListener?.('change', handle);
+    return () => mq.removeEventListener?.('change', handle);
+  }, []);
+
   function handleMouseEnter(e: React.MouseEvent<HTMLDivElement>) {
     containerRef.current = e.currentTarget;
     rectRef.current = containerRef.current.getBoundingClientRect();
@@ -87,6 +97,7 @@ export const HeroHighlight = ({
         className="pointer-events-none absolute inset-0 hidden dark:block"
         style={{ backgroundImage: dotPatterns.dark.default }}
       />
+
       <motion.div
         className="pointer-events-none absolute inset-0 opacity-0 transition duration-500 group-hover:opacity-60 dark:hidden"
         style={{

@@ -5,6 +5,7 @@ import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
 import CalendarPreview from '@/components/ui/CalendarPreview';
 import FeaturesSection from '@/components/views/FeaturesSection';
 import TestimoniosSection from '@/components/views/TestimoniosSection';
+import PlanesSection from '@/components/views/PlanesSection';
 
 export function LandingView() {
   return (
@@ -76,6 +77,9 @@ export function LandingView() {
 
       {/* Testimonios (placeholder) */}
       <TestimoniosSection />
+
+      {/* Planes (placeholder) */}
+      <PlanesSection />
     </div>
   );
 }

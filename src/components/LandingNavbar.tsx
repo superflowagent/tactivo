@@ -6,6 +6,7 @@ export function LandingNavbar() {
   const links = [
     { title: 'Funcionalidades', href: '#funcionalidades' },
     { title: 'Testimonios', href: '#testimonios' },
+    { title: 'Planes', href: '#planes' },
   ];
 
   return (

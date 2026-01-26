@@ -1,5 +1,6 @@
 import React from 'react';
 import Typewriter from '@/components/ui/typewriter';
+import AnimatedTestimonials from '@/components/ui/animated-testimonials';
 
 export default function TestimoniosSection() {
     const headingRef = React.useRef<HTMLHeadingElement | null>(null);
@@ -73,8 +74,41 @@ export default function TestimoniosSection() {
                     )}
                 </h2>
 
-                <div className="rounded-md border border-dashed border-muted p-6 h-64 flex items-center justify-center bg-muted/10">
-                    <span className="text-muted-foreground">Testimonios — placeholder (carrousel pending)</span>
+                <div className="rounded-md p-0">
+                    <AnimatedTestimonials
+                        testimonials={[
+                            {
+                                quote: "La agenda autónoma ha reducido nuestras llamadas en un 40%. Los pacientes adoran poder reservar su cita en cualquier momento sin esperar.",
+                                name: "Dra. Elena Martínez",
+                                designation: "Directora de Clínica (Madrid)",
+                                src: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
+                            },
+                            {
+                                quote: "Gracias a la librería de ejercicios y los programas personalizados, mis pacientes tienen mucha más adherencia al tratamiento. ¡Espectacular!",
+                                name: "Marc Ribas",
+                                designation: "Fisioterapia Deportiva (Barcelona)",
+                                src: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
+                            },
+                            {
+                                quote: "Gestionar las clases grupales ahora es automático. Mis alumnos se apuntan de forma autónoma y yo me olvido de la gestión manual por WhatsApp.",
+                                name: "Lucía Fernández",
+                                designation: "Especialista Suelo Pélvico (Sevilla)",
+                                src: `${import.meta.env.BASE_URL}landing/professional3.jpg?v=2`,
+                            },
+                            {
+                                quote: "Tener la ficha del paciente y el historial de ejercicios integrados me ahorra horas de oficina a la semana. Sencillo y muy profesional.",
+                                name: "Javier Sotelo",
+                                designation: "Fisioterapeuta (A Coruña)",
+                                src: `${import.meta.env.BASE_URL}landing/professional4.jpg?v=2`,
+                            },
+                            {
+                                quote: "La gestión multiprofesional es clave. Coordinar las vacaciones y la disponibilidad de todo el equipo por fin es una tarea fácil.",
+                                name: "Juan Beltrán",
+                                designation: "Coordinador de Centro (Valencia)",
+                                src: `${import.meta.env.BASE_URL}landing/professional5.jpg?v=2`,
+                            },
+                        ]}
+                    />
                 </div>
             </div>
         </section>

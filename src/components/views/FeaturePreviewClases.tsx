@@ -178,17 +178,8 @@ export default function FeaturePreviewClases() {
             </div>
 
             <div className="p-3 flex-1">
-                {/* Horizontal scroll area with drag-to-scroll */}
-                <div
-                    ref={scrollRef}
-                    className={`overflow-x-auto hide-scrollbar ${dragging ? 'cursor-grabbing' : 'cursor-grab'} select-none`}
-                    style={{ touchAction: 'pan-x' }}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={(e) => endDrag(e)}
-                    onPointerCancel={(e) => endDrag(e, true)}
-                    onPointerLeave={(e) => endDrag(e, true)}
-                >
+                {/* Horizontal columns layout but horizontal scroll hidden (columns may be cut off) */}
+                <div className="overflow-x-hidden">
                     <div className="flex gap-2 pb-2">
                         {WEEKDAYS.map((d, i) => {
                             const slots = makeSlotsForDay(i);

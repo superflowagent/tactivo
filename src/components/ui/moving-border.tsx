@@ -81,7 +81,34 @@ export const MovingBorder = ({
   const pathRef = useRef<any>();
   const progress = useMotionValue<number>(0);
 
+  // Track visibility to avoid running the animation when offscreen
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const visibleRef = useRef(true);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const el = rootRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      visibleRef.current = entries.some((e) => e.isIntersecting);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Respect prefers-reduced-motion
+  const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setPrefersReducedMotion(mq.matches);
+    const handler = () => setPrefersReducedMotion(mq.matches);
+    mq.addEventListener?.('change', handler);
+    return () => mq.removeEventListener?.('change', handler);
+  }, []);
+
   useAnimationFrame((time) => {
+    if (!visibleRef.current || prefersReducedMotion) return;
     const length = pathRef.current?.getTotalLength?.();
     if (length) {
       const pxPerMillisecond = length / duration;
@@ -95,7 +122,7 @@ export const MovingBorder = ({
   const transform = useMotionTemplate`translateX(${x}px) translateY(${y}px) translateX(-50%) translateY(-50%)`;
 
   return (
-    <>
+    <div ref={rootRef} className="relative">
       <svg
         xmlns="http://www.w3.org/2000/svg"
         preserveAspectRatio="none"
@@ -117,6 +144,6 @@ export const MovingBorder = ({
       >
         {children}
       </motion.div>
-    </>
+    </div>
   );
 };
