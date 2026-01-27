@@ -76,7 +76,7 @@ export default function RegisterDialog({
 
           <form id="registerForm" onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="r_email">Email <span className="text-destructive">*</span></Label>
+              <Label htmlFor="r_email">Email <span className="text-foreground">*</span></Label>
               <Input
                 id="r_email"
                 type="email"
@@ -84,28 +84,28 @@ export default function RegisterDialog({
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-            </div>
+            </div> 
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="r_name">Nombre <span className="text-destructive">*</span></Label>
+                <Label htmlFor="r_name">Nombre <span className="text-foreground">*</span></Label>
                 <Input
                   id="r_name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
-              </div>
+              </div> 
 
               <div className="space-y-2">
-                <Label htmlFor="r_last">Apellidos <span className="text-destructive">*</span></Label>
+                <Label htmlFor="r_last">Apellidos <span className="text-foreground">*</span></Label>
                 <Input
                   id="r_last"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                 />
-              </div>
+              </div> 
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -115,14 +115,14 @@ export default function RegisterDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="r_centro">Nombre del centro <span className="text-destructive">*</span></Label>
+                <Label htmlFor="r_centro">Nombre del centro <span className="text-foreground">*</span></Label>
                 <Input
                   id="r_centro"
                   value={centro}
                   onChange={(e) => setCentro(e.target.value)}
                   required
                 />
-              </div>
+              </div> 
             </div>
 
             {errorMsg && (
