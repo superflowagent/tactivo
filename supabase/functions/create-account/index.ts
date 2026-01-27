@@ -95,7 +95,8 @@ serve(async (req) => {
             company_name,
             company_domain,
             create_company,
-            sendInvite = true
+            sendInvite = true,
+            dni
         } = body || {};
 
         if (!role || !['client', 'professional'].includes(role)) return jsonResponse({ error: 'role must be client or professional' }, 400);
@@ -174,7 +175,9 @@ serve(async (req) => {
         }
 
         // Create profile
-        const profilePayload = { name, last_name, email: email || null, phone: phone || null, role, company: finalCompanyId || null };
+        const profilePayload: any = { name, last_name, email: email || null, phone: phone || null, role, company: finalCompanyId || null };
+        // Include DNI when provided (clients may supply DNI at creation time)
+        if (typeof dni !== 'undefined' && dni !== null) profilePayload.dni = dni;
         if (newUserId) profilePayload.user = newUserId;
         const profileRes = await restProfiles('POST', profilePayload);
         if (!profileRes.ok) {
