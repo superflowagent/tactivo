@@ -434,12 +434,12 @@ export function ProfesionalDialog({
                     try {
                       localStorage.setItem(
                         'tactivo.inviteToast',
-                        JSON.stringify({ title, durationMs: 4000 })
+                        JSON.stringify({ title, durationMs: 7000 })
                       );
                     } catch { }
                     try {
                       window.dispatchEvent(
-                        new CustomEvent('tactivo.invite', { detail: { title, durationMs: 4000 } })
+                        new CustomEvent('tactivo.invite', { detail: { title, durationMs: 7000 } })
                       );
                     } catch { }
                   } else {

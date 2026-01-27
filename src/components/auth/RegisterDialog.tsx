@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
 import InviteToast from '@/components/InviteToast';
 import registerUser from '../../lib/registerUser';
 import { error as logError } from '@/lib/logger';
@@ -134,7 +135,14 @@ export default function RegisterDialog({
               Cancelar
             </Button>
             <Button type="submit" form="registerForm" disabled={loading}>
-              {loading ? 'Registrando...' : 'Registrarme'}
+              {loading ? (
+                <>
+                  Registrando...
+                  <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                'Registrarme'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

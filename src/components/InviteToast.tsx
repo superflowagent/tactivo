@@ -4,7 +4,7 @@ import ProjectAlert from '@/components/ui/project-alert';
 
 export default function InviteToast({
   title = 'Invitación enviada',
-  durationMs = 4000,
+  durationMs = 7000,
   onClose,
 }: {
   title?: React.ReactNode;

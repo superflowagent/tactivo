@@ -108,7 +108,7 @@ export function Panel() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.title) {
-          setInviteToast({ title: parsed.title, durationMs: parsed.durationMs ?? 4000 });
+          setInviteToast({ title: parsed.title, durationMs: parsed.durationMs ?? 7000 });
         }
         localStorage.removeItem('tactivo.inviteToast');
       }
@@ -118,7 +118,7 @@ export function Panel() {
 
     const handler = (e: any) => {
       const d = e?.detail || {};
-      if (d?.title) setInviteToast({ title: d.title, durationMs: d.durationMs ?? 4000 });
+      if (d?.title) setInviteToast({ title: d.title, durationMs: d.durationMs ?? 7000 });
     };
     window.addEventListener('tactivo.invite', handler as EventListener);
     return () => window.removeEventListener('tactivo.invite', handler as EventListener);
@@ -193,7 +193,7 @@ export function Panel() {
       {inviteToast && (
         <InviteToast
           title={inviteToast.title}
-          durationMs={inviteToast.durationMs ?? 4000}
+          durationMs={inviteToast.durationMs ?? 7000}
           onClose={() => setInviteToast(null)}
         />
       )}
