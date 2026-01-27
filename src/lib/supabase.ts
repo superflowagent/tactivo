@@ -326,139 +326,40 @@ export const uploadVideoWithCompression = async (
       }
     }
 
-    // If file is large, skip client storage upload and call Edge Function directly to avoid RLS/400 noise
+    // If file is large, attempt direct storage upload (no Edge Function fallback)
     const directUploadAbove = 5 * 1024 * 1024; // 5MB
     if ((toUpload as File).size > directUploadAbove) {
       try {
-        const token = await getAuthToken();
-        if (!token) throw new Error('no_auth_token');
-        const company = meta?.company ?? null;
-        const exerciseId = meta?.exerciseId ?? null;
+        const parts = (path || '').split('/');
+        const company = meta?.company ?? (parts.length > 0 ? parts[0] : null);
+        const exerciseId = meta?.exerciseId ?? (parts.length > 1 ? parts[1] : null);
         const filenameOnly = (toUpload as File).name || 'file';
+        const dirPartLarge = company && exerciseId ? `${company}/${exerciseId}` : null;
+        const finalFilenameLarge = filenameOnly;
+        const pathToUploadLarge = dirPartLarge ? `${dirPartLarge}/${finalFilenameLarge}` : finalFilenameLarge;
 
-        const arrayBuffer = await (toUpload as File).arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(
-            null,
-            Array.prototype.slice.call(bytes, i, Math.min(i + chunkSize, bytes.length))
-          );
+        const uploadPromiseLarge = supabase.storage.from(bucket).upload(pathToUploadLarge, toUpload, options);
+        const timeoutMsLarge = 120_000; // allow longer timeout for large files
+        const timeoutPromiseLarge = new Promise((_res, rej) =>
+          setTimeout(() => rej(new Error('upload timed out')), timeoutMsLarge)
+        );
+        const uploadResultLarge = (await Promise.race([uploadPromiseLarge, timeoutPromiseLarge])) as any;
+        if (uploadResultLarge?.error) {
+          throw uploadResultLarge.error;
         }
-        const content_b64 = btoa(binary);
-
-        const fnUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/upload-exercise-video`;
-        const body: any = {
-          bucket,
-          filename: filenameOnly,
-          content_b64,
-          content_type: (toUpload as File).type || 'application/octet-stream',
-        };
-        if (company) body.company_id = company;
-        if (exerciseId) body.exercise_id = exerciseId;
-        // Request root upload
-        body.root = true;
-
-        // Use fetch with timeout to avoid hanging indefinitely
-        const controller = new AbortController();
-        const fnTimeout = 60_000; // 60s
-        const fnTimer = setTimeout(() => controller.abort(), fnTimeout);
-        let fnResp: Response;
-        try {
-          fnResp = await fetch(fnUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          });
-        } catch (e) {
-          clearTimeout(fnTimer);
-          logError('uploadVideoWithCompression: edge function fetch failed or timed out', e);
-          throw e;
-        }
-        clearTimeout(fnTimer);
-        const fnJson = await fnResp.json().catch(() => null);
-        if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
-        const returnedPath = body.root
-          ? `${filenameOnly}`
-          : `${company}/${exerciseId}/${filenameOnly}`;
+        const returnedPath = pathToUploadLarge;
         return { data: { path: returnedPath }, error: null };
-      } catch (fnErr) {
-        logError('uploadVideoWithCompression: direct edge function upload failed', fnErr);
-        // Fall through to try client upload (or final fallback) - return error so caller can handle
-        return { data: null, error: fnErr };
+      } catch (err) {
+        logError('uploadVideoWithCompression: large file direct upload failed', err);
+        return { data: null, error: err };
       }
     }
 
     // Wrap upload with a timeout to avoid hanging indefinitely
-    // Before attempting client upload, ensure session is valid; if not, skip to Edge Function fallback
+    // Before attempting client upload, ensure session is valid; if not, return an error (no Edge Function fallback)
     const sessionValid = await ensureValidSession();
     if (!sessionValid) {
-      try {
-        const token = await getAuthToken();
-        if (!token) throw new Error('no_auth_token');
-        const arrayBuffer = await (toUpload as File).arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(
-            null,
-            Array.prototype.slice.call(bytes, i, Math.min(i + chunkSize, bytes.length))
-          );
-        }
-        const content_b64 = btoa(binary);
-        const company = meta?.company ?? null;
-        const exerciseId = meta?.exerciseId ?? null;
-        const filenameOnly = (toUpload as File).name || 'file';
-
-        const fnUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/upload-exercise-video`;
-        const controller = new AbortController();
-        const fnTimeout = 60_000; // 60s
-        const fnTimer = setTimeout(() => controller.abort(), fnTimeout);
-        let fnResp: Response;
-        try {
-          fnResp = await fetch(fnUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              bucket,
-              company_id: company,
-              exercise_id: exerciseId,
-              filename: filenameOnly,
-              content_b64,
-              content_type: (toUpload as File).type || 'application/octet-stream',
-              root: true,
-            }),
-            signal: controller.signal,
-          });
-        } catch (e) {
-          clearTimeout(fnTimer);
-          logError(
-            'uploadVideoWithCompression: edge function upload (session invalid path) failed or timed out',
-            e
-          );
-          throw e;
-        }
-        clearTimeout(fnTimer);
-        const fnJson = await fnResp.json().catch(() => null);
-        if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
-        const returnedPath = `${filenameOnly}`;
-        return { data: { path: returnedPath }, error: null };
-      } catch (fnErr) {
-        logError(
-          'uploadVideoWithCompression: edge function fallback failed (session invalid path)',
-          fnErr
-        );
-        return { data: null, error: fnErr };
-      }
+      return { data: null, error: new Error('session_invalid') };
     }
 
     // Use the compressed file's name if it changed so extension/content-type matches
@@ -467,9 +368,7 @@ export const uploadVideoWithCompression = async (
     const finalFilename = (toUpload as File).name || filenameOnlyFromPath || 'file';
     const pathToUpload = dirPart ? `${dirPart}/${finalFilename}` : finalFilename;
 
-    // If the current user is a professional, uploading directly to the Storage bucket may fail under RLS
-    // before the RLS migration is applied. Proactively use the Edge Function upload for professionals to
-    // avoid triggering a noisy failing 4xx request in the browser (we still keep fallback paths for safety).
+    // If the current user is a professional, proceed with direct upload; RLS policies should permit uploads
     try {
       const sess = await supabase.auth.getSession();
       const userId = (sess as any)?.data?.session?.user?.id;
@@ -477,61 +376,8 @@ export const uploadVideoWithCompression = async (
         const profile = await fetchProfileByUserId(userId);
         if (profile?.role === 'professional') {
           debug(
-            'uploadVideoWithCompression: user role = professional; using edge-function upload to avoid RLS 4xx'
+            'uploadVideoWithCompression: user role = professional; proceeding with direct storage upload (RLS policies expected to allow uploads under company path)'
           );
-          try {
-            const token = await getAuthToken();
-            if (!token) throw new Error('no_auth_token');
-
-            const parts = (path || '').split('/');
-            const company = meta?.company ?? (parts.length > 0 ? parts[0] : null);
-            const exerciseId = meta?.exerciseId ?? (parts.length > 1 ? parts[1] : null);
-            const filenameOnly =
-              parts.slice(2).join('/') ||
-              parts[parts.length - 1] ||
-              (toUpload as File).name ||
-              'file';
-
-            const arrayBuffer = await (toUpload as File).arrayBuffer();
-            let binary = '';
-            const bytes = new Uint8Array(arrayBuffer);
-            const chunkSize = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-              binary += String.fromCharCode.apply(
-                null,
-                Array.prototype.slice.call(bytes, i, Math.min(i + chunkSize, bytes.length))
-              );
-            }
-            const content_b64 = btoa(binary);
-
-            const fnUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/upload-exercise-video`;
-            const fnResp = await fetch(fnUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                bucket,
-                company_id: company,
-                exercise_id: exerciseId,
-                filename: filenameOnly,
-                content_b64,
-                content_type: (toUpload as File).type || 'application/octet-stream',
-                root: true,
-              }),
-            });
-            const fnJson = await fnResp.json().catch(() => null);
-            if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
-            const returnedPath = `${filenameOnly}`;
-            return { data: { path: returnedPath }, error: null };
-          } catch (fnErr) {
-            debug(
-              'uploadVideoWithCompression: edge-function fallback for professional user failed; falling back to normal upload',
-              fnErr
-            );
-            // fall through to normal storage upload logic
-          }
         }
       }
     } catch {
@@ -566,92 +412,15 @@ export const uploadVideoWithCompression = async (
             uploadResult = (await Promise.race([retryPromise, timeoutPromise])) as any;
           } catch (retryErr) {
             logError('uploadVideoWithCompression: retry after refresh failed', retryErr);
-            // Fall through to edge-function fallback
-            throw retryErr;
+            return { data: null, error: retryErr };
           }
-        } catch {
-          // Attempt server-side upload via Edge Function (with timeout)
-          try {
-            const token = await getAuthToken();
-            if (!token) throw new Error('no_auth_token');
-            // Parse path into company/exerciseId/filename if possible
-            // Prefer meta values for company/exerciseId when provided
-            const company =
-              meta?.company ??
-              (pathToUpload && pathToUpload.includes('/') ? pathToUpload.split('/')[0] : null);
-            const exerciseId =
-              meta?.exerciseId ??
-              (pathToUpload && pathToUpload.includes('/') ? pathToUpload.split('/')[1] : null);
-            const filenameOnly =
-              (pathToUpload && pathToUpload.includes('/')
-                ? pathToUpload.split('/').slice(2).join('/')
-                : pathToUpload) ||
-              (toUpload as File).name ||
-              'file';
-
-            const arrayBuffer = await (toUpload as File).arrayBuffer();
-            // Convert to base64
-            let binary = '';
-            const bytes = new Uint8Array(arrayBuffer);
-            const chunkSize = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-              binary += String.fromCharCode.apply(
-                null,
-                Array.prototype.slice.call(bytes, i, Math.min(i + chunkSize, bytes.length))
-              );
-            }
-            const content_b64 = btoa(binary);
-
-            const fnUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/upload-exercise-video`;
-
-            // fetch with timeout to avoid hanging
-            const controller = new AbortController();
-            const fnTimeout = 60_000; // 60s
-            const fnTimer = setTimeout(() => controller.abort(), fnTimeout);
-            let fnResp: Response;
-            try {
-              fnResp = await fetch(fnUrl, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${token}`,
-                },
-                // Request root upload so function stores at bucket root
-                body: JSON.stringify({
-                  bucket,
-                  company_id: company,
-                  exercise_id: exerciseId,
-                  filename: filenameOnly,
-                  content_b64,
-                  content_type: (toUpload as File).type || 'application/octet-stream',
-                  root: true,
-                }),
-                signal: controller.signal,
-              });
-            } catch (e) {
-              clearTimeout(fnTimer);
-              logError(
-                'uploadVideoWithCompression: edge function fallback fetch failed or timed out',
-                e
-              );
-              throw e;
-            }
-            clearTimeout(fnTimer);
-
-            const fnJson = await fnResp.json().catch(() => null);
-            if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
-            const returnedPath = true /* root requested in this branch */
-              ? `${filenameOnly}`
-              : `${company}/${exerciseId}/${filenameOnly}`;
-            return { data: { path: returnedPath }, error: null };
-          } catch (fnErr) {
-            logError('uploadVideoWithCompression: edge function fallback failed', fnErr);
-            return { data: null, error: fnErr };
-          }
+        } catch (refreshErr) {
+          logError('uploadVideoWithCompression: session refresh failed', refreshErr);
+          return { data: null, error: refreshErr };
         }
       }
 
-      return { data: null, error: err };
+      return { data: null, error: err }; 
     }
 
     const { data, error } = uploadResult as any;
@@ -672,7 +441,7 @@ export const uploadVideoWithCompression = async (
       }
     }
 
-    // If storage returned a RLS-like error in manifested object, attempt fallback as well
+    // If storage returned a RLS-like error in manifested object, do not attempt Edge Function fallback; return error
     if (
       error &&
       (errMsg.includes('row-level security') ||
@@ -681,64 +450,13 @@ export const uploadVideoWithCompression = async (
         error?.statusCode === '403')
     ) {
       debug(
-        'uploadVideoWithCompression: detected RLS in storage response, attempting edge-function fallback'
+        'uploadVideoWithCompression: detected RLS in storage response and no Edge Function fallback is configured; returning error',
+        error
       );
-      try {
-        const token = await getAuthToken();
-        if (!token) throw new Error('no_auth_token');
-        // Prefer meta if provided
-        const parts = (path || '').split('/');
-        const company = meta?.company ?? (parts.length > 0 ? parts[0] : null);
-        const exerciseId = meta?.exerciseId ?? (parts.length > 1 ? parts[1] : null);
-        const filenameOnly =
-          parts.slice(2).join('/') || parts[parts.length - 1] || (toUpload as File).name || 'file';
-
-        const arrayBuffer = await (toUpload as File).arrayBuffer();
-        let binary = '';
-        const bytes = new Uint8Array(arrayBuffer);
-        const chunkSize = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunkSize) {
-          binary += String.fromCharCode.apply(
-            null,
-            Array.prototype.slice.call(bytes, i, Math.min(i + chunkSize, bytes.length))
-          );
-        }
-        const content_b64 = btoa(binary);
-
-        const fnUrl = `${supabaseUrl.replace(/\/$/, '')}/functions/v1/upload-exercise-video`;
-        const body = {
-          bucket,
-          company_id: company,
-          exercise_id: exerciseId,
-          filename: filenameOnly,
-          content_b64,
-          content_type: (toUpload as File).type || 'application/octet-stream',
-        } as any;
-        // If meta is provided, prefer root uploads
-        if (meta?.company) body.root = true;
-
-        const fnResp = await fetch(fnUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
-        });
-        const fnJson = await fnResp.json().catch(() => null);
-        if (!fnResp.ok) throw fnJson || new Error('upload_fn_failed');
-        debug('uploadVideoWithCompression: edge function upload success', fnJson);
-        const returnedPath = body.root
-          ? `${filenameOnly}`
-          : `${company}/${exerciseId}/${filenameOnly}`;
-        return { data: { path: returnedPath }, error: null };
-      } catch (fnErr) {
-        logError('uploadVideoWithCompression: edge function fallback failed', fnErr);
-        return { data: null, error: fnErr };
-      }
+      return { data: null, error };
     }
 
-    return { data, error };
+    return { data, error }; 
   } catch (err) {
     logError('uploadVideoWithCompression: error', err);
     return { data: null, error: err };

@@ -67,7 +67,7 @@ serve(async (req) => {
         const env = globalThis.Deno?.env?.get('ADMIN_SECRET');
         if (env) return env;
         try {
-          const txt = await Deno.readTextFile('./.local_admin_secret');
+          const txt = await (Deno as any).readTextFile('./.local_admin_secret');
           if (txt) return txt.trim();
         } catch (e) {
           // ignore

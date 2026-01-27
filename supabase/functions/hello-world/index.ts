@@ -4,7 +4,7 @@
 // Setup type definitions for built-in Supabase Runtime APIs
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 console.log('Hello from Functions!');
-Deno.serve(async (req)=>{
+Deno.serve(async (req) => {
   const { name } = await req.json();
   // Temporary env & file check: if called with special name, return whether ADMIN_SECRET is present in Deno.env or in common file paths
   if (name === '__env_check') {
@@ -17,9 +17,9 @@ Deno.serve(async (req)=>{
       '../.local_admin_secret'
     ];
     const fileChecks = {};
-    for (const p of paths){
+    for (const p of paths) {
       try {
-        const txt = await Deno.readTextFile(p);
+        const txt = await (Deno as any).readTextFile(p);
         fileChecks[p] = {
           exists: true,
           trimmed: txt.trim().length > 0

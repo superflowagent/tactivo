@@ -653,11 +653,11 @@ export default function ClienteView() {
           if (!token) throw new Error('missing_token');
 
           const fnRes = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-account`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify(payload),
+              body: JSON.stringify({ ...payload, role: 'client' }),
             }
           );
           const fnJson = await fnRes.json().catch(() => null);
@@ -666,12 +666,18 @@ export default function ClienteView() {
               'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
             );
           }
-          const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+          const data =
+            fnJson?.profile ||
+            (Array.isArray(fnJson?.inserted) ? fnJson.inserted[0] : fnJson?.inserted) ||
+            (Array.isArray(fnJson?.updated) ? fnJson.updated[0] : fnJson?.updated) ||
+            fnJson;
           savedUser = data;
           savedUserId =
             savedUser && (savedUser.id || savedUser.user)
               ? savedUser.id || savedUser.user
-              : savedUser?.id || null;
+              : typeof savedUser === 'string'
+                ? savedUser
+                : savedUser?.id || null;
 
           try {
             const storagePath = `${filename}`;
@@ -739,11 +745,11 @@ export default function ClienteView() {
           if (!token) throw new Error('missing_token');
 
           const fnRes = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-client`,
+            `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-account`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-              body: JSON.stringify(payload),
+              body: JSON.stringify({ ...payload, role: 'client' }),
             }
           );
           const fnJson = await fnRes.json().catch(() => null);
@@ -752,9 +758,18 @@ export default function ClienteView() {
               'failed_to_create_client: ' + (fnJson?.error || JSON.stringify(fnJson))
             );
           }
-          const data = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
+          const data =
+            fnJson?.profile ||
+            (Array.isArray(fnJson?.inserted) ? fnJson.inserted[0] : fnJson?.inserted) ||
+            (Array.isArray(fnJson?.updated) ? fnJson.updated[0] : fnJson?.updated) ||
+            fnJson;
           savedUser = data;
-          savedUserId = savedUser?.id || savedUser?.user || null;
+          savedUserId =
+            savedUser && (savedUser.id || savedUser.user)
+              ? savedUser.id || savedUser.user
+              : typeof savedUser === 'string'
+                ? savedUser
+                : savedUser?.id || null;
         }
       }
 
@@ -978,8 +993,8 @@ export default function ClienteView() {
             </TabsList>
 
             <TabsContent value="datos" className="flex-1 min-h-0">
-              <div className="mt-2 overflow-hidden pr-1">
-                <div className="grid w-full gap-6 rounded-lg border bg-card p-4 shadow-sm">
+              <div className="mt-2 overflow-hidden pr-1 pb-20">
+                <div className="h-full overflow-y-auto overflow-x-hidden rounded-lg border bg-card p-4 shadow-sm min-w-0">
                   <form id="cliente-form" onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">

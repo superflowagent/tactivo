@@ -2,7 +2,7 @@
 /// <reference path="./deno.d.ts" />
 // Lightweight function to return a signed URL for a storage object using the Service Role key
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req)=>{
+serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': req.headers.get('origin') || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -14,13 +14,13 @@ serve(async (req)=>{
     status: 204,
     headers: corsHeaders
   });
-  const jsonResponse = (body, status = 200)=>new Response(JSON.stringify(body), {
-      status,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
-    });
+  const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      ...corsHeaders
+    }
+  });
   try {
     const SUPABASE_URL = globalThis.Deno?.env?.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = globalThis.Deno?.env?.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -30,21 +30,21 @@ serve(async (req)=>{
     // Debug: log header keys to help diagnose auth issues (do not print values)
     try {
       const keys = [];
-      for (const k of req.headers.keys())keys.push(k);
+      for (const k of req.headers.keys()) keys.push(k);
       console.info('get-signed-url headers:', keys.join(','));
     } catch (e) {
-    // ignore
+      // ignore
     }
     // Basic auth: allow bearer tokens validated against /auth/v1/user OR a valid admin secret
     const authHeader = req.headers.get('authorization');
     const providedHeader = req.headers.get('x-admin-secret') || req.headers.get('x-admin-token');
     // Allow admin secret in request body for local development if headers are stripped
-    const providedBody = (await req.json().catch(()=>null) || {}).admin_secret || null;
+    const providedBody = (await req.json().catch(() => null) || {}).admin_secret || null;
     const provided = providedHeader || providedBody;
     console.info('get-signed-url: authHeader present=', !!authHeader, 'provided header/body present=', !!provided);
     try {
       console.info('get-signed-url: authHeader preview=', authHeader ? authHeader.slice(0, 20) : null);
-    } catch (e) {}
+    } catch (e) { }
     let authorized = false;
     if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
       const bearer = authHeader.substring(7);
@@ -85,9 +85,9 @@ serve(async (req)=>{
             './supabase/.local_admin_secret',
             '../.local_admin_secret'
           ];
-          for (const p of candidates){
+          for (const p of candidates) {
             try {
-              const txt = await Deno.readTextFile(p);
+              const txt = await (Deno as any).readTextFile(p);
               console.info('get-signed-url: found local file', p, 'len=', txt ? txt.trim().length : 0);
               if (txt && txt.trim() === provided) {
                 authorized = true;
@@ -95,7 +95,7 @@ serve(async (req)=>{
                 break;
               }
             } catch (e) {
-            // ignore missing file
+              // ignore missing file
             }
           }
         } catch (e) {
@@ -114,7 +114,7 @@ serve(async (req)=>{
             }
           });
           if (res.ok) {
-            const json = await res.json().catch(()=>null);
+            const json = await res.json().catch(() => null);
             console.info('get-signed-url: app_settings read count=', Array.isArray(json) ? json.length : 0);
             if (Array.isArray(json) && json.length && json[0].value === provided) {
               authorized = true;
@@ -129,7 +129,7 @@ serve(async (req)=>{
     if (!authorized) return jsonResponse({
       error: 'Unauthorized'
     }, 401);
-    const body = await req.json().catch(()=>({}));
+    const body = await req.json().catch(() => ({}));
     const { bucket, path, expires = 3600 } = body || {};
     if (!bucket || !path) return jsonResponse({
       error: 'bucket and path required'
@@ -150,7 +150,7 @@ serve(async (req)=>{
     let json = null;
     try {
       json = JSON.parse(txt);
-    } catch  {
+    } catch {
       json = txt;
     }
     if (!signResp.ok) return jsonResponse({

@@ -1,12 +1,16 @@
 import { serve } from 'https://deno.land/std@0.178.0/http/server.ts';
-serve(async (req) => {
+
+// allow using the Deno global without strict type errors in this file
+declare const Deno: any;
+
+serve(async (req: Request) => {
   const origin = req.headers.get('origin') || '*';
-  const corsHeaders = {
+  const corsHeaders: Record<string, string> = {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Admin-Secret, X-Admin-Token',
     'Access-Control-Max-Age': '3600',
-    Vary: 'Origin'
+    'Vary': 'Origin'
   };
   if (origin !== '*') corsHeaders['Access-Control-Allow-Credentials'] = 'true';
   if (req.method === 'OPTIONS') {
@@ -15,8 +19,8 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
-  const jsonResponse = (body, status = 200) => {
-    const h = {
+  const jsonResponse = (body: any, status = 200): Response => {
+    const h: Record<string, string> = {
       'Content-Type': 'application/json',
       ...corsHeaders
     };
@@ -35,14 +39,14 @@ serve(async (req) => {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return jsonResponse({
       error: 'Supabase not configured'
     }, 500);
-    const getAdminSecret = async () => {
+    const getAdminSecret = async (): Promise<string | null> => {
       try {
         const env = Deno.env.get('ADMIN_SECRET');
         if (env) return env;
         try {
-          const txt = await Deno.readTextFile('./.local_admin_secret');
+          const txt = await (Deno as any).readTextFile('./.local_admin_secret');
           if (txt) return txt.trim();
-        } catch (e) {
+        } catch (e: any) {
           // ignore
         }
         const url = `${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/app_settings?select=value&key=eq.ADMIN_SECRET`;
@@ -57,12 +61,12 @@ serve(async (req) => {
         const json = await res.json().catch(() => null);
         if (Array.isArray(json) && json.length) return json[0].value || null;
         return null;
-      } catch (e) {
+      } catch (e: any) {
         return null;
       }
     };
     // Helper to call Supabase REST for profiles using Service Role key
-    const restProfiles = async (method, body, query) => {
+    const restProfiles = async (method: string, body?: any, query?: string): Promise<{ ok: boolean; status: number; data: any }> => {
       const url = `${SUPABASE_URL}/rest/v1/profiles${query ? `?${query}` : ''}`;
       const res = await fetch(url, {
         method,
@@ -75,7 +79,7 @@ serve(async (req) => {
         body: body ? JSON.stringify(body) : undefined
       });
       const text = await res.text();
-      let data = null;
+      let data: any = null;
       try {
         data = JSON.parse(text);
       } catch {
@@ -282,88 +286,99 @@ serve(async (req) => {
         note: 'no_email'
       }, 200);
     }
-    try {
-      const tmpPwd = crypto.randomUUID().slice(0, 12);
-      const cuResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
-        },
-        body: JSON.stringify({
-          email: profile.email,
-          password: tmpPwd,
-          email_confirm: false
-        })
-      });
-      const cuText = await cuResp.text().catch(() => null);
-      let cuJson = null;
+
+    // If profile already has a linked user, skip creating a new one
+    if (profile.user) {
+      createUserResult = { note: 'user_already_linked', user: profile.user };
+    } else {
       try {
-        if (cuText) cuJson = JSON.parse(cuText);
-      } catch {
-        cuJson = null;
-      }
-      createUserResult = {
-        status: cuResp.status,
-        body: cuJson || cuText
-      };
-      // If created successfully, attempt to update profile.user to reference the new auth user id
-      if (cuResp.ok && cuJson) {
-        // support different response shapes defensively
-        const newUserId = cuJson.id || cuJson.user && cuJson.user.id || null;
-        if (newUserId) {
-          // Retry PATCH a couple times in case of transient failures
-          let lastPatchRes = null;
-          for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-              const patchRes = await restProfiles('PATCH', {
-                user: String(newUserId)
-              }, `id=eq.${profile.id}`);
-              lastPatchRes = patchRes;
-              if (patchRes.ok) {
-                createUserResult.patched = patchRes.data;
-                console.info('send-invite: patched profile.user', {
-                  profile_id: profile.id,
-                  newUserId,
-                  attempt
-                });
-                break;
-              }
-              console.warn('send-invite: patch attempt failed', {
-                profile_id: profile.id,
-                attempt,
-                patchRes
-              });
-            } catch (e) {
-              lastPatchRes = {
-                ok: false,
-                error: String(e?.message || e)
-              };
-              console.warn('send-invite: error patching profile.user', {
-                profile_id: profile.id,
-                attempt,
-                error: lastPatchRes.error
-              });
-            }
-            // small backoff
-            await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
-          }
-          if (lastPatchRes && !lastPatchRes.ok) {
-            createUserResult.patch = lastPatchRes;
-          }
-        } else {
-          // no id found in create response
-          createUserResult.note = 'user_id_missing_in_create_response';
-          console.warn('send-invite: user created but no id in response', {
-            body: cuJson
-          });
+        const tmpPwd = crypto.randomUUID().slice(0, 12);
+        const cuResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_SERVICE_ROLE_KEY,
+            Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`
+          },
+          body: JSON.stringify({
+            email: profile.email,
+            password: tmpPwd,
+            email_confirm: false
+          })
+        });
+        const cuText = await cuResp.text().catch(() => null);
+        let cuJson = null;
+        try {
+          if (cuText) cuJson = JSON.parse(cuText);
+        } catch {
+          cuJson = null;
         }
+        createUserResult = {
+          status: cuResp.status,
+          body: cuJson || cuText
+        };
+        // If created successfully, attempt to update profile.user to reference the new auth user id
+        if (cuResp.ok && cuJson) {
+          // support different response shapes defensively
+          const newUserId = cuJson.id || cuJson.user && cuJson.user.id || null;
+          if (newUserId) {
+            // Only patch if profile.user is not already set (defensive)
+            if (!profile.user) {
+              // Retry PATCH a couple times in case of transient failures
+              let lastPatchRes = null;
+              for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                  const patchRes = await restProfiles('PATCH', {
+                    user: String(newUserId)
+                  }, `id=eq.${profile.id}`);
+                  lastPatchRes = patchRes;
+                  if (patchRes.ok) {
+                    createUserResult.patched = patchRes.data;
+                    console.info('send-invite: patched profile.user', {
+                      profile_id: profile.id,
+                      newUserId,
+                      attempt
+                    });
+                    break;
+                  }
+                  console.warn('send-invite: patch attempt failed', {
+                    profile_id: profile.id,
+                    attempt,
+                    patchRes
+                  });
+                } catch (e) {
+                  lastPatchRes = {
+                    ok: false,
+                    error: String(e?.message || e)
+                  };
+                  console.warn('send-invite: error patching profile.user', {
+                    profile_id: profile.id,
+                    attempt,
+                    error: lastPatchRes.error
+                  });
+                }
+                // small backoff
+                await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+              }
+              if (lastPatchRes && !lastPatchRes.ok) {
+                createUserResult.patch = lastPatchRes;
+              }
+            } else {
+              createUserResult.note = 'profile_user_already_set';
+            }
+          } else {
+            // no id found in create response
+            createUserResult.note = 'user_id_missing_in_create_response';
+            console.warn('send-invite: user created but no id in response', {
+              body: cuJson
+            });
+          }
+        }
+      } catch (e) {
+        createUserResult = {
+          error: String(e?.message || e)
+        };
       }
-    } catch (e) {
-      createUserResult = {
-        error: String(e?.message || e)
-      };
     }
     // Attempt to send the password-reset/invite email via Supabase REST /auth/v1/recover using the Service Role key.
     // Redirect to the app's password reset page so the user lands on our UI (include invite_link as next to continue flow).
@@ -411,19 +426,31 @@ serve(async (req) => {
           raw: mailText
         };
       }
-    } catch (e) {
+    } catch (e: any) {
       sendResult = {
         ok: false,
         error: String(e?.message || e)
       };
     }
     // Attempt to extract a password-reset URL with an access_token from the response body (some providers include it)
-    let email_link = null;
+    let email_link: string | null = null;
     try {
       const raw = typeof sendResult?.raw === 'string' ? sendResult.raw : '';
-      const m = raw.match(/(https?:\/\/[^\s"']+\/functions\/v1\/password-reset\?access_token=[^&\s"']+)/);
-      if (m && m[1]) email_link = m[1];
-    } catch (e) {
+      const needle = '/functions/v1/password-reset?access_token=';
+      const pos = raw.indexOf(needle);
+      if (pos !== -1) {
+        const protoPos = raw.lastIndexOf('http', pos);
+        if (protoPos !== -1) {
+          let endPos = raw.indexOf(' ', pos);
+          const q1 = raw.indexOf('"', pos);
+          const q2 = raw.indexOf("'", pos);
+          if (q1 !== -1 && (endPos === -1 || q1 < endPos)) endPos = q1;
+          if (q2 !== -1 && (endPos === -1 || q2 < endPos)) endPos = q2;
+          if (endPos === -1) endPos = raw.length;
+          email_link = raw.substring(protoPos, endPos);
+        }
+      }
+    } catch (e: any) {
       // ignore
     }
     // Log both results for diagnostics so dashboard logs show whether user creation and send were accepted

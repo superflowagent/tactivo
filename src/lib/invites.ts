@@ -26,7 +26,7 @@ export default async function sendInviteByProfileId(
   if (!token) throw new Error('no_auth_token');
 
   const doSend = async (tk: string) => {
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-invite`;
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-reset-password`;
     try {
       const body = isEmail ? { email: profileIdOrEmail } : { profile_id: profileIdOrEmail };
       const res = await fetch(url, {

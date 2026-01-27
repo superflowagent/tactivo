@@ -48,6 +48,15 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/create-professional/index.ts"
 
+# Disable platform-level JWT verification for create-account as well (the function
+# performs its own authentication checks and may accept admin-secret or bearer tokens
+# validated against /auth/v1/user). Leaving verify_jwt enabled caused the gateway to
+# reject valid tokens before the function ran.
+[functions."create-account"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-account/index.ts"
+
 [functions."update-professional"]
 enabled = true
 verify_jwt = false
@@ -65,6 +74,12 @@ entrypoint = "./functions/update-company/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/password-reset/index.ts"
+
+# Disable platform-level JWT verification for send-reset-password (function performs its own auth checks)
+[functions."send-reset-password"]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/send-reset-password/index.ts"
 
 # send-invite-test moved to functions/examples/ (development/test helper)
 

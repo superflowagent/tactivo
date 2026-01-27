@@ -248,11 +248,11 @@ export function ProfesionalDialog({
         if (!token) throw new Error('missing_token');
 
         const fnRes = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-professional`,
+          `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/create-account`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ ...payload, role: 'professional', create_company: !companyId }),
           }
         );
         const fnJson = await fnRes.json().catch(() => null);
@@ -261,8 +261,12 @@ export function ProfesionalDialog({
             'failed_to_create_professional: ' + (fnJson?.error || JSON.stringify(fnJson))
           );
         }
-        const inserted = Array.isArray(fnJson.inserted) ? fnJson.inserted[0] : fnJson.inserted;
-        savedUser = inserted;
+        const data =
+          fnJson?.profile ||
+          (Array.isArray(fnJson?.inserted) ? fnJson.inserted[0] : fnJson?.inserted) ||
+          (Array.isArray(fnJson?.updated) ? fnJson.updated[0] : fnJson?.updated) ||
+          fnJson;
+        savedUser = data;
       }
 
       // Normalize the identifier we'll use for storage paths and direct updates
