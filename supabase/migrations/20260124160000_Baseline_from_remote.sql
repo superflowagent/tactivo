@@ -572,6 +572,10 @@ CREATE TABLE IF NOT EXISTS "public"."companies" (
 
 ALTER TABLE "public"."companies" OWNER TO "postgres";
 
+-- Asegura que la columna exista en bases de datos que ya tenían la tabla
+ALTER TABLE public.companies
+  ADD COLUMN IF NOT EXISTS self_schedule boolean NOT NULL DEFAULT false;
+
 COMMENT ON COLUMN public.companies.self_schedule IS 'Permite que los clientes se auto-programen citas según disponibilidad';
 
 
