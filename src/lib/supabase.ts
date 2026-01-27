@@ -395,8 +395,21 @@ export const uploadVideoWithCompression = async (
       uploadResult = (await Promise.race([uploadPromise, timeoutPromise])) as any;
     } catch (err) {
       logError('uploadVideoWithCompression: upload promise rejected', err);
-      // If upload promise rejected due to RLS/403, try a session refresh + retry before edge fallback
       const msg = String((err as any)?.message || err || '').toLowerCase();
+
+      // Transient upstream errors (502 / invalid response): short retry
+      if (msg.includes('invalid response') || msg.includes('bad gateway') || (err as any)?.status === 502) {
+        try {
+          await new Promise((r) => setTimeout(r, 1000));
+          const retryPromise = supabase.storage.from(bucket).upload(pathToUpload, toUpload, options);
+          uploadResult = (await Promise.race([retryPromise, timeoutPromise])) as any;
+        } catch (retryErr) {
+          logError('uploadVideoWithCompression: retry after transient storage error failed', retryErr);
+          return { data: null, error: retryErr };
+        }
+      }
+
+      // RLS / permission issues: try refresh + retry once
       if (
         msg.includes('row-level security') ||
         msg.includes('violates') ||
@@ -406,9 +419,7 @@ export const uploadVideoWithCompression = async (
           await ensureValidSession();
           // Retry upload once
           try {
-            const retryPromise = supabase.storage
-              .from(bucket)
-              .upload(pathToUpload, toUpload, options);
+            const retryPromise = supabase.storage.from(bucket).upload(pathToUpload, toUpload, options);
             uploadResult = (await Promise.race([retryPromise, timeoutPromise])) as any;
           } catch (retryErr) {
             logError('uploadVideoWithCompression: retry after refresh failed', retryErr);
@@ -420,7 +431,7 @@ export const uploadVideoWithCompression = async (
         }
       }
 
-      return { data: null, error: err }; 
+      return { data: null, error: err };
     }
 
     const { data, error } = uploadResult as any;
@@ -453,7 +464,10 @@ export const uploadVideoWithCompression = async (
         'uploadVideoWithCompression: detected RLS in storage response and no Edge Function fallback is configured; returning error',
         error
       );
-      return { data: null, error };
+      // Provide a clearer, actionable error for UI
+      const userErr = new Error('upload_permission_denied: comprueba que tu sesión esté activa y que el archivo se suba bajo el path company/{exerciseId}/{filename}');
+      (userErr as any).original = error;
+      return { data: null, error: userErr };
     }
 
     return { data, error }; 
