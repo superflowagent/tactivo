@@ -95,7 +95,7 @@ serve(async (req) => {
             company_name,
             company_domain,
             create_company,
-            sendInvite = true,
+            sendInvite,
             dni
         } = body || {};
 
@@ -116,6 +116,13 @@ serve(async (req) => {
                 return jsonResponse({ error: 'forbidden_public_registration' }, 403);
             }
         }
+
+        // Determine whether we should send an invite/reset link.
+        // Behavior: if the caller explicitly set `sendInvite` in the request body, respect it.
+        // Otherwise default to sending invites for public registrations but NOT when the caller is an authenticated user (to avoid double-sends from clients that call send-invite afterwards).
+        const bodyHasSendInvite = body && Object.prototype.hasOwnProperty.call(body, 'sendInvite');
+        const effectiveSendInvite = bodyHasSendInvite ? sendInvite : publicRegister;
+        console.info('create-account: sendInvite resolution', { bodyHasSendInvite, effectiveSendInvite, publicRegister, callerUserIdPresent: !!callerUserId });
 
         // Optional: create company if needed
         let finalCompanyId = company || null;
@@ -208,7 +215,7 @@ serve(async (req) => {
 
         // Optionally send reset-password (via send-reset-password or internal fallback using service role key)
         let sendResult = null;
-        if (sendInvite && inserted && (inserted.id || email)) {
+        if (effectiveSendInvite && inserted && (inserted.id || email)) {
             try {
                 const adminSecretVal = await getAdminSecret();
                 if (adminSecretVal) {
