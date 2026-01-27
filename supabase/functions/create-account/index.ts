@@ -158,11 +158,26 @@ serve(async (req) => {
                 else {
                     // find existing user by email
                     try {
-                        const listResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } });
-                        if (listResp.ok) {
-                            const users = await listResp.json().catch(() => null);
-                            const found = users && users.find && users.find(u => String(u.email).toLowerCase() === String(email).toLowerCase());
-                            if (found && found.id) { newUserId = found.id; createUserResult.note = createUserResult.note || 'user_existed'; createUserResult.found = found; }
+                        // Some Supabase deployments support filtering the admin users endpoint; try a direct filtered lookup first
+                        try {
+                            const filterResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users?email=eq.${encodeURIComponent(email)}`, { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } });
+                            if (filterResp.ok) {
+                                const users = await filterResp.json().catch(() => null);
+                                const found = users && users.find && users.find(u => String(u.email).toLowerCase() === String(email).toLowerCase());
+                                if (found && found.id) { newUserId = found.id; createUserResult.note = createUserResult.note || 'user_existed'; createUserResult.found = found; }
+                            }
+                        } catch (e) {
+                            // ignore filter failures and fall back to listing
+                        }
+
+                        // Fallback: list admin users (best-effort; may be paginated)
+                        if (!newUserId) {
+                            const listResp = await fetch(`${SUPABASE_URL.replace(/\/$/, '')}/auth/v1/admin/users`, { headers: { apikey: SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` } });
+                            if (listResp.ok) {
+                                const users = await listResp.json().catch(() => null);
+                                const found = users && users.find && users.find(u => String(u.email).toLowerCase() === String(email).toLowerCase());
+                                if (found && found.id) { newUserId = found.id; createUserResult.note = createUserResult.note || 'user_existed'; createUserResult.found = found; }
+                            }
                         }
                     } catch (e) { createUserResult.lookup_error = String(e?.message || e); }
                 }
@@ -238,6 +253,8 @@ serve(async (req) => {
 
         return jsonResponse({ ok: true, profile: inserted, user: newUserId, createUserResult, sendResult }, 201);
     } catch (err) {
+        // Log full stack if available so we can debug 500s in remote logs
+        try { console.error('create-account: unhandled error', err && err.stack ? err.stack : String(err)); } catch (e) { console.error('create-account: unhandled error (failed to stringify)', String(err)); }
         return jsonResponse({ error: String(err?.message || err) }, 500);
     }
 });
