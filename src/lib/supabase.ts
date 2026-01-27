@@ -365,7 +365,10 @@ export const uploadVideoWithCompression = async (
     // Use the compressed file's name if it changed so extension/content-type matches
     const filenameOnlyFromPath = path && path.includes('/') ? path.split('/').slice(-1)[0] : path;
     const dirPart = path && path.includes('/') ? path.split('/').slice(0, -1).join('/') : null;
-    const finalFilename = (toUpload as File).name || filenameOnlyFromPath || 'file';
+    const finalFilenameRaw = (toUpload as File).name || filenameOnlyFromPath || 'file';
+    // Sanitize filename to avoid storage rejecting keys with non-ASCII / unsafe chars
+    const { sanitizeFilename } = await import('./stringUtils');
+    const finalFilename = sanitizeFilename(finalFilenameRaw);
     const pathToUpload = dirPart ? `${dirPart}/${finalFilename}` : finalFilename;
 
     // If the current user is a professional, proceed with direct upload; RLS policies should permit uploads

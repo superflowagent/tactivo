@@ -343,7 +343,10 @@ export default function ExerciseDialog({
               } catch { }
               // Upload to root: use a unique filename to avoid overwrite/permission issues
               const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-              const uploadPath = `${uniquePrefix}-${filenameOnly}`;
+              // sanitize filename to remove accents and unsafe characters
+              const { sanitizeFilename } = await import('@/lib/stringUtils');
+              const safeFilename = sanitizeFilename(filenameOnly);
+              const uploadPath = `${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
@@ -470,7 +473,10 @@ export default function ExerciseDialog({
               } catch { }
               // Upload to root with a unique filename to avoid overwrite/permission issues
               const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-              const uploadPath = `${uniquePrefix}-${filenameOnly}`;
+              // sanitize filename to remove accents and unsafe characters
+              const { sanitizeFilename } = await import('@/lib/stringUtils');
+              const safeFilename = sanitizeFilename(filenameOnly);
+              const uploadPath = `${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
