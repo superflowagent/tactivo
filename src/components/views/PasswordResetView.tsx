@@ -287,7 +287,8 @@ export function PasswordResetView() {
           }
           setSuccess(true);
           setLoading(false);
-          setTimeout(() => navigate('/login'), 1800);
+          // Give the user 2s extra to see the success message before redirecting
+          setTimeout(() => navigate('/login'), 3800);
           return;
         }
 
@@ -302,9 +303,16 @@ export function PasswordResetView() {
       }
 
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 1800);
+      // Extra 2s so user can read the success message
+      setTimeout(() => navigate('/login'), 3800);
     } catch (err: any) {
-      setError(err?.message || 'Error restableciendo contraseña');
+      const msg = String(err?.message || '');
+      // Translate common Supabase English messages to Spanish for UX
+      if (msg.includes('Password should be at least')) {
+        setError('La contraseña debe tener al menos 6 caracteres.');
+      } else {
+        setError(msg || 'Error restableciendo contraseña');
+      }
     } finally {
       setLoading(false);
     }
@@ -321,7 +329,7 @@ export function PasswordResetView() {
         <CardContent>
           {success ? (
             <div className="bg-green-50 border border-green-200 p-4 rounded">
-              <p className="font-medium">Contraseña restablecida correctamente.</p>
+              <p className="font-medium">✅ Contraseña restablecida correctamente.</p>
               <p className="text-sm">Serás redirigido al login en breve.</p>
             </div>
           ) : (
