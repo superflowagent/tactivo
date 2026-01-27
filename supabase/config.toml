@@ -1,15 +1,4 @@
 
-[functions.hello-world]
-enabled = true
-verify_jwt = false
-import_map = "./functions/hello-world/deno.json"
-# Uncomment to specify a custom file path to the entrypoint.
-# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/hello-world/index.ts"
-# Specifies static files to be bundled with the function. Supports glob patterns.
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/hello-world/*.html" ]
-
 # Disable platform-level JWT verification for send-invite because the function
 # performs its own authentication checks (supports admin secret or Bearer token
 # validation against /auth/v1/user). Leaving platform verify_jwt enabled caused
@@ -28,13 +17,6 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/delete-user/index.ts"
 
-# Disable platform-level JWT verification for create-client as we perform our own
-# authentication and validate tokens against /auth/v1/user; platform-level
-# verification may reject valid bearer tokens before our code runs.
-[functions."create-client"]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/create-client/index.ts"
 
 # Disable platform-level JWT verification for update-client as well for the
 # same reasons (the function validates tokens itself and performs fine-grained checks).
@@ -43,10 +25,6 @@ enabled = true
 verify_jwt = false
 entrypoint = "./functions/update-client/index.ts"
 
-[functions."create-professional"]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/create-professional/index.ts"
 
 # Disable platform-level JWT verification for create-account as well (the function
 # performs its own authentication checks and may accept admin-secret or bearer tokens
@@ -98,11 +76,6 @@ entrypoint = "./functions/propagate-classes/index.ts"
 
 # test-fn moved to functions/examples/ (development/test helper)
 
-# Register-user function: create company + professional profile + send reset
-[functions."register-user"]
-enabled = true
-verify_jwt = false
-entrypoint = "./functions/register-user/index.ts"
 
 [functions."get-signed-url"]
 enabled = true

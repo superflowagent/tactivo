@@ -247,32 +247,10 @@ export default function ExerciseDialog({
           setLocalEquipment((prev) => prev.map((x) => (x.id === p.tmpId ? created : x)));
         }
       } catch (err: any) {
-        // Try Edge Function fallback
-        try {
-          const token = await getAuthToken();
-          const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-company-row`;
-          const fnResp = await fetch(fnUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: token ? `Bearer ${token}` : '',
-            },
-            body: JSON.stringify({ table, name: p.name, company_id: user!.company }),
-          });
-          const fnJson = await fnResp.json().catch(() => null);
-          if (!fnResp.ok) throw fnJson || new Error('fn_failed');
-          const created = fnJson?.created;
-          if (!created || !created.id) throw new Error('fn_no_created');
-          mapping[p.tmpId] = created.id;
-          if (table === 'anatomy') {
-            setLocalAnatomy((prev) => prev.map((x) => (x.id === p.tmpId ? created : x)));
-          } else {
-            setLocalEquipment((prev) => prev.map((x) => (x.id === p.tmpId ? created : x)));
-          }
-        } catch (fnErr) {
-          logError('createPendingRows: failed to create pending item', { p, err, fnErr });
-          mapping[p.tmpId] = '';
-        }
+        // No Edge Function fallback available (previously used `create-company-row`);
+        // Surface the error and set mapping empty so UI can continue gracefully.
+        logError('createPendingRows: insert failed and Edge Function fallback is removed', { p, err });
+        mapping[p.tmpId] = '';
       }
     }
     return mapping;

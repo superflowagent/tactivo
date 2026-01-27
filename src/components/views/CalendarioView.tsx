@@ -40,6 +40,7 @@ import './calendario.css';
 export function CalendarioView() {
   const { companyId, user } = useAuth();
   const isClient = user?.role === 'client';
+  const isProfessional = user?.role === 'professional';
   const [events, setEvents] = useState<any[]>([]);
   const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
   // Keep the full list of calendar events (including vacations) for logic such as
@@ -807,8 +808,8 @@ export function CalendarioView() {
         </Button>
       </div>
 
-      <Card className="flex-1">
-        <CardContent className="pt-6 flex-1 min-h-0">
+      <Card>
+        <CardContent className="pt-6">
           <Suspense fallback={<div className="text-center py-8">Cargando calendario…</div>}>
             {/* Render calendar even if no company row exists: use defaults when company is null */}
             {(() => {
@@ -845,7 +846,7 @@ export function CalendarioView() {
                     slotMinTime={openTime}
                     slotMaxTime={closeTime}
                     allDaySlot={false}
-                    height="100%"
+                    height="auto"
                     contentHeight="auto"
                     slotDuration="00:30:00"
                     events={filteredEvents}
@@ -888,7 +889,7 @@ export function CalendarioView() {
         </CardContent>
       </Card>
 
-      {isClient && (
+      {!isClient && !isProfessional && (
         <Card>
           <CardHeader className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
