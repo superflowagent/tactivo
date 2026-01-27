@@ -257,6 +257,8 @@ export function ProfesionalesView() {
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-4">
         <Input
+          id="pro-search"
+          name="proSearch"
           placeholder="Buscar profesionales..."
           className="section-search"
           value={searchQuery}

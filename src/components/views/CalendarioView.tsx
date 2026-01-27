@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const FullCalendarLazy = lazy(() => import('./FullCalendarWrapper'));
 import CalendarioList from './CalendarioList';
@@ -61,6 +62,9 @@ export function CalendarioView() {
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   // Dialog to show appointment slots (for clients)
   const [appointmentDialogOpen, setAppointmentDialogOpen] = useState(false);
+
+  // Whether the company allows self-scheduling for clients (default: false if unset)
+  const canSelfSchedule = company?.self_schedule !== false;
   // Dialog to show purchase message for bonos
   const [showBonosDialog, setShowBonosDialog] = useState(false);
   const isMobile = useIsMobile();
@@ -616,18 +620,42 @@ export function CalendarioView() {
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
       {/* Botón crear - siempre arriba en móvil */}
-      <Button
-        onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
-        disabled={isClient && appointmentLoading}
-        className="w-full sm:hidden"
-      >
-        <CalendarPlus className="mr-0 h-4 w-4" />
-        {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
-      </Button>
+      {isClient && !canSelfSchedule ? (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="w-full sm:hidden inline-block">
+                <Button
+                  onClick={() => { }}
+                  disabled={true}
+                  className="w-full sm:hidden"
+                >
+                  <CalendarPlus className="mr-0 h-4 w-4" />
+                  {appointmentLoading ? 'Cargando...' : 'Agendar cita'}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+              <p>Función deshabilitada en tu clínica.</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <Button
+          onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
+          disabled={isClient && appointmentLoading}
+          className="w-full sm:hidden"
+        >
+          <CalendarPlus className="mr-0 h-4 w-4" />
+          {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
+        </Button>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-row flex-wrap items-center sm:items-center gap-2 sm:gap-4">
         <Input
+          id="events-search"
+          name="eventsSearch"
           placeholder="Buscar eventos..."
           className="section-search flex-1 min-w-0"
           value={searchQuery}
@@ -708,10 +736,7 @@ export function CalendarioView() {
                       });
 
                     info.overflowEls = overflowEls;
-
-                    console.log('[calendario] select open debug (deferred):', info);
                   } catch (err) {
-                    console.log('[calendario] select open debug error', err);
                   }
                 });
               }
@@ -798,14 +823,32 @@ export function CalendarioView() {
         </AlertDialog>
 
         <div className="hidden sm:block flex-1" />
-        <Button
-          onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
-          disabled={isClient && appointmentLoading}
-          className="hidden sm:flex"
-        >
-          <CalendarPlus className="mr-0 h-4 w-4" />
-          {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
-        </Button>
+        {isClient && !canSelfSchedule ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="hidden sm:inline-block">
+                  <Button onClick={() => { }} disabled className="hidden sm:flex">
+                    <CalendarPlus className="mr-0 h-4 w-4" />
+                    {appointmentLoading ? 'Cargando...' : 'Agendar cita'}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                <p>Función deshabilitada en tu clínica.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <Button
+            onClick={isClient ? handleOpenAppointmentDialog : handleAdd}
+            disabled={isClient && appointmentLoading}
+            className="hidden sm:flex"
+          >
+            <CalendarPlus className="mr-0 h-4 w-4" />
+            {isClient ? (appointmentLoading ? 'Cargando...' : 'Agendar cita') : 'Crear Evento'}
+          </Button>
+        )}
       </div>
 
       <Card>

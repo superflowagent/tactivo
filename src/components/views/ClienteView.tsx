@@ -1169,10 +1169,11 @@ export default function ClienteView() {
                     <div className="space-y-4 pt-0">
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                         <div className="space-y-2 md:col-span-1">
-                          <Label>Fecha de Nacimiento</Label>
+                          <Label htmlFor="client-fecha">Fecha de Nacimiento</Label>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
+                                id="client-fecha"
                                 variant="outline"
                                 className={cn(
                                   'w-full justify-start text-left font-normal h-10',
@@ -1200,8 +1201,9 @@ export default function ClienteView() {
                         </div>
 
                         <div className="space-y-2 md:col-span-1">
-                          <Label>Edad</Label>
+                          <Label htmlFor="client-age">Edad</Label>
                           <Input
+                            id="client-age"
                             value={edad !== null ? `${edad} años` : ''}
                             disabled
                             className="bg-muted h-10"
@@ -1243,35 +1245,43 @@ export default function ClienteView() {
                         <CollapsibleContent>
                           <div className="border-t bg-muted/30 p-4 space-y-4">
                             <div className="space-y-2">
-                              <Label>Antecedentes</Label>
+                              <Label htmlFor="history">Antecedentes</Label>
                               <LazyRichTextEditor
+                                id="history"
                                 value={formData.history || ''}
                                 onChange={(value) => handleChange('history', value)}
                               />
+                              <input type="hidden" name="history" value={formData.history || ''} />
                             </div>
 
                             <div className="space-y-2">
-                              <Label>Diagnóstico</Label>
+                              <Label htmlFor="diagnosis">Diagnóstico</Label>
                               <LazyRichTextEditor
+                                id="diagnosis"
                                 value={formData.diagnosis || ''}
                                 onChange={(value) => handleChange('diagnosis', value)}
                               />
+                              <input type="hidden" name="diagnosis" value={formData.diagnosis || ''} />
                             </div>
 
                             <div className="space-y-2">
-                              <Label>Alergias</Label>
+                              <Label htmlFor="allergies">Alergias</Label>
                               <LazyRichTextEditor
+                                id="allergies"
                                 value={formData.allergies || ''}
                                 onChange={(value) => handleChange('allergies', value)}
                               />
+                              <input type="hidden" name="allergies" value={formData.allergies || ''} />
                             </div>
 
                             <div className="space-y-2">
-                              <Label>Notas</Label>
+                              <Label htmlFor="client-notes">Notas</Label>
                               <LazyRichTextEditor
+                                id="client-notes-editor"
                                 value={formData.notes || ''}
                                 onChange={(value) => handleChange('notes', value)}
                               />
+                              <textarea id="client-notes" name="notes" value={formData.notes || ''} readOnly className="sr-only" />
                             </div>
                           </div>
                         </CollapsibleContent>

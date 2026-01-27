@@ -34,6 +34,8 @@ import { supabase, getFilePublicUrl } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
+import { extractPhone } from '@/lib/phone';
+import WhatsAppLink from '@/components/ui/WhatsAppLink';
 import LazyRichTextEditor from '@/components/ui/LazyRichTextEditor';
 import { getProfilesByIds, getProfilesByRole } from '@/lib/profiles';
 
@@ -142,7 +144,26 @@ export function ClassSlotDialog({
         setProfilesLoading(true);
         const map = await getProfilesByIds(selectedClients, companyId ?? undefined);
         if (!mounted) return;
-        setProfilesMap(map);
+        // Merge to preserve existing fields (e.g., phone) when possible
+        setProfilesMap((prev) => {
+          const out: Record<string, any> = { ...(prev || {}) };
+          const vals = Object.values(map || {});
+          vals.forEach((n: any) => {
+            const pExisting = (prev || {})[n.user] || (prev || {})[n.id] || {};
+            const merged = {
+              ...pExisting,
+              ...n,
+              phone: extractPhone(n) || extractPhone(pExisting) || undefined,
+              photoUrl: n.photoUrl || pExisting.photoUrl || null,
+            };
+            const uid = n.user || n.id;
+            if (uid) out[uid] = merged;
+            if (n.user) out[n.user] = merged;
+            if (n.id) out[n.id] = merged;
+          });
+          return out;
+        });
+
       } catch (err) {
         logError('Error cargando perfiles para asistentes:', err);
       } finally {
@@ -313,7 +334,7 @@ export function ClassSlotDialog({
                 <Label htmlFor="hora">Hora *</Label>
                 <div className="flex gap-2">
                   <Select value={hora} onValueChange={setHora}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger id="hora" name="hora" className="flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -326,7 +347,7 @@ export function ClassSlotDialog({
                   </Select>
                   <span className="flex items-center">:</span>
                   <Select value={minutos} onValueChange={setMinutos}>
-                    <SelectTrigger className="flex-1">
+                    <SelectTrigger id="minutes" name="minutes" className="flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -344,6 +365,7 @@ export function ClassSlotDialog({
                 <Label htmlFor="duration">Duración (min) *</Label>
                 <Input
                   id="duration"
+                  name="duration"
                   type="number"
                   min="1"
                   value={formData.duration || 60}
@@ -357,7 +379,7 @@ export function ClassSlotDialog({
 
             {/* Clientes */}
             <div className="space-y-2">
-              <Label>
+              <Label htmlFor="class-client-search">
                 Clientes
                 {company?.max_class_assistants && (
                   <span className="text-muted-foreground ml-2">
@@ -391,6 +413,7 @@ export function ClassSlotDialog({
                           <span className="truncate">
                             {card.name} {card.last_name}
                           </span>
+                          <WhatsAppLink profileId={clientId} className="ml-2" showPlaceholder={true} />
                           <button
                             type="button"
                             onClick={() =>
@@ -418,8 +441,9 @@ export function ClassSlotDialog({
                     }
 
                     // Try to find cliente from preloaded `clientes` to avoid flicker
-                    const cliente = clientes.find((c) => c.user === clientId);
+                    const cliente = clientes.find((c) => c.user === clientId || c.id === clientId);
                     if (cliente) {
+
                       const photoUrl =
                         cliente.photoUrl ||
                         cliente.photo ||
@@ -446,6 +470,7 @@ export function ClassSlotDialog({
                           <span className="truncate">
                             {cliente.name} {cliente.last_name}
                           </span>
+                          <WhatsAppLink profileId={cliente.id} className="ml-2" showPlaceholder={true} />
                           <button
                             type="button"
                             onClick={() =>
@@ -460,6 +485,8 @@ export function ClassSlotDialog({
                       );
                     }
 
+
+
                     // If still not found, show nothing (match EventDialog behavior)
                     return null;
                   })}
@@ -467,6 +494,8 @@ export function ClassSlotDialog({
               )}
               <div className="space-y-2 relative">
                 <Input
+                  id="class-client-search"
+                  name="classClientSearch"
                   placeholder="Buscar cliente..."
                   value={clientSearch}
                   onChange={(e) => setClientSearch(e.target.value)}
@@ -504,7 +533,7 @@ export function ClassSlotDialog({
                           <button
                             key={cliente.id}
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               // Validar límite de asistentes para clases
                               if (
                                 company?.max_class_assistants &&
@@ -513,8 +542,40 @@ export function ClassSlotDialog({
                                 setShowMaxAssistantsDialog(true);
                                 return;
                               }
-                              setSelectedClients((prev) => [...prev, cliente.id]);
+
+                              const idToAdd = cliente.user || cliente.id;
+                              if (!idToAdd) return;
+
+                              setSelectedClients((prev) => {
+                                if (prev.includes(idToAdd) || prev.includes(cliente.user) || prev.includes(cliente.id)) return prev;
+                                return [...prev, idToAdd];
+                              });
                               setClientSearch('');
+
+                              try {
+                                const map = await getProfilesByIds([idToAdd], companyId ?? undefined);
+                                if (map && Object.keys(map).length > 0) {
+                                  setProfilesMap((prev) => {
+                                    const out: Record<string, any> = { ...(prev || {}) };
+                                    const vals = Object.values(map || {});
+                                    vals.forEach((n: any) => {
+                                      const pExisting = (prev || {})[n.user] || (prev || {})[n.id] || {};
+                                      const merged = {
+                                        ...pExisting,
+                                        ...n,
+                                        phone: extractPhone(n) || extractPhone(pExisting) || undefined,
+                                        photoUrl: n.photoUrl || pExisting.photoUrl || null,
+                                      };
+                                      const uid = n.user || n.id;
+                                      if (uid) out[uid] = merged;
+                                      if (n.user) out[n.user] = merged;
+                                      if (n.id) out[n.id] = merged;
+                                    });
+                                    return out;
+                                  });
+                                }
+                              } catch (err) {
+                              }
                             }}
                             className="w-full text-left px-2 py-1.5 rounded hover:bg-muted text-sm flex items-center gap-2"
                           >
@@ -551,7 +612,7 @@ export function ClassSlotDialog({
 
             {/* Profesional */}
             <div className="space-y-2">
-              <Label>Profesional *</Label>
+              <Label htmlFor="professional">Profesional *</Label>
               {selectedProfessionals.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   {selectedProfessionals.map((profId) => {
@@ -601,7 +662,7 @@ export function ClassSlotDialog({
                   }
                 }}
               >
-                <SelectTrigger className="h-10">
+                <SelectTrigger id="professional" name="professional" className="h-10">
                   <SelectValue placeholder="Añadir profesional" />
                 </SelectTrigger>
                 <SelectContent>
@@ -632,11 +693,13 @@ export function ClassSlotDialog({
 
             {/* Notas */}
             <div className="space-y-2">
-              <Label>Notas</Label>
+              <Label htmlFor="notes">Notas</Label>
               <LazyRichTextEditor
+                id="notes-editor"
                 value={formData.notes || ''}
                 onChange={(value: string) => setFormData((prev) => ({ ...prev, notes: value }))}
               />
+              <textarea id="notes" name="notes" value={formData.notes || ''} readOnly className="sr-only" />
             </div>
           </form>
 

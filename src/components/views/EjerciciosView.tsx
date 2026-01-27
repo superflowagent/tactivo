@@ -318,6 +318,8 @@ export function EjerciciosView() {
 
         {/* Search bar */}
         <Input
+          id="exercise-search"
+          name="exerciseSearch"
           placeholder="Buscar ejercicios..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -342,6 +344,8 @@ export function EjerciciosView() {
               <PopoverContent className="popover-content-width" align="start">
                 <div className="space-y-1">
                   <Input
+                    id="equipment-filter-search"
+                    name="equipmentFilterSearch"
                     placeholder="Buscar equipamiento..."
                     value={equipmentFilterQuery}
                     onChange={(e) => setEquipmentFilterQuery(e.target.value)}
@@ -410,6 +414,8 @@ export function EjerciciosView() {
               <PopoverContent className="popover-content-width" align="start">
                 <div className="space-y-1">
                   <Input
+                    id="anatomy-filter-search"
+                    name="anatomyFilterSearch"
                     placeholder="Buscar anatomía..."
                     value={anatomyFilterQuery}
                     onChange={(e) => setAnatomyFilterQuery(e.target.value)}

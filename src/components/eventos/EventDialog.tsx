@@ -38,11 +38,13 @@ import { cn } from '@/lib/utils';
 import { error as logError } from '@/lib/logger';
 import type { Event } from '@/types/event';
 import { useAuth } from '@/contexts/AuthContext';
+import { extractPhone } from '@/lib/phone';
 
 // user_cards removed; fetch profile data directly from `profiles`
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
 import { getProfilesByRole, getProfilesByIds } from '@/lib/profiles';
+import WhatsAppLink from '@/components/ui/WhatsAppLink';
 
 import { formatDateWithOffset, parseDatetime } from '@/lib/date';
 
@@ -63,6 +65,13 @@ export function EventDialog({
 }: EventDialogProps) {
   const { companyId, user } = useAuth();
   const isClientView = user?.role === 'client';
+
+  const translateEventType = (t?: string | null) => {
+    if (!t) return '';
+    if (t === 'class') return 'clase';
+    if (t === 'appointment') return 'cita';
+    return t;
+  };
 
   // State declarations - ALL at top
   const [formData, setFormData] = useState<Partial<Event>>({
@@ -102,6 +111,21 @@ export function EventDialog({
 
   // Helper: use shared parser for DB/RPC datetime values
   const safeParseDatetime = (raw: any): Date | null => parseDatetime(raw);
+
+  // Use shared phone extractor helper (returns digits-only string or null)
+  // const normalizePhone = (p: any) => { /* replaced by extractPhone */ };
+
+  // Build a user-facing WhatsApp reminder message for an event and a profile name
+  const formatEventReminder = (evt: Partial<Event> | null | undefined, profileName = '') => {
+    if (!evt) return '';
+    const dtype = evt.type ? translateEventType(evt.type) : 'evento';
+    if (!evt.datetime) return `Hola ${profileName}, te recordamos que tienes una ${dtype}.`;
+    const date = safeParseDatetime(evt.datetime);
+    if (!date) return `Hola ${profileName}, te recordamos que tienes una ${dtype}.`;
+    const dateStr = format(date, 'dd/MM/yyyy');
+    const timeStr = format(date, 'HH:mm');
+    return `Hola ${profileName}, te recordamos que tienes una ${dtype} el próximo ${dateStr} a las ${timeStr}.`;
+  };
 
   // Callback functions - BEFORE useEffect
   const loadCompany = useCallback(async () => {
@@ -156,6 +180,8 @@ export function EventDialog({
         ? Array.from(new Set(explicitSelected))
         : Array.from(new Set([...(eventClients || []), ...(eventProfessionals || [])]));
 
+
+
     if (!idsToLoad || idsToLoad.length === 0) {
       setProfilesMap({});
       return;
@@ -178,7 +204,7 @@ export function EventDialog({
             { p_event: event.id }
           );
           if (rpcErr) throw rpcErr;
-          const clientResults = rpcData || [];
+          let clientResults = rpcData || [];
 
           let profResults: any[] = [];
           const eventProfessionals = Array.isArray(event.professional)
@@ -186,8 +212,40 @@ export function EventDialog({
             : event.professional
               ? [event.professional]
               : [];
+
           // Capture values that may be mutated / become undefined across await points
           const eventCompany = event.company;
+
+          // Ensure clientResults include full profile data (phone etc) by fetching via helper when possible
+          try {
+            const clientIds = Array.from(
+              new Set(
+                (clientResults || [])
+                  .map((p: any) => p.user_id || p.user || p.id)
+                  .filter(Boolean)
+              )
+            ) as string[];
+            if (clientIds.length > 0) {
+              const clientMap = await getProfilesByIds(
+                clientIds,
+                isUuid(eventCompany) ? eventCompany : isUuid(company?.id) ? company.id : undefined
+              );
+
+              // Merge enriched profiles into the original `clientResults` preserving order and
+              // entries that the RPC didn't return. Match by user_id | user | id.
+              if (clientMap && Object.keys(clientMap).length > 0) {
+                clientResults = (clientResults || []).map((p: any) => {
+                  const key = p.user_id || p.user || p.id;
+                  return clientMap[key] || clientMap[p.id] || clientMap[p.user] || p;
+                });
+
+
+              }
+            }
+          } catch (err) {
+            // If enrichment fails, keep the original RPC results
+          }
+
           if (eventProfessionals.length > 0) {
             const ids = Array.from(new Set(eventProfessionals));
             // Use helper that tries both RPCs and fallbacks to safe SELECTs to avoid overload ambiguity
@@ -224,6 +282,7 @@ export function EventDialog({
             user: uid,
             name: p.name || '',
             last_name: p.last_name || '',
+            phone: extractPhone(p) || '',
             photo: p.photo_path || null,
             photoUrl: p.photo_path ? getFilePublicUrl('profile_photos', uid, p.photo_path) : null,
             class_credits: typeof p.class_credits !== 'undefined' ? p.class_credits : 0,
@@ -233,7 +292,26 @@ export function EventDialog({
           map[uid] = rec;
         });
 
-        setProfilesMap(map);
+        // Merge to preserve existing fields (e.g., phone) when possible
+        setProfilesMap((prev) => {
+          const out: Record<string, any> = { ...(prev || {}) };
+          // iterate values to ensure we map by both id and user
+          const vals = Object.values(map || {});
+          vals.forEach((n: any) => {
+            const pExisting = (prev || {})[n.user] || (prev || {})[n.id] || {};
+            const merged = {
+              ...pExisting,
+              ...n,
+              phone: extractPhone(n) || extractPhone(pExisting) || undefined,
+              photoUrl: n.photoUrl || pExisting.photoUrl || null,
+            };
+            const uid = n.user || n.id;
+            if (uid) out[uid] = merged;
+            if (n.user) out[n.user] = merged;
+            if (n.id) out[n.id] = merged;
+          });
+          return out;
+        });
       } catch (err) {
         logError('Error cargando perfiles para asistentes:', err);
       } finally {
@@ -330,6 +408,7 @@ export function EventDialog({
               user: uid,
               name: p.name || '',
               last_name: p.last_name || '',
+              phone: extractPhone(p) || '',
               photo: p.photo_path || null,
               photoUrl: p.photo_path ? getFilePublicUrl('profile_photos', uid, p.photo_path) : null,
               class_credits: typeof p.class_credits !== 'undefined' ? p.class_credits : 0,
@@ -340,7 +419,21 @@ export function EventDialog({
           });
 
           if (profilesLoadIdRef.current === loadId) {
-            setProfilesMap(map);
+            // Merge to preserve existing fields (e.g., phone) when possible
+            setProfilesMap((prev) => {
+              const out: Record<string, any> = { ...(prev || {}) };
+              (Object.keys(map || {})).forEach((k) => {
+                const p = prev?.[k] || {};
+                const n = map[k] || {};
+                out[k] = {
+                  ...p,
+                  ...n,
+                  phone: extractPhone(n) || extractPhone(p) || undefined,
+                  photoUrl: n.photoUrl || p.photoUrl || null,
+                };
+              });
+              return out;
+            });
           }
         } catch (err) {
           logError('Error initial fetching attendees:', err);
@@ -362,11 +455,6 @@ export function EventDialog({
           setMinutos(mins);
         } else {
           // Invalid datetime from DB/RPC; fallback to undefined so UI doesn't crash
-          if (process.env.NODE_ENV === 'development')
-            console.debug('EventDialog: could not parse event.datetime', {
-              id: event.id,
-              raw: event.datetime,
-            });
           setFecha(undefined);
         }
       }
@@ -893,6 +981,7 @@ export function EventDialog({
                     }}
                   >
                     <SelectTrigger
+                      id="type"
                       tabIndex={isClientView ? -1 : undefined}
                       className={
                         isClientView ? 'h-10 pointer-events-none opacity-90 [&>svg]:hidden' : 'h-10'
@@ -983,10 +1072,11 @@ export function EventDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Fecha</Label>
+                  <Label htmlFor="event-fecha">Fecha</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        id="event-fecha"
                         variant="outline"
                         tabIndex={isClientView ? -1 : undefined}
                         className={cn(
@@ -1010,6 +1100,7 @@ export function EventDialog({
                   <div className="flex gap-2">
                     {isClientView ? (
                       <Input
+                        id="hora"
                         readOnly
                         tabIndex={-1}
                         className="flex-1"
@@ -1025,6 +1116,7 @@ export function EventDialog({
                       <>
                         <Select value={hora} onValueChange={(v) => setHora(v)}>
                           <SelectTrigger
+                            id="hora"
                             tabIndex={isClientView ? -1 : undefined}
                             className="flex-1 h-10"
                           >
@@ -1062,7 +1154,7 @@ export function EventDialog({
 
               {formData.type !== 'vacation' && (
                 <div className="space-y-2">
-                  <Label>
+                  <Label htmlFor="event-client-search">
                     {formData.type === 'appointment' ? 'Cliente' : 'Clientes'}
                     {formData.type === 'class' && company?.max_class_assistants && (
                       <span className="text-muted-foreground ml-2">
@@ -1097,18 +1189,21 @@ export function EventDialog({
                                 {card.name} {card.last_name}
                               </span>
                               {!isClientView && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedClients((prev) =>
-                                      prev.filter((id) => id !== clientId)
-                                    )
-                                  }
-                                  className="hover:text-destructive ml-2"
-                                  aria-label={`Eliminar ${card.name} ${card.last_name}`}
-                                >
-                                  ×
-                                </button>
+                                <>
+                                  <WhatsAppLink profileId={clientId} message={formatEventReminder(event, card.name)} className="ml-2" showPlaceholder={true} />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSelectedClients((prev) =>
+                                        prev.filter((id) => id !== clientId)
+                                      )
+                                    }
+                                    className="hover:text-destructive ml-2"
+                                    aria-label={`Eliminar ${card.name} ${card.last_name}`}
+                                  >
+                                    ×
+                                  </button>
+                                </>
                               )}
                             </div>
                           );
@@ -1126,7 +1221,7 @@ export function EventDialog({
                           );
                         }
 
-                        const cliente = clientes.find((c) => c.user === clientId);
+                        const cliente = clientes.find((c) => c.user === clientId || c.id === clientId);
                         if (cliente) {
                           const photoUrl =
                             cliente.photoUrl ||
@@ -1153,24 +1248,24 @@ export function EventDialog({
                               <span className="truncate">
                                 {cliente.name} {cliente.last_name}
                               </span>
-                              {!isClientView && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedClients((prev) =>
-                                      prev.filter((id) => id !== clientId)
-                                    )
-                                  }
-                                  className="hover:text-destructive ml-2"
-                                  aria-label={`Eliminar ${cliente.name} ${cliente.last_name}`}
-                                >
-                                  ×
-                                </button>
-                              )}
+                              <WhatsAppLink profileId={cliente.id} message={formatEventReminder(event, cliente.name)} className="ml-2" showPlaceholder={true} />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedClients((prev) => prev.filter((id) => id !== clientId))
+                                }
+                                className="hover:text-destructive ml-2"
+                                aria-label={`Eliminar ${cliente.name} ${cliente.last_name}`}
+                              >
+                                ×
+                              </button>
                             </div>
                           );
                         }
 
+
+
+                        // If still not found, show nothing (match ClassSlotDialog behavior)
                         return null;
                       })}
                     </div>
@@ -1178,6 +1273,8 @@ export function EventDialog({
                   {!isClientView && (
                     <div className="space-y-2 relative">
                       <Input
+                        id="event-client-search"
+                        name="eventClientSearch"
                         placeholder="Buscar cliente..."
                         value={clientSearch}
                         onChange={(e) => setClientSearch(e.target.value)}
@@ -1229,7 +1326,7 @@ export function EventDialog({
                                 <button
                                   key={cliente.user}
                                   type="button"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     if (isClientView) return;
                                     if (
                                       formData.type === 'class' &&
@@ -1241,15 +1338,41 @@ export function EventDialog({
                                     }
 
                                     // Avoid adding duplicates: check both user and profile ids (cliente.user / cliente.id)
+                                    const idToAdd = cliente.user || cliente.id;
+                                    if (!idToAdd) return;
                                     setSelectedClients((prev) => {
-                                      const idToAdd = cliente.user || cliente.id;
-                                      if (!idToAdd) return prev;
                                       if (prev.includes(idToAdd) || prev.includes(cliente.user) || prev.includes(cliente.id)) {
                                         return prev; // already selected
                                       }
                                       return [...prev, idToAdd];
                                     });
                                     setClientSearch('');
+
+                                    // Immediately fetch profile details so tag shows phone/icon during creation
+                                    try {
+                                      const map = await getProfilesByIds([idToAdd], companyId ?? undefined);
+                                      if (map && Object.keys(map).length > 0) {
+                                        setProfilesMap((prev) => {
+                                          const out: Record<string, any> = { ...(prev || {}) };
+                                          const vals = Object.values(map || {});
+                                          vals.forEach((n: any) => {
+                                            const pExisting = (prev || {})[n.user] || (prev || {})[n.id] || {};
+                                            const merged = {
+                                              ...pExisting,
+                                              ...n,
+                                              phone: extractPhone(n) || extractPhone(pExisting) || undefined,
+                                              photoUrl: n.photoUrl || pExisting.photoUrl || null,
+                                            };
+                                            const uid = n.user || n.id;
+                                            if (uid) out[uid] = merged;
+                                            if (n.user) out[n.user] = merged;
+                                            if (n.id) out[n.id] = merged;
+                                          });
+                                          return out;
+                                        });
+                                      }
+                                    } catch (err) {
+                                    }
                                   }}
                                   className={
                                     isClientView
@@ -1293,7 +1416,7 @@ export function EventDialog({
               )}
 
               <div className="space-y-2">
-                <Label>{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
+                <Label htmlFor="event-professional">{formData.type === 'vacation' ? 'Profesionales' : 'Profesional'}</Label>
                 {(selectedProfessionals.length > 0 || profilesLoading) && (
                   <div className="flex flex-wrap gap-2">
                     {selectedProfessionals.map((profId) => {
@@ -1370,6 +1493,8 @@ export function EventDialog({
                     }}
                   >
                     <SelectTrigger
+                      id="event-professional"
+                      name="professional"
                       tabIndex={isClientView ? -1 : undefined}
                       className={isClientView ? 'h-10 pointer-events-none opacity-90' : 'h-10'}
                     >
@@ -1434,7 +1559,7 @@ export function EventDialog({
 
                     {!isClientView && (
                       <div className="space-y-2">
-                        <Label>Pagado</Label>
+                        <Label htmlFor="paid">Pagado</Label>
                         <div className="flex items-center h-10">
                           <Checkbox
                             id="paid"
@@ -1459,8 +1584,9 @@ export function EventDialog({
               )}
 
               <div className="space-y-2">
-                <Label>Notas</Label>
+                <Label htmlFor="event-notes">Notas</Label>
                 <LazyRichTextEditor
+                  id="event-notes-editor"
                   value={formData.notes || ''}
                   onChange={(value) => {
                     if (isClientView) return;
@@ -1469,6 +1595,7 @@ export function EventDialog({
                   placeholder=""
                   readOnly={isClientView}
                 />
+                <textarea id="event-notes" name="notes" value={formData.notes || ''} readOnly className="sr-only" />
               </div>
             </div>
           </form>

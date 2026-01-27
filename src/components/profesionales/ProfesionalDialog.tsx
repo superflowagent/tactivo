@@ -703,10 +703,11 @@ export function ProfesionalDialog({
                 <div className="col-span-2 space-y-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Fecha de Nacimiento</Label>
+                      <Label htmlFor="pro-fecha">Fecha de Nacimiento</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
+                            id="pro-fecha"
                             variant="outline"
                             className={cn(
                               'w-full justify-start text-left font-normal h-10',
@@ -734,8 +735,9 @@ export function ProfesionalDialog({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Edad</Label>
+                      <Label htmlFor="pro-edad">Edad</Label>
                       <Input
+                        id="pro-edad"
                         value={edad !== null ? `${edad} años` : ''}
                         disabled
                         className="bg-muted h-10"
@@ -745,12 +747,14 @@ export function ProfesionalDialog({
 
                   {/* Notas (debajo de fecha, ocupando toda la fila) */}
                   <div className="space-y-2">
-                    <Label htmlFor="notes">Notas</Label>
+                    <Label htmlFor="professional-notes">Notas</Label>
                     <LazyRichTextEditor
+                      id="professional-notes-editor"
                       value={formData.notes || ''}
                       onChange={(html: string) => handleChange('notes', html)}
                       placeholder="Añade notas sobre el profesional..."
                     />
+                    <textarea id="professional-notes" name="notes" value={formData.notes || ''} readOnly className="sr-only" />
                   </div>
                 </div>
               </div>

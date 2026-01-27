@@ -97,7 +97,7 @@ export default function useResolvedFileUrl(
               // If the server-side attempt fails, try next candidate
               let txt = null;
               try { txt = await res.text(); } catch { }
-              console.debug('get-signed-url failed', { status: res.status, body: txt });
+
               continue;
             }
             const j = await res.json().catch(() => null);

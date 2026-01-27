@@ -58,8 +58,10 @@ export default function ProgramExerciseDialog({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label>Series</Label>
+              <Label htmlFor="sets">Series</Label>
               <Input
+                id="sets"
+                name="sets"
                 type="number"
                 value={local.sets ?? ''}
                 onChange={(e) =>
@@ -71,8 +73,10 @@ export default function ProgramExerciseDialog({
               />
             </div>
             <div>
-              <Label>Repeticiones</Label>
+              <Label htmlFor="reps">Repeticiones</Label>
               <Input
+                id="reps"
+                name="reps"
                 type="number"
                 value={local.reps ?? ''}
                 onChange={(e) =>
@@ -87,8 +91,10 @@ export default function ProgramExerciseDialog({
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label>Peso (kg)</Label>
+              <Label htmlFor="weight">Peso (kg)</Label>
               <Input
+                id="weight"
+                name="weight"
                 type="number"
                 value={local.weight ?? ''}
                 onChange={(e) =>
@@ -100,8 +106,10 @@ export default function ProgramExerciseDialog({
               />
             </div>
             <div>
-              <Label>Tiempo (s)</Label>
+              <Label htmlFor="secs">Tiempo (s)</Label>
               <Input
+                id="secs"
+                name="secs"
                 type="number"
                 value={local.secs ?? ''}
                 onChange={(e) =>
@@ -116,7 +124,7 @@ export default function ProgramExerciseDialog({
 
           <div>
             <div className="flex items-center gap-2">
-              <Label>Notas</Label>
+              <Label htmlFor="notes">Notas</Label>
               <TooltipProvider delayDuration={150}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -135,6 +143,8 @@ export default function ProgramExerciseDialog({
               </TooltipProvider>
             </div>
             <Textarea
+              id="notes"
+              name="notes"
               value={local.notes ?? ''}
               onChange={(e) => setLocal((s: any) => ({ ...s, notes: e.target.value }))}
             />

@@ -3,7 +3,7 @@ type RegisterPayload = {
   centro: string;
   name: string;
   last_name: string;
-  movil?: string;
+  phone?: string;
 };
 
 export default async function registerUser(payload: RegisterPayload) {
@@ -14,7 +14,7 @@ export default async function registerUser(payload: RegisterPayload) {
       email: payload.email,
       name: payload.name,
       last_name: payload.last_name,
-      phone: payload.movil,
+      phone: payload.phone,
       role: 'professional',
       create_company: true,
       company_name: payload.centro,

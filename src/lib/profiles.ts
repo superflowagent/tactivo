@@ -1,5 +1,6 @@
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
 import { error as logError } from '@/lib/logger';
+import { extractPhone } from '@/lib/phone';
 
 // Utility: remove undefined/null fields from RPC payloads to avoid server-side ambiguity
 const cleanRpcPayload = (obj: any) => {
@@ -32,6 +33,7 @@ export async function getProfilesByRole(companyId: string, role: string) {
           id: uid,
           ...r,
           user: r.user_id || r.user,
+          phone: extractPhone(r) || undefined,
           photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null,
         };
       });
@@ -49,6 +51,7 @@ export async function getProfilesByRole(companyId: string, role: string) {
           id: uid,
           ...r,
           user: r.user_id || r.user,
+          phone: extractPhone(r) || undefined,
           photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null,
         };
       });
@@ -69,6 +72,7 @@ export function mapProfileRowsToMap(rows: any[] = []) {
       ...r,
       id: uid,
       user: r.user_id || r.user,
+      phone: extractPhone(r) || undefined,
       photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null,
     };
     if (r.user_id) map[r.user_id] = rec;
@@ -129,24 +133,24 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
     const [{ data: byUser }, { data: byId }] = await Promise.all([
       companyId
         ? supabase
-            .from('profiles')
-            .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
-            .eq('company', companyId)
-            .in('user', uniq)
+          .from('profiles')
+          .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+          .eq('company', companyId)
+          .in('user', uniq)
         : supabase
-            .from('profiles')
-            .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
-            .in('user', uniq),
+          .from('profiles')
+          .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+          .in('user', uniq),
       companyId
         ? supabase
-            .from('profiles')
-            .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
-            .eq('company', companyId)
-            .in('id', uniq)
+          .from('profiles')
+          .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+          .eq('company', companyId)
+          .in('id', uniq)
         : supabase
-            .from('profiles')
-            .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
-            .in('id', uniq),
+          .from('profiles')
+          .select('id, user, name, last_name, email, phone, photo_path, sport, class_credits')
+          .in('id', uniq),
     ]);
 
     const rows = [...(byUser || []), ...(byId || [])];
@@ -157,6 +161,7 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
         ...rest,
         id: uid,
         user: r.user || rid,
+        phone: extractPhone(r) || undefined,
         photoUrl: r.photo_path ? getFilePublicUrl('profile_photos', uid, r.photo_path) : null,
       };
       if (r.user) map[r.user] = rec;
@@ -168,6 +173,36 @@ export async function getProfilesByIds(ids: string[], companyId?: string) {
     // If everything fails, return empty map (caller should handle missing profiles)
     logError('getProfilesByIds fallback SELECT failed', err);
     return map;
+  }
+}
+
+// Simple cached lookup for a single profile phone (returns digits-only string or null)
+const _phoneCache: Record<string, string | null> = {};
+export async function getProfilePhone(id: string): Promise<string | null> {
+  if (!id) return null;
+  if (Object.prototype.hasOwnProperty.call(_phoneCache, id)) return _phoneCache[id];
+  try {
+    const orClause = `id.eq.${id},user.eq.${id}`;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('phone')
+      .or(orClause)
+      .limit(1);
+
+    if (error) {
+      logError('getProfilePhone RPC error', error);
+      _phoneCache[id] = null;
+      return null;
+    }
+
+    const phoneRaw = Array.isArray(data) && data.length > 0 ? (data[0] as any).phone : null;
+    const digits = phoneRaw ? String(phoneRaw).replace(/\D/g, '') : null;
+    _phoneCache[id] = digits || null;
+    return _phoneCache[id];
+  } catch (err) {
+    logError('getProfilePhone failed', err);
+    _phoneCache[id] = null;
+    return null;
   }
 }
 

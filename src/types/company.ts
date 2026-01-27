@@ -10,6 +10,8 @@ export interface Company {
   close_time: string;
   default_appointment_duration: number;
   default_class_duration: number;
+  /** Permite que los clientes auto-programen citas según disponibilidad */
+  self_schedule?: boolean;
   created?: string;
   updated?: string;
 }

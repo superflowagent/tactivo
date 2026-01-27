@@ -153,27 +153,27 @@ export default function CalendarioList({
               <TableHead className="w-12">
                 {canDelete
                   ? (() => {
-                      const allSelected =
-                        futureEvents.length > 0 && futureEvents.every((e) => selectedIds.has(e.id));
-                      const someSelected = futureEvents.some((e) => selectedIds.has(e.id));
+                    const allSelected =
+                      futureEvents.length > 0 && futureEvents.every((e) => selectedIds.has(e.id));
+                    const someSelected = futureEvents.some((e) => selectedIds.has(e.id));
 
-                      return (
-                        <Checkbox
-                          checked={allSelected ? true : someSelected ? 'indeterminate' : false}
-                          onCheckedChange={(v) => {
-                            // Select/deselect ALL events in the whole result set (not just page)
-                            if (v) {
-                              const toAdd = futureEvents.map((p) => p.id);
-                              setSelectedIds(new Set(toAdd));
-                            } else {
-                              setSelectedIds(new Set());
-                            }
-                          }}
-                          disabled={futureEvents.length === 0}
-                          aria-label="Seleccionar todos los eventos"
-                        />
-                      );
-                    })()
+                    return (
+                      <Checkbox
+                        checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                        onCheckedChange={(v) => {
+                          // Select/deselect ALL events in the whole result set (not just page)
+                          if (v) {
+                            const toAdd = futureEvents.map((p) => p.id);
+                            setSelectedIds(new Set(toAdd));
+                          } else {
+                            setSelectedIds(new Set());
+                          }
+                        }}
+                        disabled={futureEvents.length === 0}
+                        aria-label="Seleccionar todos los eventos"
+                      />
+                    );
+                  })()
                   : null}
               </TableHead>
               <TableHead>Fecha</TableHead>
@@ -198,6 +198,8 @@ export default function CalendarioList({
                 minute: '2-digit',
               });
               const type = ev.extendedProps?.type || '';
+              // Translate event type to Spanish for display
+              const translatedType = type === 'class' ? 'clase' : type === 'appointment' ? 'cita' : type;
               const pros = ev.extendedProps?.professionalNames || '';
               const clients = ev.extendedProps?.clientNames || '';
 

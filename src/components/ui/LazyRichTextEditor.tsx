@@ -3,6 +3,7 @@ import React, { Suspense, lazy } from 'react';
 const Editor = lazy(async () => ({ default: (await import('./rich-text-editor')).RichTextEditor }));
 
 export interface LazyRichTextEditorProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;

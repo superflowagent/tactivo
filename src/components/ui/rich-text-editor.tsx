@@ -7,6 +7,7 @@ import { Button } from './button';
 import { useEffect } from 'react';
 
 interface RichTextEditorProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -15,6 +16,7 @@ interface RichTextEditorProps {
 }
 
 export function RichTextEditor({
+  id,
   value,
   onChange,
   placeholder,
@@ -89,6 +91,7 @@ export function RichTextEditor({
         </div>
       )}
       <EditorContent
+        id={id}
         editor={editor}
         className={cn(
           'prose prose-sm max-w-none p-3 min-h-[120px] focus-within:outline-none [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[100px] [&_.ProseMirror-focused]:outline-none',

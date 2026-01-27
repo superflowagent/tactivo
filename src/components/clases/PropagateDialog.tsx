@@ -166,7 +166,7 @@ export function PropagateDialog({
             <div className="space-y-2">
               <Label htmlFor="month">Mes</Label>
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger id="month">
+                <SelectTrigger id="month" name="month">
                   <SelectValue placeholder="Seleccionar mes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,7 +186,7 @@ export function PropagateDialog({
             <div className="space-y-2">
               <Label htmlFor="year">Año</Label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger id="year">
+                <SelectTrigger id="year" name="year">
                   <SelectValue placeholder="Seleccionar año" />
                 </SelectTrigger>
                 <SelectContent>

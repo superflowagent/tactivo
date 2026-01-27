@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Building2, Save, CheckCircle2, HelpCircle, Loader2 } from 'lucide-react';
@@ -84,7 +85,7 @@ export function AjustesView() {
     }
   }, [companyId, loadCompany]);
 
-  const handleChange = (field: keyof Company, value: string | number) => {
+  const handleChange = (field: keyof Company, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -287,6 +288,9 @@ export function AjustesView() {
       if (obj.default_class_duration === '') obj.default_class_duration = null;
       // If we uploaded a new file, set logo_path to the filename; if deleted, set to empty
       if (uploadedFilename !== null) obj.logo_path = uploadedFilename;
+
+      // Preserve boolean field self_schedule (send as actual boolean)
+      if (typeof formData.self_schedule !== 'undefined') obj.self_schedule = !!formData.self_schedule;
 
       // Prefer server-side function to perform update (enforces company-level authorization and avoids RLS issues)
       const token = await getAuthToken();
@@ -555,6 +559,37 @@ export function AjustesView() {
                   onChange={(e) => handleChange('default_class_duration', parseInt(e.target.value))}
                   required
                 />
+              </div>
+            </div>
+
+            {/* Autocitas (toggle) */}
+            <div className="grid gap-4 sm:grid-cols-1">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="self_schedule">Autocitas</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                        <p>Permite que tus clientes puedan agendarse citas de acuerdo a la disponibilidad de los profesionales de tu clínica.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <Checkbox
+                      id="self_schedule"
+                      checked={!!formData.self_schedule}
+                      onCheckedChange={(checked) =>
+                        setFormData((prev) => ({ ...prev, self_schedule: Boolean(checked) }))
+                      }
+                    />
+                    <span className="text-sm">Autocitas</span>
+                  </label>
+                </div>
               </div>
             </div>
 

@@ -27,6 +27,7 @@ import { error as logError } from '@/lib/logger';
 import { normalizeForSearch } from '@/lib/stringUtils';
 import type { Cliente } from '@/types/cliente';
 import ClientAvatar from '@/components/clientes/ClientAvatar';
+import WhatsAppLink from '@/components/ui/WhatsAppLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfilesByRole } from '@/lib/profiles';
 
@@ -169,6 +170,8 @@ export function ClientesView() {
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-4">
         <Input
+          id="clientes-search"
+          name="clientesSearch"
           placeholder="Buscar clientes..."
           className="section-search"
           value={searchQuery}
@@ -223,7 +226,12 @@ export function ClientesView() {
                   {cliente.name} {cliente.last_name}
                 </TableCell>
                 <TableCell>{cliente.dni}</TableCell>
-                <TableCell>{cliente.phone}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span>{cliente.phone}</span>
+                    <WhatsAppLink profileId={cliente.id} message={''} className="ml-2" />
+                  </div>
+                </TableCell>
                 <TableCell>{cliente.email}</TableCell>
                 <TableCell>{cliente.sport || '-'}</TableCell>
                 <TableCell>{cliente.class_credits || 0}</TableCell>

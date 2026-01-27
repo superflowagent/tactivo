@@ -641,7 +641,7 @@ export default function ExerciseDialog({
 
               {/* Video */}
               <div className="space-y-2">
-                <Label>Video</Label>
+                <Label htmlFor="exercise-file">Video</Label>
                 {imagePreview ? (
                   <div className="relative w-40 h-72 bg-slate-100 rounded-lg overflow-hidden">
                     <video src={imagePreview} className="w-full h-full object-cover" controls />
@@ -685,6 +685,8 @@ export default function ExerciseDialog({
                   >
                     <label className="w-full flex flex-col items-center justify-center cursor-pointer">
                       <input
+                        id="exercise-file"
+                        name="exerciseFile"
                         type="file"
                         accept="video/*"
                         onChange={handleImageChange}
@@ -720,7 +722,7 @@ export default function ExerciseDialog({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Equipamiento */}
                 <div className="space-y-2">
-                  <Label>Equipamiento</Label>
+                  <Label htmlFor="equipmentSearch">Equipamiento</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left gap-1">
@@ -732,6 +734,8 @@ export default function ExerciseDialog({
                     <PopoverContent className="popover-content-width p-2" align="start">
                       <div className="space-y-1">
                         <Input
+                          id="equipmentSearch"
+                          name="equipmentSearch"
                           placeholder="Buscar o crear equipamiento..."
                           value={equipmentSearch}
                           onChange={(e) => setEquipmentSearch(e.target.value)}
@@ -812,7 +816,7 @@ export default function ExerciseDialog({
 
                 {/* Anatomía */}
                 <div className="space-y-2">
-                  <Label>Anatomía</Label>
+                  <Label htmlFor="anatomySearch">Anatomía</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left gap-1">
@@ -824,6 +828,8 @@ export default function ExerciseDialog({
                     <PopoverContent className="popover-content-width p-2" align="start">
                       <div className="space-y-1">
                         <Input
+                          id="anatomySearch"
+                          name="anatomySearch"
                           placeholder="Buscar o crear anatomía..."
                           value={anatomySearch}
                           onChange={(e) => setAnatomySearch(e.target.value)}

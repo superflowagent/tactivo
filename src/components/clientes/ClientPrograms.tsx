@@ -962,6 +962,8 @@ export default function ClientPrograms({ api }: Props) {
                   <div className="flex items-center gap-2">
                     {editingProgramId === (p.id ?? p.tempId) ? (
                       <input
+                        id="editing-program-name"
+                        name="editingProgramName"
                         autoFocus
                         type="text"
                         value={editingProgramName}
@@ -1018,6 +1020,7 @@ export default function ClientPrograms({ api }: Props) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-[600px] p-3">
                         <LazyRichTextEditor
+                          id={`program-desc-${p.id ?? p.tempId}`}
                           value={p.description || ''}
                           onChange={
                             isClient
@@ -1035,6 +1038,7 @@ export default function ClientPrograms({ api }: Props) {
                           className="min-h-[120px]"
                           readOnly={isClient}
                         />
+                        <input type="hidden" name="description" value={p.description || ''} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -1641,6 +1645,8 @@ export default function ClientPrograms({ api }: Props) {
             <div className="flex items-center gap-2 flex-wrap">
               {/* Search bar */}
               <Input
+                id="cp-exercise-search"
+                name="cpExerciseSearch"
                 placeholder="Buscar ejercicios..."
                 value={exerciseSearchTerm}
                 onChange={(e) => setExerciseSearchTerm(e.target.value)}
@@ -1664,6 +1670,8 @@ export default function ClientPrograms({ api }: Props) {
                   <PopoverContent className="w-56 p-2" align="start">
                     <div className="space-y-1">
                       <Input
+                        id="cp-equipment-search"
+                        name="cpEquipmentSearch"
                         placeholder="Buscar equipamiento..."
                         value={equipmentFilterQuery}
                         onChange={(e) => setEquipmentFilterQuery(e.target.value)}
@@ -1722,6 +1730,8 @@ export default function ClientPrograms({ api }: Props) {
                   <PopoverContent className="w-56 p-2" align="start">
                     <div className="space-y-1">
                       <Input
+                        id="cp-anatomy-search"
+                        name="cpAnatomySearch"
                         placeholder="Buscar anatomía..."
                         value={anatomyFilterQuery}
                         onChange={(e) => setAnatomyFilterQuery(e.target.value)}

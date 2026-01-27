@@ -27,13 +27,15 @@ export default function RegisterDialog({
   const [centro, setCentro] = useState('');
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [movil, setMovil] = useState('');
+  const [phone, setPhone] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
 
   const navigate = useNavigate();
+
+  const allFilled = Boolean(email && centro && name && lastName);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -44,7 +46,7 @@ export default function RegisterDialog({
     }
     setLoading(true);
     try {
-      const res = await registerUser({ email, centro, name, last_name: lastName, movil });
+      const res = await registerUser({ email, centro, name, last_name: lastName, phone });
       if (!res.ok) {
         const err =
           (res.json as any)?.error || (res.json as any)?.message || 'Error en el registro';
@@ -74,7 +76,7 @@ export default function RegisterDialog({
 
           <form id="registerForm" onSubmit={handleSubmit} className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="r_email">Email</Label>
+              <Label htmlFor="r_email">Email <span className="text-destructive">*</span></Label>
               <Input
                 id="r_email"
                 type="email"
@@ -86,7 +88,7 @@ export default function RegisterDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="r_name">Nombre</Label>
+                <Label htmlFor="r_name">Nombre <span className="text-destructive">*</span></Label>
                 <Input
                   id="r_name"
                   value={name}
@@ -96,7 +98,7 @@ export default function RegisterDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="r_last">Apellidos</Label>
+                <Label htmlFor="r_last">Apellidos <span className="text-destructive">*</span></Label>
                 <Input
                   id="r_last"
                   value={lastName}
@@ -108,12 +110,12 @@ export default function RegisterDialog({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="r_movil">Móvil</Label>
-                <Input id="r_movil" value={movil} onChange={(e) => setMovil(e.target.value)} />
+                <Label htmlFor="r_phone">Móvil</Label>
+                <Input id="r_phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="r_centro">Nombre del centro</Label>
+                <Label htmlFor="r_centro">Nombre del centro <span className="text-destructive">*</span></Label>
                 <Input
                   id="r_centro"
                   value={centro}
@@ -134,7 +136,7 @@ export default function RegisterDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" form="registerForm" disabled={loading}>
+            <Button type="submit" form="registerForm" disabled={loading || !allFilled}>
               {loading ? (
                 <>
                   Registrando...
