@@ -262,12 +262,12 @@ BEGIN
     raw_client := COALESCE(NEW.client::text, '<null>');
     SELECT coalesce(array_agg(p.id), ARRAY[]::uuid[]) INTO v_ids
     FROM public.profiles p
-    WHERE p.id = ANY(as_uuid_array(NEW.client)) AND p.role = 'client';
+    WHERE (p.id = ANY(as_uuid_array(NEW.client)) OR p."user" = ANY(as_uuid_array(NEW.client))) AND p.role = 'client';
 
     IF COALESCE(NEW.type, '') = 'class' AND NEW.client IS NOT NULL THEN
-      UPDATE public.profiles
+      UPDATE public.profiles p
       SET class_credits = COALESCE(class_credits, 0) - 1
-      WHERE id = ANY(v_ids) AND role = 'client';
+      WHERE (p.id = ANY(v_ids) OR p."user" = ANY(v_ids)) AND p.role = 'client';
     END IF;
     RETURN NEW;
   END IF;
@@ -276,12 +276,12 @@ BEGIN
     raw_client := COALESCE(OLD.client::text, '<null>');
     SELECT coalesce(array_agg(p.id), ARRAY[]::uuid[]) INTO v_ids
     FROM public.profiles p
-    WHERE p.id = ANY(as_uuid_array(OLD.client)) AND p.role = 'client';
+    WHERE (p.id = ANY(as_uuid_array(OLD.client)) OR p."user" = ANY(as_uuid_array(OLD.client))) AND p.role = 'client';
 
     IF COALESCE(OLD.type, '') = 'class' AND OLD.client IS NOT NULL THEN
-      UPDATE public.profiles
+      UPDATE public.profiles p
       SET class_credits = COALESCE(class_credits, 0) + 1
-      WHERE id = ANY(v_ids) AND role = 'client';
+      WHERE (p.id = ANY(v_ids) OR p."user" = ANY(v_ids)) AND p.role = 'client';
     END IF;
     RETURN OLD;
   END IF;
@@ -293,7 +293,7 @@ BEGIN
     IF COALESCE(OLD.type,'') <> 'class' AND COALESCE(NEW.type,'') = 'class' THEN
       SELECT coalesce(array_agg(p.id), ARRAY[]::uuid[]) INTO v_ids
       FROM public.profiles p
-      WHERE p.id = ANY(as_uuid_array(NEW.client)) AND p.role = 'client';
+      WHERE (p.id = ANY(as_uuid_array(NEW.client)) OR p."user" = ANY(as_uuid_array(NEW.client))) AND p.role = 'client';
 
       IF array_length(v_ids,1) IS NOT NULL THEN
         UPDATE public.profiles p
@@ -305,7 +305,7 @@ BEGIN
     ELSIF COALESCE(OLD.type,'') = 'class' AND COALESCE(NEW.type,'') <> 'class' THEN
       SELECT coalesce(array_agg(p.id), ARRAY[]::uuid[]) INTO v_ids
       FROM public.profiles p
-      WHERE p.id = ANY(as_uuid_array(OLD.client)) AND p.role = 'client';
+      WHERE (p.id = ANY(as_uuid_array(OLD.client)) OR p."user" = ANY(as_uuid_array(OLD.client))) AND p.role = 'client';
 
       IF array_length(v_ids,1) IS NOT NULL THEN
         UPDATE public.profiles p
