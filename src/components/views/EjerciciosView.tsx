@@ -609,7 +609,7 @@ export function EjerciciosView() {
                   className="overflow-hidden hover:shadow-lg transition-shadow h-48 sm:h-56 md:h-64 flex flex-col"
                 >
                   {/* Card Header: Título, Edit Button y Badges */}
-                  <CardHeader className="py-2 px-4 min-h-20">
+                  <CardHeader className="h-24 overflow-hidden py-2 px-4 space-y-0.5">
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
                         <div className="flex items-center gap-2">
@@ -631,19 +631,19 @@ export function EjerciciosView() {
                                     __html:
                                       exercise.description && String(exercise.description).trim()
                                         ? DOMPurify.sanitize(exercise.description, {
-                                            ALLOWED_TAGS: [
-                                              'b',
-                                              'strong',
-                                              'i',
-                                              'em',
-                                              'ul',
-                                              'ol',
-                                              'li',
-                                              'br',
-                                              'p',
-                                            ],
-                                            ALLOWED_ATTR: [],
-                                          })
+                                          ALLOWED_TAGS: [
+                                            'b',
+                                            'strong',
+                                            'i',
+                                            'em',
+                                            'ul',
+                                            'ol',
+                                            'li',
+                                            'br',
+                                            'p',
+                                          ],
+                                          ALLOWED_ATTR: [],
+                                        })
                                         : 'Sin descripción',
                                   }}
                                 />

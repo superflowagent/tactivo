@@ -473,7 +473,7 @@ export const uploadVideoWithCompression = async (
       return { data: null, error: userErr };
     }
 
-    return { data, error }; 
+    return { data, error };
   } catch (err) {
     logError('uploadVideoWithCompression: error', err);
     return { data: null, error: err };

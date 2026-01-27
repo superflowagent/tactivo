@@ -342,7 +342,7 @@ export default function ExerciseDialog({
                 );
               } catch { }
               // Upload to root: use a unique filename to avoid overwrite/permission issues
-              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
@@ -472,7 +472,7 @@ export default function ExerciseDialog({
                 );
               } catch { }
               // Upload to root with a unique filename to avoid overwrite/permission issues
-              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
