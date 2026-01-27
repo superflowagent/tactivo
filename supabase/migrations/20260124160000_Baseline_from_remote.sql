@@ -565,11 +565,14 @@ CREATE TABLE IF NOT EXISTS "public"."companies" (
     "default_appointment_duration" numeric DEFAULT '60'::numeric,
     "default_class_duration" numeric DEFAULT '90'::numeric,
     "domain" "text",
+    "self_schedule" boolean NOT NULL DEFAULT false,
     "created" timestamp without time zone DEFAULT "now"()
 );
 
 
 ALTER TABLE "public"."companies" OWNER TO "postgres";
+
+COMMENT ON COLUMN public.companies.self_schedule IS 'Permite que los clientes se auto-programen citas según disponibilidad';
 
 
 CREATE OR REPLACE FUNCTION "public"."get_company_by_id"("p_company" "uuid") RETURNS SETOF "public"."companies"

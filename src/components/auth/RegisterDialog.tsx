@@ -84,7 +84,7 @@ export default function RegisterDialog({
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-            </div> 
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -95,7 +95,7 @@ export default function RegisterDialog({
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
-              </div> 
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="r_last">Apellidos <span className="text-foreground">*</span></Label>
@@ -105,7 +105,7 @@ export default function RegisterDialog({
                   onChange={(e) => setLastName(e.target.value)}
                   required
                 />
-              </div> 
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -122,7 +122,7 @@ export default function RegisterDialog({
                   onChange={(e) => setCentro(e.target.value)}
                   required
                 />
-              </div> 
+              </div>
             </div>
 
             {errorMsg && (
