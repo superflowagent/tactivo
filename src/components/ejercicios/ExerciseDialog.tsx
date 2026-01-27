@@ -341,20 +341,15 @@ export default function ExerciseDialog({
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
               } catch { }
-              // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
-              const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
+              // Upload to root: use a unique filename to avoid overwrite/permission issues
+              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+              const uploadPath = `${uniquePrefix}-${filenameOnly}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression(
-                    'exercise_videos',
-                    uploadPath,
-                    imageFile,
-                    { upsert: true },
-                    { company: user.company ?? undefined, exerciseId }
-                  ),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, { upsert: false }),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
@@ -473,17 +468,15 @@ export default function ExerciseDialog({
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
               } catch { }
-              // Upload under company folder to satisfy RLS/workarounds: company/{exerciseId}/{filename}
-              const uploadPath = `${user.company}/${exerciseId}/${filenameOnly}`;
+              // Upload to root with a unique filename to avoid overwrite/permission issues
+              const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+              const uploadPath = `${uniquePrefix}-${filenameOnly}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, undefined, {
-                    company: user.company ?? undefined,
-                    exerciseId,
-                  }),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
