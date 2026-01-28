@@ -18,7 +18,7 @@ BEGIN
       UPDATE public.profiles p
       SET class_credits = COALESCE(class_credits, 0) - 1
       WHERE (p.id = ANY(v_ids) OR p."user" = ANY(v_ids)) AND p.role = 'client';
-    END IF;"
+    END IF;
     RETURN NEW;
   END IF;
 
