@@ -1585,7 +1585,7 @@ export default function ClienteView() {
             <AlertDialogHeader>
               <AlertDialogTitle>Crear Cliente</AlertDialogTitle>
               <AlertDialogDescription>
-                Al crear un nuevo cliente, se le enviará un correo para que pueda acceder a la plataforma y ver sus eventos y programas.
+                Al crear un cliente, se le enviará un correo para que tenga acceso a Tactivo. Desde su login de cliente podrá ver sus eventos y programas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
