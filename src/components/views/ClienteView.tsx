@@ -1601,13 +1601,6 @@ export default function ClienteView() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         <AlertDialog
           open={showDiscardDialog}
