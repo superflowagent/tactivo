@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { LandingNavbar } from '@/components/LandingNavbar';
+import { loadGtag } from '@/lib/gtag';
 import { HeroHighlight, Highlight } from '@/components/ui/hero-highlight';
 import CalendarPreview from '@/components/ui/CalendarPreview';
 import FeaturesSection from '@/components/views/FeaturesSection';
@@ -11,6 +12,18 @@ import { LandingFooter } from '@/components/LandingFooter';
 import Reveal from '@/components/ui/Reveal';
 
 export function LandingView() {
+  useEffect(() => {
+    loadGtag('AW-17912605308')
+      .then(() => {
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+          window.gtag('config', 'AW-17912605308');
+        }
+      })
+      .catch(() => {
+        /* ignore errors loading analytics */
+      });
+  }, []);
+
   return (
     <div className="min-h-[72vh] w-full bg-background relative overflow-hidden pt-16">
       <LandingNavbar />

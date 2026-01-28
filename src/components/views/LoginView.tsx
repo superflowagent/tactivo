@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { error as logError } from '@/lib/logger';
 import { AlertCircle, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { loadGtag } from '@/lib/gtag';
 import RegisterDialog from '@/components/auth/RegisterDialog';
 
 // Cleanup: removed nested <form>, fixed unused vars and streamlined password reset inline UI
@@ -40,6 +41,16 @@ export function LoginView() {
       navigate(`/${companyName}/panel`, { replace: true });
     }
   }, [companyName, navigate]);
+
+  useEffect(() => {
+    loadGtag('AW-17912605308')
+      .then(() => {
+        if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+          window.gtag('config', 'AW-17912605308');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault?.();
