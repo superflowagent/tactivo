@@ -1159,7 +1159,7 @@ export default function ClienteView() {
                             disabled={!!cliente?.id}
                             readOnly={!!cliente?.id}
                             required
-                            className="h-11 disabled:bg-white disabled:text-foreground disabled:border-input disabled:opacity-100"
+                            className="h-11 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                           />
                           {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                         </div>
