@@ -15,10 +15,10 @@ BEGIN
     WHERE (p.id = ANY(as_uuid_array(NEW.client)) OR p."user" = ANY(as_uuid_array(NEW.client))) AND p.role = 'client';
 
     IF COALESCE(NEW.type, '') = 'class' AND NEW.client IS NOT NULL THEN
-      UPDATE public.profiles
+      UPDATE public.profiles p
       SET class_credits = COALESCE(class_credits, 0) - 1
       WHERE (p.id = ANY(v_ids) OR p."user" = ANY(v_ids)) AND p.role = 'client';
-    END IF;
+    END IF;"
     RETURN NEW;
   END IF;
 
@@ -29,7 +29,7 @@ BEGIN
     WHERE (p.id = ANY(as_uuid_array(OLD.client)) OR p."user" = ANY(as_uuid_array(OLD.client))) AND p.role = 'client';
 
     IF COALESCE(OLD.type, '') = 'class' AND OLD.client IS NOT NULL THEN
-      UPDATE public.profiles
+      UPDATE public.profiles p
       SET class_credits = COALESCE(class_credits, 0) + 1
       WHERE (p.id = ANY(v_ids) OR p."user" = ANY(v_ids)) AND p.role = 'client';
     END IF;
