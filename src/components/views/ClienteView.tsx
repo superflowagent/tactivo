@@ -76,6 +76,7 @@ export default function ClienteView() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [phoneError, setPhoneError] = useState<string>('');
+  const [emailError, setEmailError] = useState<string>('');
   const [eventos, setEventos] = useState<Event[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
@@ -471,6 +472,8 @@ export default function ClienteView() {
     };
 
     const phoneValid = /^[0-9]{9}$/.test(formData.phone || '');
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(formData.email || '').trim());
+
     const requiredFieldsOk = [
       formData.name,
       formData.last_name,
@@ -479,8 +482,8 @@ export default function ClienteView() {
       formData.email,
     ].every(requiredFilled);
 
-    return !requiredFieldsOk || !phoneValid || !!phoneError || loading;
-  }, [formData, phoneError, loading]);
+    return !requiredFieldsOk || !phoneValid || !!phoneError || !emailValid || !!emailError || loading;
+  }, [formData, phoneError, emailError, loading]);
 
   const hasFormChanges = useMemo(() => {
     const orig = initialFormRef.current;
@@ -919,6 +922,16 @@ export default function ClienteView() {
         setPhoneError('');
       }
     }
+
+    if (field === 'email') {
+      const emailStr = String(value || '').trim();
+      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
+      if (!emailStr || !valid) {
+        setEmailError('Introduce un email válido');
+      } else {
+        setEmailError('');
+      }
+    }
   };
 
   const handleBack = () => {
@@ -1148,6 +1161,7 @@ export default function ClienteView() {
                             required
                             className="h-11 disabled:bg-white disabled:text-foreground disabled:border-input disabled:opacity-100"
                           />
+                          {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                         </div>
 
                         <div className="space-y-2 md:col-span-1">
