@@ -95,6 +95,7 @@ export default function ClienteView() {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showCreateConfirm, setShowCreateConfirm] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<null | {
     type: 'back' | 'view';
     view?: ViewType;
@@ -532,8 +533,8 @@ export default function ClienteView() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault?.();
 
     if (formData.phone && !/^[0-9]{9}$/.test(formData.phone)) {
       setPhoneError('El teléfono debe tener exactamente 9 dígitos');
@@ -1131,10 +1132,7 @@ export default function ClienteView() {
                                     </span>
                                   </TooltipTrigger>
                                   <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
-                                    <p>
-                                      Al crear el perfil, se enviará un correo de invitación al
-                                      usuario
-                                    </p>
+                                    <p>Al crear el cliente, se enviará un correo de invitación a este email</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </TooltipProvider>
@@ -1535,7 +1533,13 @@ export default function ClienteView() {
               </Button>
               <Button
                 type="button"
-                onClick={(e) => handleSubmit(e as any)}
+                onClick={(e) => {
+                  if (isNewCliente) {
+                    setShowCreateConfirm(true);
+                  } else {
+                    handleSubmit(e as any);
+                  }
+                }}
                 disabled={isSaveDisabled}
               >
                 {loading ? (
@@ -1568,6 +1572,35 @@ export default function ClienteView() {
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleDelete}
+              >
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Confirmation dialog when creating a new client */}
+        <AlertDialog open={showCreateConfirm} onOpenChange={setShowCreateConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Crear Cliente</AlertDialogTitle>
+              <AlertDialogDescription>
+                Al crear un nuevo cliente, se le enviará un correo para que pueda acceder a la plataforma y ver sus eventos y programas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  setShowCreateConfirm(false);
+                  handleSubmit();
+                }}
+              >
+                Crear Cliente
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Eliminar
