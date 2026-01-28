@@ -209,10 +209,21 @@ serve(async (req)=>{
       }
     }
     const insertRes = await rest('events', 'POST', eventsToCreate);
-    if (!insertRes.ok) return jsonResponse({
-      error: 'failed_to_insert_events',
-      details: insertRes
-    }, 500);
+    if (!insertRes.ok) {
+      // Log details for remote diagnostics (visible in function logs)
+      console.error('failed_to_insert_events', insertRes, { eventsToCreateCount: eventsToCreate.length, sample_event: eventsToCreate[0] });
+      const details = typeof insertRes.data === 'object' ? insertRes.data : { raw: insertRes.data };
+      return jsonResponse({
+        error: 'failed_to_insert_events',
+        details: {
+          ok: insertRes.ok,
+          status: insertRes.status,
+          data: details
+        },
+        events_count: eventsToCreate.length
+      }, 500);
+    }
+
     const inserted = Array.isArray(insertRes.data) ? insertRes.data : [
       insertRes.data
     ];
