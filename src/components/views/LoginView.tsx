@@ -49,7 +49,7 @@ export function LoginView() {
           window.gtag('config', 'AW-17912605308');
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
