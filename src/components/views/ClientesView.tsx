@@ -207,7 +207,7 @@ export function ClientesView() {
               <TableHead>DNI</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Deporte</TableHead>
+              <TableHead>Actividad Física</TableHead>
               <TableHead>Clases Restantes</TableHead>
               <TableHead className="text-right pr-4">Acciones</TableHead>
             </TableRow>

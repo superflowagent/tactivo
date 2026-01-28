@@ -77,7 +77,7 @@ export default function FeaturePreviewMultidispositivo() {
                             <div className="flex items-center gap-0 pl-2 pr-2 py-1 text-xs text-muted-foreground font-semibold">
                                 <div className="w-7 mr-2">Foto</div>
                                 <div className="w-[56px] flex-none">Nombre</div>
-                                <div className="flex-1 text-left">Deporte</div>
+                                <div className="flex-1 text-left">Actividad Física</div>
                                 <div className="flex-none w-5" />
                             </div>
 

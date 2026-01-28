@@ -1211,21 +1211,21 @@ export default function ClienteView() {
                         </div>
 
                         <div className="space-y-2 md:col-span-1">
-                          <Label htmlFor="occupation">Ocupación</Label>
-                          <Input
-                            id="occupation"
-                            value={formData.occupation || ''}
-                            onChange={(e) => handleChange('occupation', e.target.value)}
-                            className="h-11"
-                          />
-                        </div>
-
-                        <div className="space-y-2 md:col-span-1">
                           <Label htmlFor="sport">Actividad Física</Label>
                           <Input
                             id="sport"
                             value={formData.sport || ''}
                             onChange={(e) => handleChange('sport', e.target.value)}
+                            className="h-11"
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-1">
+                          <Label htmlFor="occupation">Ocupación</Label>
+                          <Input
+                            id="occupation"
+                            value={formData.occupation || ''}
+                            onChange={(e) => handleChange('occupation', e.target.value)}
                             className="h-11"
                           />
                         </div>
