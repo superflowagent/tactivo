@@ -53,7 +53,7 @@ const DialogContent = React.forwardRef<
           e.preventDefault();
           try {
             (document.activeElement as HTMLElement | null)?.blur();
-          } catch {}
+          } catch { }
           localRef.current?.focus();
         }}
         className={cn(

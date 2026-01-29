@@ -304,243 +304,6 @@ export default function ClientPrograms({ api }: Props) {
     setDragOverIndex(null);
   };
 
-  // Pointer-based drag fallback (for browsers where native DnD is unreliable)
-  const pointerGhostRef = React.useRef<HTMLElement | null>(null) as React.MutableRefObject<HTMLElement | null>;
-  const pointerDraggingRef = React.useRef(false) as React.MutableRefObject<boolean>;
-  const pointerMoveListenerRef = React.useRef<((e: PointerEvent) => void) | null>(null) as React.MutableRefObject<((e: PointerEvent) => void) | null>;
-  const pointerUpListenerRef = React.useRef<((e: PointerEvent) => void) | null>(null) as React.MutableRefObject<((e: PointerEvent) => void) | null>;
-
-  const endPointerDrag = async (commit: boolean) => {
-    // Capture current state values before clearing
-    const currentDraggingPeKey = draggingPeKey;
-    const currentDragOverDay = dragOverDay;
-    const currentDragOverIndex = dragOverIndex;
-
-    // eslint-disable-next-line no-console
-    console.log('endPointerDrag called', { commit, draggingPeKey: currentDraggingPeKey, dragSourceDay, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
-    pointerDraggingRef.current = false;
-    // remove ghost
-    if (pointerGhostRef.current) {
-      try {
-        document.body.removeChild(pointerGhostRef.current);
-      } catch (e) { }
-      pointerGhostRef.current = null;
-    }
-
-    // remove listeners
-    if (pointerMoveListenerRef.current) {
-      window.removeEventListener('pointermove', pointerMoveListenerRef.current);
-      pointerMoveListenerRef.current = null;
-    }
-    if (pointerUpListenerRef.current) {
-      window.removeEventListener('pointerup', pointerUpListenerRef.current);
-      pointerUpListenerRef.current = null;
-    }
-
-    // If pointer drag ended and we have a valid target, commit it
-    if (commit && currentDraggingPeKey && currentDragOverDay != null && currentDragOverIndex != null) {
-      // eslint-disable-next-line no-console
-      console.log('endPointerDrag committing', { draggingPeKey: currentDraggingPeKey, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
-      await handleDropOnProgram(activeProgramId, String(currentDragOverDay), currentDragOverIndex).catch((err) => {
-        logError('Error committing pointer drag drop', err);
-      });
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('endPointerDrag not committing (no valid target or not commit)', { commit, draggingPeKey: currentDraggingPeKey, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
-    }
-
-    clearDragState();
-  };
-
-  const startPointerDrag = (idKey: string, srcDay: string, srcIndex: number, e: React.PointerEvent) => {
-    if (isClient) return;
-    e.preventDefault();
-    // ensure focus goes away
-    try {
-      (e.target as HTMLElement)?.blur();
-    } catch (err) { }
-
-    setDraggingPeKey(idKey);
-    setDragSourceDay(srcDay);
-    setDragOverDay(srcDay);
-    setDragOverIndex(srcIndex);
-    // eslint-disable-next-line no-console
-    console.log('startPointerDrag', { idKey, srcDay, srcIndex });
-
-    // Create ghost - find the card using the data attribute to avoid fragile class selectors
-    const src = (e.currentTarget as HTMLElement).closest('[data-pe-key]') as HTMLElement | null;
-    let ghost: HTMLElement | null = null;
-    try {
-      const node = src ? (src.cloneNode(true) as HTMLElement) : document.createElement('div');
-      ghost = document.createElement('div');
-      ghost.style.position = 'fixed';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.zIndex = '9999';
-      ghost.style.left = e.clientX + 8 + 'px';
-      ghost.style.top = e.clientY + 8 + 'px';
-      ghost.style.width = '260px';
-      ghost.style.opacity = '0.85';
-      ghost.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
-      ghost.style.borderRadius = '8px';
-      if (node && node instanceof HTMLElement) {
-        // add contents - prefer the inner card element if present
-        const content = node.querySelector('div[class*="card"], .relative > div') || node;
-        ghost.appendChild((content.cloneNode(true) as HTMLElement));
-      } else {
-        ghost.textContent = 'Dragging';
-        ghost.style.background = '#fff';
-        ghost.style.border = '1px solid #ddd';
-        ghost.style.padding = '8px';
-      }
-      document.body.appendChild(ghost);
-      pointerGhostRef.current = ghost;
-    } catch (err) {
-      // ignore
-    }
-
-    pointerDraggingRef.current = true;
-    // eslint-disable-next-line no-console
-    console.log('pointerDraggingRef set true');
-
-    const onMove = (ev: PointerEvent) => {
-      if (!pointerDraggingRef.current) return;
-      if (pointerGhostRef.current) {
-        pointerGhostRef.current.style.left = ev.clientX + 8 + 'px';
-        pointerGhostRef.current.style.top = ev.clientY + 8 + 'px';
-      }
-
-      // detect target element under pointer
-      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
-      // eslint-disable-next-line no-console
-      console.log('pointer onMove', { x: ev.clientX, y: ev.clientY, targetClass: (el as any)?.className });
-      if (!el) return;
-
-      // find nearest card or row
-      const cardEl = el.closest('[data-pe-key]') as HTMLElement | null;
-      if (cardEl) {
-        const dayAttr = cardEl.getAttribute('data-day');
-        const idxAttr = cardEl.getAttribute('data-index');
-        const day = dayAttr ?? srcDay;
-        const idx = idxAttr ? Number(idxAttr) : srcIndex;
-        // eslint-disable-next-line no-console
-        console.log('pointer onMove over card', { cardKey: cardEl.getAttribute('data-pe-key'), day, idx });
-        setDragOverDay(day);
-        setDragOverIndex(idx);
-        return;
-      }
-
-      const rowEl = el.closest('[data-day]') as HTMLElement | null;
-      if (rowEl) {
-        const day = rowEl.getAttribute('data-day') || srcDay;
-        // eslint-disable-next-line no-console
-        console.log('pointer onMove over row', { day });
-        setDragOverDay(day);
-        setDragOverIndex(Number.MAX_SAFE_INTEGER);
-        return;
-      }
-
-      // otherwise clear index
-      setDragOverIndex(null);
-    };
-
-    const onUp = (ev: PointerEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('pointer onUp (before endPointerDrag)', { clientX: ev.clientX, clientY: ev.clientY, currentDraggingPeKey: draggingPeKey, currentDragOverDay: dragOverDay, currentDragOverIndex: dragOverIndex });
-      try { ev.preventDefault(); } catch (e) { }
-      endPointerDrag(true);
-    };
-
-    const onCancel = (ev: PointerEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('pointer onCancel', { clientX: (ev as any)?.clientX, clientY: (ev as any)?.clientY, currentDraggingPeKey: draggingPeKey, currentDragOverDay: dragOverDay, currentDragOverIndex: dragOverIndex });
-      try { ev.preventDefault(); } catch (e) { }
-      endPointerDrag(false);
-    };
-
-    pointerMoveListenerRef.current = onMove;
-    pointerUpListenerRef.current = onUp;
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp, { once: true });
-    window.addEventListener('pointercancel', onCancel, { once: true });
-  };
-
-  // Debug: when dragging, attach global listeners to inspect where events are firing
-  React.useEffect(() => {
-    if (!draggingPeKey) return;
-
-    // eslint-disable-next-line no-console
-    console.log('attach debug global drag listeners', { draggingPeKey });
-
-    const onDocDragStart = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc dragstart', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-    const onDocDrag = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc drag', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-    const onDocDragOver = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc dragover', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-    const onDocDragEnter = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc dragenter', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-    const onDocDrop = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc drop', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-    const onDocDragEnd = (e: DragEvent) => {
-      // eslint-disable-next-line no-console
-      console.log('doc dragend', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('dragstart', onDocDragStart, true);
-    window.addEventListener('drag', onDocDrag, true);
-    window.addEventListener('dragover', onDocDragOver, true);
-    window.addEventListener('dragenter', onDocDragEnter, true);
-    window.addEventListener('drop', onDocDrop, true);
-    window.addEventListener('dragend', onDocDragEnd, true);
-
-    return () => {
-      window.removeEventListener('dragstart', onDocDragStart, true);
-      window.removeEventListener('drag', onDocDrag, true);
-      window.removeEventListener('dragover', onDocDragOver, true);
-      window.removeEventListener('dragenter', onDocDragEnter, true);
-      window.removeEventListener('drop', onDocDrop, true);
-      window.removeEventListener('dragend', onDocDragEnd, true);
-    };
-  }, [draggingPeKey]);
-
-  // Always-on global debug listeners to catch events even if draggingPeKey isn't set
-  React.useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log('attach persistent global drag listeners (debug)');
-    const onDocDragStart = (e: DragEvent) => console.log('global dragstart', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    const onDocDrag = (e: DragEvent) => console.log('global drag', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    const onDocDragOver = (e: DragEvent) => console.log('global dragover', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    const onDocDragEnter = (e: DragEvent) => console.log('global dragenter', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    const onDocDrop = (e: DragEvent) => console.log('global drop', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-    const onDocDragEnd = (e: DragEvent) => console.log('global dragend', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
-
-    window.addEventListener('dragstart', onDocDragStart, true);
-    window.addEventListener('drag', onDocDrag, true);
-    window.addEventListener('dragover', onDocDragOver, true);
-    window.addEventListener('dragenter', onDocDragEnter, true);
-    window.addEventListener('drop', onDocDrop, true);
-    window.addEventListener('dragend', onDocDragEnd, true);
-
-    return () => {
-      window.removeEventListener('dragstart', onDocDragStart, true);
-      window.removeEventListener('drag', onDocDrag, true);
-      window.removeEventListener('dragover', onDocDragOver, true);
-      window.removeEventListener('dragenter', onDocDragEnter, true);
-      window.removeEventListener('drop', onDocDrop, true);
-      window.removeEventListener('dragend', onDocDragEnd, true);
-    };
-  }, []);
-
   const handleDropOnProgram = async (
     programKey: string,
     toDay: string,
@@ -1041,43 +804,23 @@ export default function ClientPrograms({ api }: Props) {
                                         data-day={day}
                                         data-index={i}
                                         draggable={!isClient}
-                                        onPointerDown={(e) => {
-                                          if ((e as React.PointerEvent).button === 0) {
-                                            startPointerDrag(pe.id ?? pe.tempId, day, i, e as React.PointerEvent);
-                                          }
-                                        }}
                                         onDragStart={(e) => {
                                           e.stopPropagation();
                                           const idKey = pe.id ?? pe.tempId;
                                           // eslint-disable-next-line no-console
-                                          console.log('onDragStart div', { idKey, day, i, dataTransfer: !!e.dataTransfer });
+                                          console.log('onDragStart div', { idKey, day, i });
                                           try {
-                                            e.dataTransfer.setData('text/plain', idKey);
-                                            e.dataTransfer.effectAllowed = 'move';
+                                            e.dataTransfer!.setData('text/plain', idKey);
+                                            e.dataTransfer!.effectAllowed = 'move';
                                           } catch (err) { }
                                           setDraggingPeKey(idKey);
                                           setDragSourceDay(day);
                                           setDragOverDay(day);
                                           setDragOverIndex(i);
-
-                                          try {
-                                            const crt = (e.currentTarget as HTMLElement).cloneNode(true) as HTMLElement;
-                                            crt.style.position = 'absolute';
-                                            crt.style.top = '-9999px';
-                                            crt.style.left = '-9999px';
-                                            document.body.appendChild(crt);
-                                            e.dataTransfer.setDragImage(crt, 20, 20);
-                                            setTimeout(() => document.body.removeChild(crt), 0);
-                                          } catch (e) { }
                                         }}
                                         onDragEnd={() => {
                                           // eslint-disable-next-line no-console
-                                          console.log('onDragEnd div', { draggingPeKey, dragSourceDay, dragOverDay, dragOverIndex, pointerDragging: pointerDraggingRef.current });
-                                          if (pointerDraggingRef.current) {
-                                            // eslint-disable-next-line no-console
-                                            console.log('onDragEnd div: pointer drag active - skipping clearDragState');
-                                            return;
-                                          }
+                                          console.log('onDragEnd div');
                                           clearDragState();
                                         }}
                                         onDragEnter={(e) => {
@@ -1126,14 +869,11 @@ export default function ClientPrograms({ api }: Props) {
                                               e.stopPropagation();
                                               const idKey = pe.id ?? pe.tempId;
                                               // eslint-disable-next-line no-console
-                                              console.log('onDragStart Card', { idKey, day, i, dataTransfer: !!e.dataTransfer });
+                                              console.log('onDragStart Card', { idKey, day, i });
                                               try {
-                                                e.dataTransfer.setData('text/plain', idKey);
-                                                e.dataTransfer.effectAllowed = 'move';
+                                                e.dataTransfer!.setData('text/plain', idKey);
+                                                e.dataTransfer!.effectAllowed = 'move';
                                               } catch (err) { }
-                                              // debug
-                                              // eslint-disable-next-line no-console
-                                              console.log('dragstart (card)', idKey);
                                               setDraggingPeKey(idKey);
                                               setDragSourceDay(day);
                                               setDragOverDay(day);
@@ -1141,12 +881,7 @@ export default function ClientPrograms({ api }: Props) {
                                             }}
                                             onDragEnd={() => {
                                               // eslint-disable-next-line no-console
-                                              console.log('onDragEnd Card', { draggingPeKey, dragSourceDay, dragOverDay, dragOverIndex, pointerDragging: pointerDraggingRef.current });
-                                              if (pointerDraggingRef.current) {
-                                                // eslint-disable-next-line no-console
-                                                console.log('onDragEnd Card: pointer drag active - skipping clearDragState');
-                                                return;
-                                              }
+                                              console.log('onDragEnd Card');
                                               clearDragState();
                                             }}
                                             onKeyDown={(e) => {
@@ -1170,17 +905,12 @@ export default function ClientPrograms({ api }: Props) {
                                                       <button
                                                         draggable={!isClient}
                                                         onMouseDown={(e) => e.stopPropagation()}
-                                                        onPointerDown={(e) => {
-                                                          e.stopPropagation();
-                                                          // Start pointer-based drag immediately
-                                                          startPointerDrag(pe.id ?? pe.tempId, day, i, e as React.PointerEvent);
-                                                        }}
                                                         onDragStart={(e) => {
                                                           e.stopPropagation();
                                                           const idKey = pe.id ?? pe.tempId;
                                                           try {
-                                                            e.dataTransfer.setData('text/plain', idKey);
-                                                            e.dataTransfer.effectAllowed = 'move';
+                                                            e.dataTransfer!.setData('text/plain', idKey);
+                                                            e.dataTransfer!.effectAllowed = 'move';
                                                           } catch (err) { }
                                                           // eslint-disable-next-line no-console
                                                           console.log('dragstart (handle)', idKey);
