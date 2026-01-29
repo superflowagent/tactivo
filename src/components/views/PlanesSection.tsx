@@ -6,11 +6,11 @@ export default function PlanesSection() {
 
 
     return (
-        <section aria-labelledby="planes" className="w-full py-16">
+        <section aria-labelledby="planes" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
                 <h2 id="planes" className="text-3xl font-extrabold mb-6 text-center">Planes</h2>
 
-                <div className="rounded-md p-6">
+                <div className="rounded-md pt-0 pb-6 px-6">
                     <div className="flex justify-center">
                         <NeonGradientCard className="max-w-md w-full">
                             <div className="text-left">
@@ -39,7 +39,7 @@ export default function PlanesSection() {
                                         <svg className="w-4 h-4 text-primary mt-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                                             <path d="M5 12l4 4L19 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                                         </svg>
-                                        <span>Base de datos de fichas de pacientes</span>
+                                        <span>Base de datos de fichas de clientes</span>
                                     </li>
 
                                     <li className="flex items-start gap-3">

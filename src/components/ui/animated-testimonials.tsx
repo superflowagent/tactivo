@@ -304,6 +304,7 @@ const AnimatedTestimonials = React.forwardRef<AnimatedTestimonialsHandle | null,
                         {testimonials.map((_, i) => (
                           <button
                             key={i}
+                            type="button"
                             onClick={() => {
                               setIndex(i);
                               pausedElapsedRef.current = 0;
@@ -313,7 +314,9 @@ const AnimatedTestimonials = React.forwardRef<AnimatedTestimonialsHandle | null,
                             onPointerDown={() => pauseAutoplay()}
                             onPointerUp={() => resumeAutoplay()}
                             aria-label={`Ir al testimonio ${i + 1}`}
-                            className={`w-3 h-3 rounded-full transform transition ${i === index ? 'bg-foreground scale-110' : 'bg-slate-300 scale-100'}`}
+                            aria-pressed={i === index}
+                            className={`w-3 h-3 rounded-full transform transition ${i === index ? 'bg-foreground scale-110' : 'bg-slate-300 scale-100'} focus:outline-none focus:ring-0 active:opacity-90`}
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
                           />
                         ))}
                       </div>

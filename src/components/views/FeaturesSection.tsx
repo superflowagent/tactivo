@@ -12,7 +12,7 @@ export function FeaturesSection() {
     {
       title: 'Agenda autónoma',
       description:
-        'Deja que tus pacientes reserven sus citas bajo tus condiciones para ahorrarte tiempo en buscar huecos.',
+        'Deja que tus clientes reserven sus citas bajo tus condiciones para ahorrarte tiempo en buscar huecos.',
     },
     {
       title: 'Clases',
@@ -21,7 +21,7 @@ export function FeaturesSection() {
     {
       title: 'Programas de ejercicios',
       description:
-        'Crea de forma sencilla programas de ejercicios para tus pacientes usando tu librería de ejercicios.',
+        'Crea de forma sencilla programas de ejercicios para tus clientes usando tu librería de ejercicios.',
     },
     {
       title: 'Multidispositivo',
@@ -32,7 +32,7 @@ export function FeaturesSection() {
 
 
   return (
-    <section aria-labelledby="funcionalidades" className="w-full py-16">
+    <section aria-labelledby="funcionalidades" className="w-full py-12">
       <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
         <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6 text-center">Funcionalidades</h2>
 

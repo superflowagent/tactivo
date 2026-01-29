@@ -19,19 +19,19 @@ export function FAQSection() {
             a: 'Estamos disponibles de lunes a sábado, de 08:00 a 22:00, a través de email y teléfono. Resolvemos tus dudas casi en tiempo real para que tu clínica nunca se pare.'
         },
         {
-            q: '¿Es seguro para los datos de mis pacientes?',
+            q: '¿Es seguro para los datos de mis clientes?',
             a: 'Totalmente. Cumplimos estrictamente con el RGPD. Los datos de salud están cifrados en servidores seguros, garantizando la máxima privacidad y protección legal para tu clínica.'
         },
         {
             q: '¿Cómo funciona la librería de ejercicios?',
-            a: 'Puedes crear tu propia base de datos con vídeos, descripciones y etiquetas. Estos ejercicios quedan almacenados para que tu equipo y tú los podáis usar para confeccionar los programas de vuestros pacientes.'
+            a: 'Puedes crear tu propia base de datos con vídeos, descripciones y etiquetas. Estos ejercicios quedan almacenados para que tu equipo y tú los podáis usar para confeccionar los programas de vuestros clientes.'
         },
         {
-            q: '¿Qué pueden hacer los pacientes desde su propio acceso?',
-            a: 'Cada paciente tiene su login personal donde puede apuntarse a clases, consultar sus citas pendientes, autoagendar citas según la disponibilidad del centro y ver los programas de ejercicios que le habéis preparado.'
+            q: '¿Qué pueden hacer los clientes desde su propio acceso?',
+            a: 'Cada cliente tiene su login personal donde puede apuntarse a clases, consultar sus citas pendientes, autoagendar citas según la disponibilidad del centro y ver los programas de ejercicios que le habéis preparado.'
         },
         {
-            q: '¿Cómo ven los pacientes sus programas de ejercicios?',
+            q: '¿Cómo ven los clientes sus programas de ejercicios?',
             a: 'Desde su panel (ordenador o móvil), tienen acceso a los programas que les habéis confeccionado. Además del video, podéis especificarles series, repeticiones y peso, lo que mejora la adherencia al tratamiento desde casa.'
         },
         {
@@ -90,7 +90,7 @@ export function FAQSection() {
     };
 
     return (
-        <section aria-labelledby="preguntas-frecuentes" className="w-full py-16">
+        <section aria-labelledby="preguntas-frecuentes" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
                 <h2 id="preguntas-frecuentes" className="text-3xl font-extrabold mb-6 text-center">Preguntas frecuentes</h2>
 

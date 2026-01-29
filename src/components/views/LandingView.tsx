@@ -7,6 +7,7 @@ import CalendarPreview from '@/components/ui/CalendarPreview';
 import FeaturesSection from '@/components/views/FeaturesSection';
 import TestimoniosSection from '@/components/views/TestimoniosSection';
 import PlanesSection from '@/components/views/PlanesSection';
+import ProximamenteSection from '@/components/views/ProximamenteSection';
 import FAQSection from '@/components/views/FAQSection';
 import { LandingFooter } from '@/components/LandingFooter';
 import Reveal from '@/components/ui/Reveal';
@@ -90,9 +91,10 @@ export function LandingView() {
             </div>
           </div>
 
-          <div className="w-full flex justify-center mt-8 md:mt-10">
-            <a href="#planes" role="note" aria-label="Oferta de lanzamiento: Plan Fundador gratuito" className="inline-flex items-center gap-3 px-4 py-2 rounded-full text-sm font-medium text-white shadow-sm" style={{ background: 'var(--primary-gradient)' }}>
-              <span>Aprovecha oferta de lanzamiento:</span>
+          <div className="w-full flex justify-center mt-8 md:mt-10 px-4 sm:px-0">
+            <a href="#planes" role="note" aria-label="Oferta de lanzamiento: Plan Fundador gratuito" className="block sm:inline-flex items-center gap-3 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-medium text-white shadow-sm text-center w-full sm:w-auto max-w-[calc(100%-2rem)]" style={{ background: 'var(--primary-gradient)' }}>
+              <span className="">Aprovecha oferta de lanzamiento:</span>
+              <br className="sm:hidden" />
               <span className="font-semibold">Plan Fundador totalmente gratuito ✅</span>
             </a>
           </div>
@@ -113,6 +115,10 @@ export function LandingView() {
 
       <Reveal>
         <FAQSection />
+      </Reveal>
+
+      <Reveal>
+        <ProximamenteSection />
       </Reveal>
 
       <Reveal>

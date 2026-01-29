@@ -10,13 +10,13 @@ export default function TestimoniosSection() {
 
     const testimonialsList = [
         {
-            quote: "La agenda autónoma ha reducido nuestras llamadas en un 40%. Los pacientes adoran poder reservar su cita en cualquier momento sin esperar.",
+            quote: "La agenda autónoma ha reducido nuestras llamadas en un 40%. Los clientes adoran poder reservar su cita en cualquier momento sin esperar.",
             name: "Dra. Elena Martínez",
             designation: "Directora de Clínica (Madrid)",
             src: `${import.meta.env.BASE_URL}landing/professional1.jpg?v=2`,
         },
         {
-            quote: "Gracias a la librería de ejercicios y los programas personalizados, mis pacientes tienen mucha más adherencia al tratamiento. ¡Espectacular!",
+            quote: "Gracias a la librería de ejercicios y los programas personalizados, mis clientes tienen mucha más adherencia al tratamiento. ¡Espectacular!",
             name: "Marc Ribas",
             designation: "Fisioterapia Deportiva (Barcelona)",
             src: `${import.meta.env.BASE_URL}landing/professional2.jpg?v=2`,
@@ -28,7 +28,7 @@ export default function TestimoniosSection() {
             src: `${import.meta.env.BASE_URL}landing/professional3.jpg?v=2`,
         },
         {
-            quote: "Tener la ficha del paciente y el historial de ejercicios integrados me ahorra horas de oficina a la semana. Sencillo y muy profesional.",
+            quote: "Tener la ficha del cliente y el historial de ejercicios integrados me ahorra horas de oficina a la semana. Sencillo y muy profesional.",
             name: "Javier Sotelo",
             designation: "Fisioterapeuta (A Coruña)",
             src: `${import.meta.env.BASE_URL}landing/professional4.jpg?v=2`,
@@ -42,7 +42,7 @@ export default function TestimoniosSection() {
     ];
 
     return (
-        <section aria-labelledby="testimonios" className="w-full py-16">
+        <section aria-labelledby="testimonios" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
                 <h2 id="testimonios" className="text-3xl font-extrabold mb-6 text-center">Testimonios</h2>
 
@@ -56,7 +56,7 @@ export default function TestimoniosSection() {
                     />
                 </div>
 
-                <div className="w-full flex justify-center mt-4 mb-2">
+                <div className="w-full flex justify-center mt-2 mb-0">
                     <div className="w-full max-w-4xl">
                         <div className="h-1 bg-transparent rounded-full overflow-hidden">
                             <div className="h-full origin-left" style={{ transform: `scaleX(${internalProgress})`, willChange: 'transform', background: 'var(--primary-gradient)' }} aria-hidden />
@@ -64,7 +64,7 @@ export default function TestimoniosSection() {
                     </div>
                 </div>
 
-                <div className="mt-4 p-4 flex items-center justify-center gap-4 mx-auto max-w-4xl">
+                <div className="mt-1 p-2 flex items-center justify-center gap-2 mx-auto max-w-4xl">
                     <button
                         onClick={() => testimonialsRef.current?.prev()}
                         aria-label="Anterior testimonio"
