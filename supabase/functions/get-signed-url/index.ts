@@ -208,11 +208,21 @@ serve(async (req) => {
           const forwardedPort = req.headers.get('x-forwarded-port');
           let hostWithPort = forwardedHost;
           if (forwardedHost && forwardedPort && !forwardedHost.includes(':')) hostWithPort = `${forwardedHost}:${forwardedPort}`;
+
+          // Normalize: avoid using internal edge hosts (edge-runtime, kong, localhost). Prefer SUPABASE_URL when forwarded host appears internal.
+          let useOrigin = SUPABASE_URL.replace(/\/$/, '');
           if (hostWithPort) {
-            finalSigned = `${forwardedProto}://${hostWithPort}` + path;
-          } else {
-            finalSigned = SUPABASE_URL.replace(/\/$/, '') + path;
+            let hostCandidate = hostWithPort;
+            try {
+              if (forwardedProto === 'https') hostCandidate = hostCandidate.replace(/:443$/, '');
+            } catch (e) {}
+            const hc = String(hostCandidate).toLowerCase();
+            if (!/edge-runtime|kong|127\\.0\\.0\\.1|localhost/.test(hc)) {
+              useOrigin = `${forwardedProto}://${hostCandidate}`;
+            }
           }
+
+          finalSigned = useOrigin + path;
         } else {
           // If storage returned an absolute URL (may use internal host like 'kong'), parse and rebase it
           try {
@@ -229,7 +239,7 @@ serve(async (req) => {
               let hostCandidate = forwardedHost;
               try {
                 if (forwardedProto === 'https') hostCandidate = hostCandidate.replace(/:443$/, '');
-              } catch (e) {}
+              } catch (e) { }
               const hc = String(hostCandidate).toLowerCase();
               // If the forwarded host looks internal (edge runtime, kong, localhost, 127.0.0.1) prefer SUPABASE_URL
               if (!/edge-runtime|kong|127\\.0\\.0\\.1|localhost/.test(hc)) {
