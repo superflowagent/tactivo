@@ -316,7 +316,7 @@ export default function ClientPrograms({ api }: Props) {
     if (pointerGhostRef.current) {
       try {
         document.body.removeChild(pointerGhostRef.current);
-      } catch (e) {}
+      } catch (e) { }
       pointerGhostRef.current = null;
     }
 
@@ -345,7 +345,7 @@ export default function ClientPrograms({ api }: Props) {
     // ensure focus goes away
     try {
       (e.target as HTMLElement)?.blur();
-    } catch (err) {}
+    } catch (err) { }
 
     setDraggingPeKey(idKey);
     setDragSourceDay(srcDay);
