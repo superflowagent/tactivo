@@ -215,7 +215,7 @@ serve(async (req) => {
             let hostCandidate = hostWithPort;
             try {
               if (forwardedProto === 'https') hostCandidate = hostCandidate.replace(/:443$/, '');
-            } catch (e) {}
+            } catch (e) { }
             const hc = String(hostCandidate).toLowerCase();
             if (!/edge-runtime|kong|127\\.0\\.0\\.1|localhost/.test(hc)) {
               useOrigin = `${forwardedProto}://${hostCandidate}`;

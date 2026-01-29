@@ -134,6 +134,11 @@ export function AjustesView() {
           throw new Error('Debe iniciar sesión para subir un logo');
         }
 
+        // Disallow uploading videos as company logos (prevent mis-storage)
+        if (logoFile.type && logoFile.type.toLowerCase().startsWith('video/')) {
+          throw new Error('El archivo parece un vídeo. Para vídeos usa la sección de ejercicios (bucket `exercise_videos`)');
+        }
+
         // Store logos under company folder so saved `logo_path` matches stored object
         // Format: `<companyId>/<filename>`
         const filename = `${Date.now()}_${logoFile.name}`;

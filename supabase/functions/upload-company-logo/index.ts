@@ -106,10 +106,21 @@ serve(async (req: Request) => {
       error: 'Method not allowed'
     }, 405);
     const body = await req.json().catch(() => ({}));
-    const { bucket, company_id, filename, content_b64, content_type } = body || {};
-    if (!bucket || !filename || !content_b64 || !content_type || !company_id) return jsonResponse({
-      error: 'bucket, filename, content_b64, content_type and company_id are required'
+    const { bucket: providedBucket, company_id, filename, content_b64, content_type } = body || {};
+    // Enforce server-side bucket to avoid clients uploading to the wrong bucket by mistake
+    const bucket = 'company_logos';
+
+    if (!filename || !content_b64 || !content_type || !company_id) return jsonResponse({
+      error: 'filename, content_b64, content_type and company_id are required'
     }, 400);
+
+    // Reject video content types for company logos to avoid misplacing exercise videos
+    try {
+      if (String(content_type).toLowerCase().startsWith('video/')) {
+        return jsonResponse({ error: 'videos must be uploaded to the exercise_videos bucket' }, 400);
+      }
+    } catch (e) {}
+
     // Verify caller belongs to the company (unless admin-secret used)
     if (callerUserId) {
       const profileResp = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user=eq.${callerUserId}`, {

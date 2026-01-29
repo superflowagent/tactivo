@@ -459,19 +459,25 @@ export default function ClientPrograms({ api }: Props) {
     };
   }, [draggingPeKey]);
 
-  const handleDropOnProgram = async (programKey: string, toDay: string, toIndex: number) => {
+  const handleDropOnProgram = async (
+    programKey: string,
+    toDay: string,
+    toIndex: number,
+    draggedKey?: string
+  ) => {
     // debug
     // eslint-disable-next-line no-console
-    console.log('handleDropOnProgram', { programKey, toDay, toIndex, draggingPeKey });
+    const activeDraggingKey = draggedKey ?? draggingPeKey;
+    console.log('handleDropOnProgram', { programKey, toDay, toIndex, activeDraggingKey });
     const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
-    if (!program || !draggingPeKey) return;
+    if (!program || !activeDraggingKey) return;
 
     const all = [...(program.programExercises || [])];
-    const dragged = all.find((it: any) => (it.id ?? it.tempId) === draggingPeKey);
+    const dragged = all.find((it: any) => (it.id ?? it.tempId) === activeDraggingKey);
     if (!dragged) return;
 
     // Remove dragged
-    const without = all.filter((it: any) => (it.id ?? it.tempId) !== draggingPeKey);
+    const without = all.filter((it: any) => (it.id ?? it.tempId) !== activeDraggingKey);
 
     // Items for the target day, ordered
     const itemsInDay = without
@@ -897,10 +903,10 @@ export default function ClientPrograms({ api }: Props) {
                                   }
                                 }}
                                 onDrop={async (e) => {
-                                  if (!draggingPeKey) return;
                                   e.preventDefault();
                                   const idx = dragOverIndex ?? items.length;
-                                  await handleDropOnProgram(p.id ?? p.tempId, day, idx);
+                                  const dataId = e.dataTransfer?.getData?.('text/plain') || '';
+                                  await handleDropOnProgram(p.id ?? p.tempId, day, idx, dataId || undefined);
                                 }}
                               >
                                 {items.map((pe: any, i: number) => {
@@ -1008,12 +1014,12 @@ export default function ClientPrograms({ api }: Props) {
                                           setDragOverIndex(targetIndex);
                                         }}
                                         onDrop={async (e) => {
-                                          if (!draggingPeKey) return;
                                           e.preventDefault();
                                           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                                           const middle = rect.left + rect.width / 2;
                                           const targetIndex = e.clientX < middle ? i : i + 1;
-                                          await handleDropOnProgram(p.id ?? p.tempId, day, targetIndex);
+                                          const dataId = e.dataTransfer?.getData?.('text/plain') || '';
+                                          await handleDropOnProgram(p.id ?? p.tempId, day, targetIndex, dataId || undefined);
                                         }}
                                       >
 

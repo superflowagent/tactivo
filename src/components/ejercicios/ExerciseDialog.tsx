@@ -334,6 +334,17 @@ export default function ExerciseDialog({
 
         // If there's a new file, upload it in background so the UI doesn't hang.
         if (imageFile) {
+          // Ensure the provided file is a video to avoid storing logos in exercise bucket
+          if (imageFile.type && !imageFile.type.toLowerCase().startsWith('video/')) {
+            setError('El archivo seleccionado no es un vídeo. Selecciona un archivo de tipo video/*');
+            try {
+              window.dispatchEvent(
+                new CustomEvent('exercise-upload-end', { detail: { exerciseId: exercise.id, success: false, error: 'invalid_type' } })
+              );
+            } catch { }
+            return;
+          }
+
           const exerciseId = exercise.id;
           const filenameOnly = imageFile.name;
           (async () => {
@@ -464,6 +475,17 @@ export default function ExerciseDialog({
 
         // If there's a file, upload it in background so the UI doesn't hang.
         if (imageFile) {
+          // Ensure the provided file is a video to avoid storing logos in exercise bucket
+          if (imageFile.type && !imageFile.type.toLowerCase().startsWith('video/')) {
+            setError('El archivo seleccionado no es un vídeo. Selecciona un archivo de tipo video/*');
+            try {
+              window.dispatchEvent(
+                new CustomEvent('exercise-upload-end', { detail: { exerciseId: newEx.id, success: false, error: 'invalid_type' } })
+              );
+            } catch { }
+            return;
+          }
+
           const exerciseId = newEx.id;
           const filenameOnly = imageFile.name;
           (async () => {
