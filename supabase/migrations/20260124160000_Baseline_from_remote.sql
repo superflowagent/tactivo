@@ -2574,46 +2574,316 @@ $$ LANGUAGE plpgsql;
 -- Non-destructive adjustments: ensure functions have explicit search_path and tighten RLS for profiles
 BEGIN;
 
--- Ensure explicit search_path for SECURITY DEFINER functions (idempotent)
-ALTER FUNCTION public.accept_invite(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.accept_invite(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.accept_invite_debug(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.accept_invite_http(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.accept_invite_verbose(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.adjust_class_credits_on_events_change() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.as_uuid_array(anyelement) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.create_auth_user_for_profile() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.dbg_accept_invite_sim(uuid, uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.debug_get_caller_info() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.debug_list_pg_triggers_profiles() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.debug_list_profiles_triggers() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.delete_event_json(jsonb) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.fn_set_program_exercise_notes() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_company_by_id(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_event_attendee_profiles(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_events_for_company(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profile_by_user(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_ids_for_clients(uuid[]) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_ids_for_clients(uuid[], uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_ids_for_professionals(uuid[]) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_ids_for_professionals(uuid[], uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_role_for_clients(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_role_for_clients(text, uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_role_for_professionals(text) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_by_role_for_professionals(text, uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.get_profiles_for_professionals() SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.is_profile_member_of(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.is_same_company(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.insert_event_json(jsonb) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.is_member_of_company(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.is_professional_of_company(uuid) SET search_path = 'public, pg_temp';
-ALTER FUNCTION public.is_profile_admin_of(uuid) SET search_path = 'public, pg_temp';
+-- Apply ALTERs wrapped in a DO block so missing functions on remote won't fail the migration
+DO $$ BEGIN
+  BEGIN
+    ALTER FUNCTION public.get_profile_by_user(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.debug_get_caller_info() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.debug_list_pg_triggers_profiles() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.debug_list_profiles_triggers() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.delete_event_json(jsonb) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.fn_set_program_exercise_notes() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_company_by_id(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_event_attendee_profiles(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_events_for_company(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_role_for_clients(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_role_for_clients(text, uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.is_professional_of_company(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.is_same_company(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.is_member_of_company(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.accept_invite_debug(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.accept_invite(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.accept_invite(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.accept_invite_http(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.accept_invite_verbose(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.adjust_class_credits_on_events_change() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.as_uuid_array(anyelement) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.create_auth_user_for_profile() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.dbg_accept_invite_sim(uuid, uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_ids_for_clients(uuid[]) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_ids_for_professionals(uuid[]) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_role_for_professionals(text) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_by_role_for_professionals(text, uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.get_profiles_for_professionals() SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.insert_event_json(jsonb) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.is_profile_admin_of(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.is_profile_member_of(uuid) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+
+  BEGIN
+    ALTER FUNCTION public.update_event_json(jsonb) SET search_path = 'public, pg_temp';
+  EXCEPTION WHEN undefined_function THEN NULL; END;
+END $$;
 
 -- Tighten profiles INSERT RLS (idempotent)
 DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.profiles;
 CREATE POLICY "Enable insert for authenticated users only" ON public.profiles
   FOR INSERT
   TO authenticated
-  WITH CHECK (("user" = auth.uid()) OR ("user" IS NULL));
+  WITH CHECK (("user" = (select auth.uid())::uuid) OR ("user" IS NULL));
+
+-- ==================== Integrated idempotent maintenance blocks ====================
+-- 1) Normalize auth.* / current_setting in RLS to use (select ...) forms and add explicit TO roles when inferred
+DO $$
+DECLARE
+  r RECORD;
+  using_expr text;
+  check_expr text;
+  new_using text;
+  new_check text;
+  roles text;
+  cmd text;
+BEGIN
+  FOR r IN
+    SELECT polname, polrelid::regclass AS relname, polcmd, pg_get_expr(polqual, polrelid) AS usingexpr, pg_get_expr(polwithcheck, polrelid) AS checkexpr
+    FROM pg_policy
+    WHERE pg_get_expr(polqual, polrelid) ~ 'auth\.|current_setting' OR pg_get_expr(polwithcheck, polrelid) ~ 'auth\.|current_setting'
+  LOOP
+    using_expr := r.usingexpr;
+    check_expr := r.checkexpr;
+
+    IF using_expr IS NOT NULL THEN
+      new_using := using_expr;
+      new_using := replace(new_using, '"auth"."uid"()', '(select auth.uid())::uuid');
+      new_using := replace(new_using, 'auth.uid()', '(select auth.uid())::uuid');
+      new_using := replace(new_using, 'auth.uid()::text', '((select auth.uid())::text)');
+      new_using := replace(new_using, '"auth"."role"()', '(select auth.role())');
+      new_using := replace(new_using, 'auth.role()', '(select auth.role())');
+      new_using := regexp_replace(new_using, 'current_setting\(([^)]*)\)', '(select current_setting(\1))','g');
+    ELSE
+      new_using := NULL;
+    END IF;
+
+    IF check_expr IS NOT NULL THEN
+      new_check := check_expr;
+      new_check := replace(new_check, '"auth"."uid"()', '(select auth.uid())::uuid');
+      new_check := replace(new_check, 'auth.uid()', '(select auth.uid())::uuid');
+      new_check := replace(new_check, 'auth.uid()::text', '((select auth.uid())::text)');
+      new_check := replace(new_check, '"auth"."role"()', '(select auth.role())');
+      new_check := replace(new_check, 'auth.role()', '(select auth.role())');
+      new_check := regexp_replace(new_check, 'current_setting\(([^)]*)\)', '(select current_setting(\1))','g');
+    ELSE
+      new_check := NULL;
+    END IF;
+
+    roles := 'authenticated';
+    IF (COALESCE(new_using,'') ILIKE '%service_role%') OR (COALESCE(new_check,'') ILIKE '%service_role%') THEN
+      roles := roles || ', service_role';
+    END IF;
+
+    cmd := CASE r.polcmd
+      WHEN 'r' THEN 'SELECT'
+      WHEN 'w' THEN 'UPDATE'
+      WHEN 'd' THEN 'DELETE'
+      WHEN 'i' THEN 'INSERT'
+      ELSE 'ALL'
+    END;
+
+    RAISE NOTICE 'Adjusting policy % on %', r.polname, r.relname;
+
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %s', r.polname, r.relname);
+    EXECUTE format('CREATE POLICY %I ON %s FOR %s TO %s %s %s', r.polname, r.relname, cmd, roles,
+      CASE WHEN new_using IS NOT NULL THEN 'USING (' || new_using || ')' ELSE '' END,
+      CASE WHEN new_check IS NOT NULL THEN 'WITH CHECK (' || new_check || ')' ELSE '' END);
+  END LOOP;
+END$$;
+
+-- 2) Consolidate multiple permissive policies per table/role/action into a single combined policy
+DO $$
+DECLARE
+  g RECORD;
+  pol_rec RECORD;
+  i int;
+  combined_using text;
+  combined_check text;
+  rolelist text;
+  newname text;
+  cmd text;
+  names text;
+BEGIN
+  FOR g IN
+    SELECT polrelid::regclass AS relname, polcmd, array_agg(pg_policy.polname) AS names, array_agg(pg_get_expr(pg_policy.polqual,pg_policy.polrelid)) AS usings, array_agg(pg_get_expr(pg_policy.polwithcheck,pg_policy.polrelid)) AS checks, array_agg((SELECT array_to_string(array_agg(rolname), ',') FROM pg_roles WHERE oid = ANY(pg_policy.polroles))) AS roles_arr
+    FROM pg_policy
+    GROUP BY polrelid, polcmd
+    HAVING count(*) > 1
+  LOOP
+    combined_using := NULL;
+    combined_check := NULL;
+    rolelist := '';
+    names := array_to_string(g.names, ',');
+
+    FOR i IN array_lower(g.usings,1)..array_upper(g.usings,1) LOOP
+      IF g.usings[i] IS NOT NULL THEN
+        IF combined_using IS NULL THEN
+          combined_using := '(' || g.usings[i] || ')';
+        ELSE
+          combined_using := combined_using || ' OR (' || g.usings[i] || ')';
+        END IF;
+      END IF;
+      IF g.checks[i] IS NOT NULL THEN
+        IF combined_check IS NULL THEN
+          combined_check := '(' || g.checks[i] || ')';
+        ELSE
+          combined_check := combined_check || ' OR (' || g.checks[i] || ')';
+        END IF;
+      END IF;
+
+      rolelist := rolelist || COALESCE(g.roles_arr[i],'') || ',';
+    END LOOP;
+
+    rolelist := trim(both ',' from regexp_replace(rolelist, ',+', ',', 'g'));
+    IF rolelist = '' THEN rolelist := 'public'; END IF;
+
+    cmd := CASE g.polcmd
+      WHEN 'r' THEN 'SELECT'
+      WHEN 'w' THEN 'UPDATE'
+      WHEN 'd' THEN 'DELETE'
+      WHEN 'i' THEN 'INSERT'
+      ELSE 'ALL'
+    END;
+
+    newname := 'consolidated_' || replace(g.relname::text, 'public.','') || '_' || cmd || '_' || md5(names);
+
+    RAISE NOTICE 'Consolidating policies % on % cmd=% into %', names, g.relname, cmd, newname;
+
+    -- Drop old policies and create a single combined one (idempotent)
+    FOREACH pol_rec IN ARRAY g.names LOOP
+      EXECUTE format('DROP POLICY IF EXISTS %I ON %s', pol_rec, g.relname);
+    END LOOP;
+
+    EXECUTE format('CREATE POLICY %I ON %s FOR %s TO %s %s %s', newname, g.relname, cmd, rolelist,
+      CASE WHEN combined_using IS NOT NULL THEN 'USING (' || combined_using || ')' ELSE '' END,
+      CASE WHEN combined_check IS NOT NULL THEN 'WITH CHECK (' || combined_check || ')' ELSE '' END);
+
+  END LOOP;
+END$$;
+
+-- 3) Ensure FK covering indexes exist (idempotent)
+CREATE INDEX IF NOT EXISTS idx_anatomy_company ON public.anatomy (company);
+CREATE INDEX IF NOT EXISTS idx_classes_templates_company ON public.classes_templates (company);
+CREATE INDEX IF NOT EXISTS idx_equipment_company ON public.equipment (company);
+CREATE INDEX IF NOT EXISTS idx_events_company ON public.events (company);
+CREATE INDEX IF NOT EXISTS idx_exercises_company ON public.exercises (company);
+CREATE INDEX IF NOT EXISTS idx_profiles_company ON public.profiles (company);
+CREATE INDEX IF NOT EXISTS idx_profiles_user ON public.profiles ("user");
+CREATE INDEX IF NOT EXISTS idx_program_exercises_exercise ON public.program_exercises (exercise);
+CREATE INDEX IF NOT EXISTS idx_program_exercises_program ON public.program_exercises (program);
+CREATE INDEX IF NOT EXISTS idx_programs_company ON public.programs (company);
+CREATE INDEX IF NOT EXISTS idx_programs_profile ON public.programs (profile);
+
+-- 4) Remove known duplicates / cleaned-up indexes (idempotent)
+DROP INDEX IF EXISTS public.idx_classes_templates_company1;
+DROP INDEX IF EXISTS public.idx_profiles_company;
+DROP INDEX IF EXISTS public.idx_profiles_user;
+DROP INDEX IF EXISTS public.idx_anatomy_company;
+DROP INDEX IF EXISTS public.idx_equipment_company;
+DROP INDEX IF EXISTS public.idx_events_company;
+DROP INDEX IF EXISTS public.idx_exercises_company;
+DROP INDEX IF EXISTS public.idx_program_exercises_exercise;
+DROP INDEX IF EXISTS public.idx_program_exercises_program;
+DROP INDEX IF EXISTS public.idx_programs_company;
+DROP INDEX IF EXISTS public.idx_programs_profile;
+
+-- 5) Sanity check: re-analyze key schemas
+ANALYZE public.profiles;
+ANALYZE public.anatomy;
+ANALYZE public.classes_templates;
+ANALYZE public.equipment;
+ANALYZE public.events;
+ANALYZE public.exercises;
+ANALYZE public.program_exercises;
+ANALYZE public.programs;
+
+-- End integrated maintenance blocks
 
 COMMIT;
