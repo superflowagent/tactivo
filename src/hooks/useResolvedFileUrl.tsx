@@ -66,8 +66,11 @@ export default function useResolvedFileUrl(
             try { console.debug('useResolvedFileUrl: signed-url no url returned', bucket, path, j && j.error); } catch (e) { }
           }
         }
-      } catch (err) {
-        try { console.debug('useResolvedFileUrl: signed-url error', String(err?.message || err)); } catch (e) { }
+      } catch (err: unknown) {
+        try {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.debug('useResolvedFileUrl: signed-url error', msg);
+        } catch (e) { }
       }
     };
 
