@@ -232,6 +232,12 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     setTimeout(() => setShowSavedToast(false), 2600);
   };
 
+  const notifySaved = (title: string) => {
+    setSavedToastTitle(title);
+    setShowSavedToast(true);
+    setTimeout(() => setShowSavedToast(false), 2600);
+  };
+
   const updateProgramExercisesPositions = async (programId: string, programExercises?: any[]) => {
     setPrograms((prev) =>
       prev.map((p) => {
@@ -644,6 +650,113 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
 
   const markPendingChanges = (flag: boolean) => setHasPendingChanges(Boolean(flag));
 
+  // Persist a single program (create program row if needed, delete/insert/update its program_exercises)
+  const persistProgram = async (programKey: string) => {
+    const prog = programs.find((p) => (p.id ?? p.tempId) === programKey);
+    if (!prog) return;
+    if (!cliente?.id) throw new Error('missing_profile_id');
+    if (!companyId) throw new Error('missing_company_id');
+
+    try {
+      // Ensure program exists in DB
+      if (!prog.id) {
+        const { data, error } = await supabase
+          .from('programs')
+          .insert([
+            {
+              name: prog.name,
+              profile: cliente.id,
+              company: companyId,
+              description: prog.description || '',
+            },
+          ])
+          .select()
+          .single();
+        if (error) throw error;
+        prog.id = data.id;
+        prog.persisted = true;
+      }
+
+      // Prepare normalized program exercises
+      const programId = prog.id as string;
+      const currentPeList = (prog.programExercises || []).map((pe: any) => ({ ...pe, program: programId }));
+      const { normalized } = normalizeProgramExercises(currentPeList, prog.days);
+
+      // Load initial snapshot for that program to compute deletions/updates
+      const initialProgram = initialProgramsRef.current.find((p) => p.id === programId) || { programExercises: [] };
+      const initialPeList = initialProgram.programExercises || [];
+
+      // Deletions
+      const deletions = initialPeList.filter((pe: any) => pe.id && !normalized.some((c: any) => c.id === pe.id));
+      if (deletions.length) {
+        await supabase.from('program_exercises').delete().in('id', deletions.map((d: any) => d.id));
+      }
+
+      // Updates
+      for (const pe of normalized) {
+        if (!pe.id) continue;
+        const initialPe = initialPeList.find((ipe: any) => ipe.id === pe.id);
+        if (
+          initialPe &&
+          (exerciseIdOf(initialPe) !== exerciseIdOf(pe) ||
+            String(initialPe.day ?? 'A') !== String(pe.day ?? 'A') ||
+            (initialPe.position ?? 0) !== (pe.position ?? 0) ||
+            (initialPe.notes ?? '') !== (pe.notes ?? '') ||
+            (initialPe.reps ?? null) !== (pe.reps ?? null) ||
+            (initialPe.sets ?? null) !== (pe.sets ?? null) ||
+            (initialPe.weight ?? null) !== (pe.weight ?? null) ||
+            (initialPe.secs ?? null) !== (pe.secs ?? null))
+        ) {
+          const { error } = await supabase
+            .from('program_exercises')
+            .update({
+              exercise: exerciseIdOf(pe),
+              day: pe.day ?? 'A',
+              position: pe.position ?? 0,
+              notes: pe.notes ?? null,
+              reps: pe.reps ?? null,
+              sets: pe.sets ?? null,
+              weight: pe.weight ?? null,
+              secs: pe.secs ?? null,
+            })
+            .eq('id', pe.id);
+          if (error) throw error;
+        }
+      }
+
+      // Inserts
+      const inserts = normalized.filter((pe: any) => !pe.id);
+      if (inserts.length) {
+        const payload = inserts.map((pe: any) => ({
+          program: programId,
+          exercise: exerciseIdOf(pe),
+          position: pe.position ?? 0,
+          day: pe.day ?? 'A',
+          notes: pe.notes ?? null,
+          reps: pe.reps ?? null,
+          sets: pe.sets ?? null,
+          weight: pe.weight ?? null,
+          secs: pe.secs ?? null,
+        }));
+        const { data: insData, error: insErr } = await supabase
+          .from('program_exercises')
+          .insert(payload)
+          .select('*, exercise:exercises(*)');
+        if (insErr) throw insErr;
+        inserts.forEach((pe: any, idx: number) => {
+          pe.id = insData?.[idx]?.id;
+        });
+      }
+
+      // Refresh the single program from DB to get canonical ids/ordering
+      await loadPrograms(cliente.id);
+      markCurrentAsClean();
+    } catch (err) {
+      logError('Error persisting program', err);
+      throw err;
+    }
+  };
+
   return {
     programs,
     setPrograms,
@@ -666,12 +779,14 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
     savedToastTitle,
     setShowSavedToast,
     persistAll,
+    persistProgram,
     resetToInitial,
     markCurrentAsClean,
     loadPrograms,
     persistingAll,
     persistProgramExercisePositions,
     deleteDayFromProgram,
+    notifySaved,
     // pending changes state
     hasPendingChanges,
     markPendingChanges,

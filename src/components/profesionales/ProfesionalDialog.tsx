@@ -8,6 +8,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -134,6 +144,8 @@ export function ProfesionalDialog({
 
   const [sendingReset, setSendingReset] = useState(false);
   const [showResetSent, setShowResetSent] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const handleSendResetConfirm = async () => {
     if (!formData.email) {
@@ -288,7 +300,8 @@ export function ProfesionalDialog({
             ? originalFilename.slice(originalFilename.lastIndexOf('.'))
             : '';
           const filename = `${Date.now()}-${(crypto as any)?.randomUUID ? (crypto as any).randomUUID() : Math.random().toString(36).slice(2, 10)}${ext}`;
-          const storagePath = `${filename}`;
+          // Store under profile folder to avoid mismatches
+          const storagePath = `${savedUserId}/${filename}`;
           const { data: uploadData, error: uploadErr } = await supabase.storage
             .from('profile_photos')
             .upload(storagePath, photoFile);
@@ -314,12 +327,13 @@ export function ProfesionalDialog({
           const token2 = await api.getAuthToken();
           if (!token2) throw new Error('missing_token');
 
+          const photoPathToStore = storagePath;
           const patchPhotoRes = await fetch(
             `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-professional`,
             {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2}` },
-              body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
+              body: JSON.stringify({ profile_id: savedUserId, photo_path: photoPathToStore }),
             }
           );
           const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
@@ -327,7 +341,7 @@ export function ProfesionalDialog({
             // fallback to direct updates if function failed
             const byId = await supabase
               .from('profiles')
-              .update({ photo_path: filename })
+              .update({ photo_path: photoPathToStore })
               .eq('id', savedUserId)
               .select()
               .maybeSingle();
@@ -335,7 +349,7 @@ export function ProfesionalDialog({
             if (!byId.data) {
               const byUser = await supabase
                 .from('profiles')
-                .update({ photo_path: filename })
+                .update({ photo_path: photoPathToStore })
                 .eq('user', savedUserId)
                 .select()
                 .maybeSingle();
@@ -347,7 +361,7 @@ export function ProfesionalDialog({
 
           // Verify persisted using helper to avoid malformed OR queries
           const verified = await api.fetchProfileByUserId(savedUserId);
-          if (!verified || verified.photo_path !== filename) {
+          if (!verified || verified.photo_path !== photoPathToStore) {
             throw new Error('photo_path no persistió después del upload');
           }
 
@@ -360,10 +374,23 @@ export function ProfesionalDialog({
             // ignore refresh errors
           }
 
-          // Update preview to public/signed URL — prefer root filename then fallback to id-prefixed path
-          let previewUrl =
-            getFilePublicUrl('profile_photos', null, filename) ||
-            getFilePublicUrl('profile_photos', savedUserId, filename);
+          // Request server-side signed URL and use as preview to avoid unsigned GETs
+          let previewUrl: string | null = null;
+          try {
+            const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+            const token2a = token2;
+            const signedRes = await fetch(fnUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token2a}` },
+              body: JSON.stringify({ bucket: 'profile_photos', path: photoPathToStore, expires: 60 * 60 }),
+            });
+            const signedJson = await signedRes.json().catch(() => null);
+            if (signedRes.ok && signedJson && signedJson.signedUrl) previewUrl = signedJson.signedUrl;
+          } catch (e) {
+            // ignore
+          }
+
+          // Fallback: try client-side signed URLs if server-side failed
           if (!previewUrl) {
             try {
               const signedRoot = await supabase.storage
@@ -522,6 +549,52 @@ export function ProfesionalDialog({
         setPhotoPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!profesional?.id) return;
+    // Prevent accidental self-delete
+    try {
+      if (authUser && String((authUser as any).id) === String(profesional.id)) {
+        alert('No puedes eliminar el usuario con el que estás logueado.');
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
+    // Close confirmation dialog immediately and start deletion
+    setShowDeleteDialog(false);
+    setDeleting(true);
+    try {
+      const api = await import('@/lib/supabase');
+      const ok = await api.ensureValidSession();
+      if (!ok) {
+        alert(
+          'La sesión parece inválida o ha expirado. Por favor cierra sesión e inicia sesión de nuevo.'
+        );
+        return;
+      }
+
+      const res = await api.deleteUserByProfileId(profesional.id);
+      if (!res || !res.ok) throw res?.data || res?.error || new Error('failed_to_delete_user');
+
+      // Close modal and trigger parent refresh
+      onOpenChange(false);
+      onSave();
+    } catch (err: any) {
+      error('Error eliminando profesional:', err);
+      const msg = String(err?.message || err || '');
+      if (msg.toLowerCase().includes('forbidden') || msg.toLowerCase().includes('unauthorized')) {
+        alert(
+          'No tienes permiso para eliminar este profesional. Asegúrate de tener rol de profesional y de pertenecer a la misma clínica.'
+        );
+      } else {
+        alert('Error al eliminar el profesional: ' + (msg || 'Error desconocido'));
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -762,14 +835,34 @@ export function ProfesionalDialog({
           </form>
 
           <DialogFooter>
+            <div className="flex items-center gap-2">
+              {profesional?.id && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                  disabled={loading || deleting}
+                >
+                  {deleting ? (
+                    <>
+                      Eliminando
+                      <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    </>
+                  ) : (
+                    'Eliminar'
+                  )}
+                </Button>
+              )}
+            </div>
+
             <div className="flex-1" />
 
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={deleting || loading}>
                 Cancelar
               </Button>
 
-              <Button type="submit" form="profesional-form" disabled={loading}>
+              <Button type="submit" form="profesional-form" disabled={loading || deleting}>
                 {loading ? (
                   <>
                     Guardando
@@ -783,6 +876,24 @@ export function ProfesionalDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar profesional?</AlertDialogTitle>
+            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {showResetSent &&
         createPortal(

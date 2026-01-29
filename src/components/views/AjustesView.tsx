@@ -41,28 +41,24 @@ export function AjustesView() {
 
       // Cargar preview del logo existente (o limpiar si no hay logo)
       if (record?.logo_path) {
-        // Try public root first, then id-prefixed, then signed url fallbacks (same approach used for profile photos)
+        // Try public URLs first; if not available, request a server-side signed URL
         let previewUrl = getFilePublicUrl(UPLOAD_BUCKET, null, record.logo_path) || null;
-        if (!previewUrl)
-          previewUrl = getFilePublicUrl(UPLOAD_BUCKET, record.id, record.logo_path) || null;
+        if (!previewUrl) previewUrl = getFilePublicUrl(UPLOAD_BUCKET, record.id, record.logo_path) || null;
         if (!previewUrl) {
           try {
-            const signedRoot = await supabase.storage
-              .from(UPLOAD_BUCKET)
-              .createSignedUrl(`${record.logo_path}`, 60 * 60);
-            previewUrl = signedRoot?.data?.signedUrl || previewUrl;
+            const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+            const token = await getAuthToken();
+            const res = await fetch(fnUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+              body: JSON.stringify({ bucket: UPLOAD_BUCKET, path: record.logo_path, expires: 60 * 60 }),
+            });
+            if (res.ok) {
+              const j = await res.json().catch(() => null);
+              previewUrl = j?.signedUrl || previewUrl;
+            }
           } catch {
             // ignore
-          }
-          if (!previewUrl) {
-            try {
-              const signed = await supabase.storage
-                .from(UPLOAD_BUCKET)
-                .createSignedUrl(`${record.id}/${record.logo_path}`, 60 * 60);
-              previewUrl = signed?.data?.signedUrl || previewUrl;
-            } catch {
-              // ignore
-            }
           }
         }
         setLogoPreview(previewUrl);
@@ -138,9 +134,10 @@ export function AjustesView() {
           throw new Error('Debe iniciar sesión para subir un logo');
         }
 
-        // Prefer server-side upload to the bucket root (filename only).
-        // Use Edge Function `upload-company-logo` (service role) to upload to root securely.
+        // Store logos under company folder so saved `logo_path` matches stored object
+        // Format: `<companyId>/<filename>`
         const filename = `${Date.now()}_${logoFile.name}`;
+        const storagePath = `${companyId}/${filename}`;
 
         let uploadErr: any = null;
         let uploadData: any = null;
@@ -263,12 +260,12 @@ export function AjustesView() {
           }
         }
 
-        // Prefer basename from uploadData.path if available (handles both root and company-prefixed paths)
+        // Prefer full path from uploadData.path (store full path such as `companyId/filename`) if available
         if (uploadData && typeof uploadData.path === 'string') {
-          const parts = uploadData.path.split('/').filter(Boolean);
-          uploadedFilename = parts.length ? parts[parts.length - 1] : filename;
+          uploadedFilename = uploadData.path;
         } else {
-          uploadedFilename = filename;
+          // Fallback to storagePath (companyId/filename)
+          uploadedFilename = storagePath || filename;
         }
       } else if (logoPreview === null) {
         // Si el usuario eliminó el logo, marcar como vacío para borrar referencia
@@ -286,7 +283,7 @@ export function AjustesView() {
       if (obj.class_unenroll_mins === '') obj.class_unenroll_mins = null;
       if (obj.default_appointment_duration === '') obj.default_appointment_duration = null;
       if (obj.default_class_duration === '') obj.default_class_duration = null;
-      // If we uploaded a new file, set logo_path to the filename; if deleted, set to empty
+      // If we uploaded a new file, set logo_path to the stored path (companyId/filename); if deleted, set to empty
       if (uploadedFilename !== null) obj.logo_path = uploadedFilename;
 
       // Preserve boolean field self_schedule (send as actual boolean)
@@ -309,10 +306,15 @@ export function AjustesView() {
       // If user deleted the logo, attempt to remove the previous file from storage (best-effort)
       if (uploadedFilename === '' && company?.logo_path) {
         try {
-          // Only attempt to remove the root filename (we store logos at bucket root)
-          await supabase.storage.from(UPLOAD_BUCKET).remove([`${company.logo_path}`]);
+          // Attempt to remove stored file; support both full-path (companyId/filename) and basename legacy values
+          await supabase.storage.from(UPLOAD_BUCKET).remove([company.logo_path]);
         } catch {
-          // ignore deletion errors
+          try {
+            // Try removing company-prefixed path if previous attempt failed or legacy stored basename
+            await supabase.storage.from(UPLOAD_BUCKET).remove([`${company.id}/${company.logo_path}`]);
+          } catch {
+            // ignore deletion errors
+          }
         }
       }
 

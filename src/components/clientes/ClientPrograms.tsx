@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -37,6 +37,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { getFilePublicUrl } from '@/lib/supabase';
+import ResolvedMedia from '@/components/media/ResolvedMedia';
 import InviteToast from '@/components/InviteToast';
 import { error as logError } from '@/lib/logger';
 import { normalizeForSearch } from '@/lib/stringUtils';
@@ -66,6 +67,10 @@ export default function ClientPrograms({ api }: Props) {
     showSavedToast,
     savedToastTitle,
     setShowSavedToast,
+    persistProgram,
+    resetToInitial,
+    hasPendingChanges,
+    notifySaved,
   } = api;
 
   const { user } = useAuth();
@@ -94,68 +99,8 @@ export default function ClientPrograms({ api }: Props) {
   // UI: list vs opened program view
   const [viewingProgramId, setViewingProgramId] = useState<string | null>(null);
 
-  // ===== DRAG & DROP STATE =====
-  // Optimized drag & drop implementation with:
-  // - useCallback for all handlers to prevent unnecessary re-renders
-  // - requestAnimationFrame to throttle dragover events and prevent layout thrashing
-  // - Refs to access latest drag state without triggering re-renders
-  // - Blue indicator bar shows drop position (maintained from original design)
-
-  const [draggedExercise, setDraggedExercise] = useState<{
-    peId: string;
-    day: string;
-    programId: string;
-  } | null>(null);
-  const [dragOverExercise, setDragOverExercise] = useState<{
-    peId: string;
-    day: string;
-    programId: string;
-  } | null>(null);
-  // Column (day) drag & drop state
-  const [draggedDayColumn, setDraggedDayColumn] = useState<{
-    day: string;
-    programId: string;
-  } | null>(null);
-  const [dragOverDayColumn, setDragOverDayColumn] = useState<{
-    day: string;
-    programId: string;
-  } | null>(null);
-  const [dragOverDayColumnSide, setDragOverDayColumnSide] = useState<'top' | 'bottom' | null>(null);
-
-  // Refs to reduce reflow and re-render during dragover events (throttled with rAF)
-  const draggedExerciseRef = useRef(draggedExercise);
-  React.useEffect(() => {
-    draggedExerciseRef.current = draggedExercise;
-  }, [draggedExercise]);
-
-  const draggedDayColumnRef = useRef(draggedDayColumn);
-  React.useEffect(() => {
-    draggedDayColumnRef.current = draggedDayColumn;
-  }, [draggedDayColumn]);
-
-  // Store programs in a ref to avoid recreating handlers on every programs change
-  const programsRef = useRef(programs);
-  React.useEffect(() => {
-    programsRef.current = programs;
-  }, [programs]);
-
-  const dragOverRafRef = useRef<number | null>(null);
-  const pendingDragOverRef = useRef<{ peId: string; day: string; programId: string } | null>(null);
-
-  const dragOverColumnRafRef = useRef<number | null>(null);
-  const pendingDragOverColumnRef = useRef<{
-    day: string;
-    programId: string;
-    pointerY?: number;
-    target?: HTMLElement | null;
-  } | null>(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (dragOverRafRef.current) cancelAnimationFrame(dragOverRafRef.current);
-      if (dragOverColumnRafRef.current) cancelAnimationFrame(dragOverColumnRafRef.current);
-    };
-  }, []);
+  // Drag & drop removed from Programas to simplify the component and avoid UX complexity.
+  // If we need to reintroduce reordering, implement it with an explicit "Ordenar" mode.
 
   // Derive lookup lists for anatomy/equipment from loaded exercises to avoid undefined pickers
   const anatomyForPicker = React.useMemo(() => {
@@ -340,478 +285,88 @@ export default function ClientPrograms({ api }: Props) {
     });
   }, [exercisesForCompany, exerciseSearchTerm, selectedFilterAnatomy, selectedFilterEquipment]);
 
-  const handleDragStart = useCallback(
-    (e: React.DragEvent, peId: string, day: string, programId: string) => {
-      e.dataTransfer.effectAllowed = 'move';
-      // Update ref synchronously so immediate dragover events see the current dragged item
-      draggedExerciseRef.current = { peId, day, programId };
-      setDraggedExercise({ peId, day, programId });
-    },
-    []
-  );
 
-  const handleDragOver = useCallback(
-    (e: React.DragEvent, peId: string, day: string, programId: string) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
 
-      // Defer work to rAF to avoid layout thrash / excessive re-renders
-      pendingDragOverRef.current = { peId, day, programId };
-      if (dragOverRafRef.current != null) return;
-      dragOverRafRef.current = requestAnimationFrame(() => {
-        dragOverRafRef.current = null;
-        const args = pendingDragOverRef.current;
-        pendingDragOverRef.current = null;
-        const d = draggedExerciseRef.current;
 
-        // If no dragged item or dragging within same program but different exercise, show indicator
-        if (!d) {
-          setDragOverExercise(null);
-          return;
-        }
 
-        // Only show drop indicator if dragging to a different exercise within the same program
-        if (d.peId !== args!.peId && d.programId === args!.programId) {
-          setDragOverExercise({ peId: args!.peId, day: args!.day, programId: args!.programId });
-        } else {
-          setDragOverExercise(null);
-        }
-      });
-    },
-    []
-  );
+  // Drag & drop state & helpers
+  const [draggingPeKey, setDraggingPeKey] = useState<string | null>(null);
+  const [dragSourceDay, setDragSourceDay] = useState<string | null>(null);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent, peId: string, day: string, programId: string) => {
-      e.preventDefault();
-      if (!draggedExercise || draggedExercise.peId === peId) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
+  const [savingProgram, setSavingProgram] = useState(false);
 
-      const draggedProgramId = draggedExercise.programId;
-      const draggedPeId = draggedExercise.peId;
+  const clearDragState = () => {
+    setDraggingPeKey(null);
+    setDragSourceDay(null);
+    setDragOverDay(null);
+    setDragOverIndex(null);
+  };
 
-      // Only allow reordering within the same program
-      if (draggedProgramId !== programId) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
+  const handleDropOnProgram = async (programKey: string, toDay: string, toIndex: number) => {
+    // debug
+    // eslint-disable-next-line no-console
+    console.log('handleDropOnProgram', { programKey, toDay, toIndex, draggingPeKey });
+    const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
+    if (!program || !draggingPeKey) return;
 
-      setPrograms((prevPrograms) => {
-        const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
-        if (!program) return prevPrograms;
+    const all = [...(program.programExercises || [])];
+    const dragged = all.find((it: any) => (it.id ?? it.tempId) === draggingPeKey);
+    if (!dragged) return;
 
-        // Filter exercises by day and sort by position
-        const sameDayExercises = (program.programExercises || [])
-          .filter((pe: any) => String(pe.day) === day)
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+    // Remove dragged
+    const without = all.filter((it: any) => (it.id ?? it.tempId) !== draggingPeKey);
 
-        const draggedIdx = sameDayExercises.findIndex(
-          (pe: any) => (pe.id ?? pe.tempId) === draggedPeId
-        );
-        const dropIdx = sameDayExercises.findIndex((pe: any) => (pe.id ?? pe.tempId) === peId);
+    // Items for the target day, ordered
+    const itemsInDay = without
+      .filter((it: any) => String(it.day ?? 'A') === String(toDay))
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
 
-        if (draggedIdx === -1 || dropIdx === -1) return prevPrograms;
+    // Insert at toIndex
+    const idx = Math.max(0, Math.min(toIndex, itemsInDay.length));
+    const newItemsInDay = [...itemsInDay.slice(0, idx), { ...dragged, day: toDay }, ...itemsInDay.slice(idx)];
+    // Reassign positions for all days
+    const otherDays = Array.from(new Set((without || []).map((it: any) => String(it.day ?? 'A'))));
 
-        // Reorder within the same day
-        const reordered = [...sameDayExercises];
-        const [draggedItem] = reordered.splice(draggedIdx, 1);
-        reordered.splice(dropIdx, 0, draggedItem);
-
-        // Update positions for reordered items
-        const updatedSameDay = reordered.map((pe: any, idx: number) => ({ ...pe, position: idx }));
-
-        // Merge with other days' exercises
-        const otherDaysExercises = (program.programExercises || []).filter(
-          (pe: any) => String(pe.day) !== day
-        );
-        const allExercises = [...otherDaysExercises, ...updatedSameDay];
-
-        return prevPrograms.map((p) =>
-          (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
-        );
-      });
-
-      setDraggedExercise(null);
-      setDragOverExercise(null);
-    },
-    [draggedExercise, setPrograms]
-  );
-
-  const handleDragEnd = useCallback(() => {
-    // Cancel any pending rAF work
-    if (dragOverRafRef.current) {
-      cancelAnimationFrame(dragOverRafRef.current);
-      dragOverRafRef.current = null;
-    }
-    if (dragOverColumnRafRef.current) {
-      cancelAnimationFrame(dragOverColumnRafRef.current);
-      dragOverColumnRafRef.current = null;
-    }
-    pendingDragOverRef.current = null;
-    pendingDragOverColumnRef.current = null;
-
-    // Clear refs synchronously to avoid stale values on the next drag start
-    draggedExerciseRef.current = null;
-    draggedDayColumnRef.current = null;
-
-    setDraggedExercise(null);
-    setDragOverExercise(null);
-    setDraggedDayColumn(null);
-    setDragOverDayColumn(null);
-    setDragOverDayColumnSide(null);
-  }, []);
-
-  const handleDragOverColumn = useCallback((e: React.DragEvent, day: string, programId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    // If not dragging columns or program mismatch, clear preview early
-    if (!draggedDayColumnRef.current || draggedDayColumnRef.current.programId !== programId) {
-      setDragOverDayColumn(null);
-      setDragOverDayColumnSide(null);
-      return;
-    }
-
-    // Store latest target and pointer coordinates; defer heavy work to rAF
-    pendingDragOverColumnRef.current = {
-      day,
-      programId,
-      pointerY: e.clientY,
-      target: e.currentTarget as HTMLElement,
-    };
-    if (dragOverColumnRafRef.current != null) return;
-
-    dragOverColumnRafRef.current = requestAnimationFrame(() => {
-      dragOverColumnRafRef.current = null;
-      const pending = pendingDragOverColumnRef.current;
-      pendingDragOverColumnRef.current = null;
-      const dragged = draggedDayColumnRef.current;
-      if (!pending || !dragged || dragged.programId !== pending.programId) {
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
-
-      const target = pending.target;
-      if (!target) {
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
-
-      const rect = target.getBoundingClientRect();
-      const y = (pending.pointerY ?? 0) - rect.top;
-      const side = y < rect.height / 2 ? 'top' : 'bottom';
-
-      // Only show the preview if the insertion would actually change the order
-      // Use ref to access latest programs without causing handler recreation
-      const program = programsRef.current.find((p) => (p.id ?? p.tempId) === pending.programId);
-      if (!program) {
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
-
-      const days = [...(program.days || ['A'])];
-      const draggedDay = dragged.day;
-      const draggedIdx = days.findIndex((d) => d === draggedDay);
-
-      // Build days without the dragged one and compute insertion index
-      const daysWithout = days.filter((_, i) => i !== draggedIdx);
-      const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === pending.day);
-      let insertIdx = targetIdxAfterRemoval;
-      if (side === 'bottom') insertIdx = targetIdxAfterRemoval + 1;
-      if (insertIdx < 0) insertIdx = 0;
-      if (insertIdx > daysWithout.length) insertIdx = daysWithout.length;
-
-      const newDays = [...daysWithout];
-      newDays.splice(insertIdx, 0, draggedDay);
-
-      const isSame = newDays.length === days.length && newDays.every((d, i) => d === days[i]);
-      if (isSame) {
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
+    const rebuilt: any[] = [];
+    otherDays.forEach((d) => {
+      if (String(d) === String(toDay)) {
+        newItemsInDay.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i, day: toDay }));
       } else {
-        setDragOverDayColumn({ day: pending.day, programId: pending.programId });
-        setDragOverDayColumnSide(side);
+        const items = without
+          .filter((it: any) => String(it.day ?? 'A') === String(d))
+          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        items.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i }));
       }
     });
-  }, []);
 
-  const handleDropToNewDay = useCallback(
-    async (e: React.DragEvent, targetDay: string, programId: string) => {
-      e.preventDefault();
+    // If the target day didn't exist in otherDays (e.g., moving into an empty day), ensure it's added
+    if (!otherDays.some((d) => String(d) === String(toDay))) {
+      newItemsInDay.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i, day: toDay }));
+    }
 
-      // Handle column (day) reorder
-      if (draggedDayColumn) {
-        const srcDay = draggedDayColumn.day;
-        const dstDay = targetDay;
-        if (srcDay === dstDay || draggedDayColumn.programId !== programId) {
-          setDraggedDayColumn(null);
-          setDragOverDayColumn(null);
-          setDragOverDayColumnSide(null);
-          return;
-        }
+    await updateProgramExercisesPositions(programKey, rebuilt).catch((err) => {
+      logError('Error updating local positions after drop', err);
+    });
 
-        setPrograms((prevPrograms) => {
-          const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
-          if (!program) return prevPrograms;
+    clearDragState();
+  };
 
-          const days = [...(program.days || ['A'])];
-          const draggedIdx = days.findIndex((d) => d === srcDay);
-          const dropIdx = days.findIndex((d) => d === dstDay);
-          if (draggedIdx === -1 || dropIdx === -1) return prevPrograms;
+  // Helpers to render placeholders: we'll compute a display array in the render loop for each day.
 
-          // Build groups of exercises per day in the current order
-          const groups = days.map((d) =>
-            (program.programExercises || [])
-              .filter((pe: any) => String(pe.day ?? 'A') === String(d))
-              .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
-          );
 
-          // Remove the dragged group and compute insert index based on top/bottom
-          const groupsWithout = [...groups];
-          const [removedGroup] = groupsWithout.splice(draggedIdx, 1);
-          const daysWithout = days.filter((_, i) => i !== draggedIdx);
-          const targetIdxAfterRemoval = daysWithout.findIndex((d) => d === dstDay);
-          let insertIdx = targetIdxAfterRemoval;
-          if (dragOverDayColumnSide === 'bottom') insertIdx = targetIdxAfterRemoval + 1;
-          if (insertIdx < 0) insertIdx = 0;
-          groupsWithout.splice(insertIdx, 0, removedGroup);
 
-          // Reassign day letters (A, B, C, ...) based on new order and reindex positions
-          const newProgramExercises: any[] = [];
-          const newDays = groupsWithout.map((_, idx) =>
-            String.fromCharCode('A'.charCodeAt(0) + idx)
-          );
-          groupsWithout.forEach((grp, idx) => {
-            grp.forEach((pe: any, pos: number) => {
-              newProgramExercises.push({ ...pe, day: newDays[idx], position: pos });
-            });
-          });
 
-          return prevPrograms.map((p) =>
-            (p.id ?? p.tempId) === programId
-              ? { ...p, programExercises: newProgramExercises, days: newDays }
-              : p
-          );
-        });
 
-        try {
-          await updateProgramExercisesPositions(programId);
-        } catch (err) {
-          logError('Error normalizing after day reorder', err);
-        }
 
-        setDraggedDayColumn(null);
-        setDragOverDayColumn(null);
-        setDragOverDayColumnSide(null);
-        return;
-      }
 
-      // Handle exercise move to different day
-      if (!draggedExercise) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
 
-      const draggedProgramId = draggedExercise.programId;
-      const draggedDay = draggedExercise.day;
-      const draggedPeId = draggedExercise.peId;
 
-      // If dropping in the same day, ignore
-      if (draggedDay === targetDay && draggedProgramId === programId) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
 
-      // Only allow reordering within the same program
-      if (draggedProgramId !== programId) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
 
-      setPrograms((prevPrograms) => {
-        const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
-        if (!program) return prevPrograms;
 
-        // Find the dragged exercise
-        const draggedItem = (program.programExercises || []).find(
-          (pe: any) => (pe.id ?? pe.tempId) === draggedPeId
-        );
-        if (!draggedItem) return prevPrograms;
 
-        // Remove dragged item from its current position
-        const withoutDragged = (program.programExercises || []).filter(
-          (pe: any) => (pe.id ?? pe.tempId) !== draggedPeId
-        );
-
-        // Determine insertion position in target day
-        let insertPosition = 0;
-        if (dragOverExercise?.day === targetDay && dragOverExercise?.peId !== '__end__') {
-          const targetDayItems = withoutDragged
-            .filter((pe: any) => String(pe.day) === targetDay)
-            .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-          const insertBeforeIdx = targetDayItems.findIndex(
-            (it: any) => (it.id ?? it.tempId) === dragOverExercise.peId
-          );
-          insertPosition = insertBeforeIdx !== -1 ? insertBeforeIdx : targetDayItems.length;
-        } else {
-          const targetDayItems = withoutDragged.filter((pe: any) => String(pe.day) === targetDay);
-          insertPosition = targetDayItems.length;
-        }
-
-        // Update dragged item with new day
-        const updatedDraggedItem = { ...draggedItem, day: targetDay };
-
-        // Recalculate positions for source day (shift down after removal)
-        const sourceDayUpdated = withoutDragged
-          .filter((pe: any) => String(pe.day) === draggedDay)
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
-          .map((pe: any, idx: number) => ({ ...pe, position: idx }));
-
-        // Recalculate positions for target day (insert at position)
-        const targetDayItems = withoutDragged
-          .filter((pe: any) => String(pe.day) === targetDay)
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-        targetDayItems.splice(insertPosition, 0, updatedDraggedItem);
-        const targetDayUpdated = targetDayItems.map((pe: any, idx: number) => ({
-          ...pe,
-          position: idx,
-        }));
-
-        // Merge with other days (unchanged)
-        const otherDays = withoutDragged.filter(
-          (pe: any) => String(pe.day) !== draggedDay && String(pe.day) !== targetDay
-        );
-        const allExercises = [...otherDays, ...sourceDayUpdated, ...targetDayUpdated];
-
-        return prevPrograms.map((p) =>
-          (p.id ?? p.tempId) === programId ? { ...p, programExercises: allExercises } : p
-        );
-      });
-
-      setDraggedExercise(null);
-      setDragOverExercise(null);
-    },
-    [
-      draggedDayColumn,
-      dragOverDayColumnSide,
-      draggedExercise,
-      dragOverExercise,
-      updateProgramExercisesPositions,
-      setPrograms,
-    ]
-  );
-
-  const handleDragOverEnd = useCallback(
-    (e: React.DragEvent, day: string, programId: string) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (draggedExercise) {
-        setDragOverExercise({ peId: '__end__', day, programId });
-      }
-    },
-    [draggedExercise]
-  );
-
-  const handleDropEnd = useCallback(
-    async (e: React.DragEvent, day: string, programId: string) => {
-      e.preventDefault();
-      if (!draggedExercise) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
-
-      const draggedProgramId = draggedExercise.programId;
-      const draggedDay = draggedExercise.day;
-      const draggedPeId = draggedExercise.peId;
-
-      // Only allow reordering within the same day
-      if (draggedDay !== day || draggedProgramId !== programId) {
-        setDraggedExercise(null);
-        setDragOverExercise(null);
-        return;
-      }
-
-      setPrograms((prevPrograms) => {
-        const program = prevPrograms.find((p) => (p.id ?? p.tempId) === programId);
-        if (!program) return prevPrograms;
-
-        const items = (program.programExercises || [])
-          .filter((pe: any) => String(pe.day) === day)
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-        const draggedIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === draggedPeId);
-        if (draggedIdx === -1) return prevPrograms;
-
-        // Move to the end
-        const newItems = [...items];
-        const [draggedItem] = newItems.splice(draggedIdx, 1);
-        newItems.push(draggedItem);
-
-        // Update positions
-        const updatedItems = newItems.map((pe: any, idx: number) => ({ ...pe, position: idx }));
-        const otherDays = (program.programExercises || []).filter(
-          (pe: any) => String(pe.day) !== day
-        );
-        const merged = [...otherDays, ...updatedItems];
-
-        return prevPrograms.map((p) =>
-          (p.id ?? p.tempId) === programId ? { ...p, programExercises: merged } : p
-        );
-      });
-
-      // Persist the changes
-      try {
-        await updateProgramExercisesPositions(programId);
-      } catch (err) {
-        logError('Error persisting exercise positions', err);
-      }
-
-      setDraggedExercise(null);
-      setDragOverExercise(null);
-    },
-    [draggedExercise, updateProgramExercisesPositions, setPrograms]
-  );
-
-  // Day column drag handlers
-  const handleDayDragStart = useCallback(
-    (e: React.DragEvent, day: string, programId: string) => {
-      e.dataTransfer.effectAllowed = 'move';
-      if (draggedExercise) return; // ignore if an exercise drag is active
-      // Some browsers require setting data to enable drop
-      try {
-        e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'day', day, programId }));
-      } catch { }
-      // Update ref synchronously so immediate dragover events see the current dragged column
-      draggedDayColumnRef.current = { day, programId };
-      setDraggedDayColumn({ day, programId });
-    },
-    [draggedExercise]
-  );
-  const handleDayDragOver = useCallback(
-    (e: React.DragEvent, day: string, programId: string) => {
-      e.preventDefault();
-      if (!draggedDayColumn || draggedDayColumn.programId !== programId) return;
-      setDragOverDayColumn({ day, programId });
-    },
-    [draggedDayColumn]
-  );
-  const handleDayDrop = useCallback(
-    (e: React.DragEvent, day: string, programId: string) => {
-      return handleDropToNewDay(e, day, programId);
-    },
-    [handleDropToNewDay]
-  );
 
   const programTabTriggerClass =
     'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 h-7 text-sm font-medium bg-transparent text-muted-foreground shadow-none border-0 cursor-pointer select-none';
@@ -1042,10 +597,41 @@ export default function ClientPrograms({ api }: Props) {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <Button variant="outline" onClick={() => setViewingProgramId(null)}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Volver
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {hasPendingChanges && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            resetToInitial();
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            try {
+                              setSavingProgram(true);
+                              await persistProgram(p.id ?? p.tempId);
+                              notifySaved('Cambios guardados');
+                            } catch (err) {
+                              logError('Error saving program', err);
+                            } finally {
+                              setSavingProgram(false);
+                            }
+                          }}
+                          disabled={savingProgram}
+                        >
+                          {savingProgram ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                      </>
+                    )}
+
+                    <Button variant="outline" onClick={() => setViewingProgramId(null)}>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Volver
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="p-0 space-y-4 h-full">
@@ -1077,64 +663,16 @@ export default function ClientPrograms({ api }: Props) {
                           <div
                             key={day}
                             className={dayColumnClass}
-                            onDragOver={
-                              !isClient
-                                ? (e) => handleDragOverColumn(e, day, p.id ?? p.tempId)
-                                : undefined
-                            }
-                            onDrop={
-                              !isClient
-                                ? (e) => handleDropToNewDay(e, day, p.id ?? p.tempId)
-                                : undefined
-                            }
-                            onDragLeave={() => {
-                              if (
-                                dragOverDayColumn?.day === day &&
-                                dragOverDayColumn?.programId === (p.id ?? p.tempId)
-                              ) {
-                                setDragOverDayColumn(null);
-                                setDragOverDayColumnSide(null);
-                              }
-                            }}
+
                           >
-                            {draggedDayColumn &&
-                              dragOverDayColumn?.day === day &&
-                              dragOverDayColumn?.programId === (p.id ?? p.tempId) && (
-                                <>
-                                  {dragOverDayColumnSide === 'top' && (
-                                    <div className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
-                                  )}
-                                  {dragOverDayColumnSide === 'bottom' && (
-                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] bg-blue-500" />
-                                  )}
-                                </>
-                              )}
+
                             <div className="flex items-center justify-between mb-2">
                               <div
                                 className={cn(
                                   'text-sm font-medium pl-2',
-                                  isClient ? 'cursor-default flex-1' : 'cursor-move flex-1'
+                                  'cursor-default flex-1'
                                 )}
-                                role="button"
-                                aria-grabbed={draggedDayColumn?.day === day ? 'true' : 'false'}
                                 tabIndex={0}
-                                draggable={!isClient}
-                                onDragStart={
-                                  !isClient
-                                    ? (e) => handleDayDragStart(e, day, p.id ?? p.tempId)
-                                    : undefined
-                                }
-                                onDragOver={
-                                  !isClient
-                                    ? (e) => handleDayDragOver(e, day, p.id ?? p.tempId)
-                                    : undefined
-                                }
-                                onDrop={
-                                  !isClient
-                                    ? (e) => handleDayDrop(e, day, p.id ?? p.tempId)
-                                    : undefined
-                                }
-                                onDragEnd={!isClient ? handleDragEnd : undefined}
                               >
                                 {`Día ${day}`}
                               </div>
@@ -1176,8 +714,41 @@ export default function ClientPrograms({ api }: Props) {
                             </div>
                             <div className="space-y-2 min-h-[40px]">
                               {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
-                              <div className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0">
-                                {items.map((pe: any) => {
+                              <div
+                                className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0"
+                                onDragEnter={(e) => {
+                                  if (draggingPeKey) {
+                                    e.preventDefault();
+                                    // eslint-disable-next-line no-console
+                                    console.log('dragenter row', day);
+                                    setDragOverDay(day);
+                                    setDragOverIndex(items.length);
+                                  }
+                                }}
+                                onDragLeave={(e) => {
+                                  if (draggingPeKey) {
+                                    // eslint-disable-next-line no-console
+                                    console.log('dragleave row', day);
+                                    setDragOverIndex(null);
+                                  }
+                                }}
+                                onDragOver={(e) => {
+                                  if (draggingPeKey) {
+                                    e.preventDefault();
+                                    // eslint-disable-next-line no-console
+                                    console.log('dragover row', day, e.clientX);
+                                    setDragOverDay(day);
+                                    setDragOverIndex(items.length);
+                                  }
+                                }}
+                                onDrop={async (e) => {
+                                  if (!draggingPeKey) return;
+                                  e.preventDefault();
+                                  const idx = dragOverIndex ?? items.length;
+                                  await handleDropOnProgram(p.id ?? p.tempId, day, idx);
+                                }}
+                              >
+                                {items.map((pe: any, i: number) => {
                                   const exercise = pe.exercise || {};
 
                                   // Map anatomy IDs to names
@@ -1209,166 +780,220 @@ export default function ClientPrograms({ api }: Props) {
                                     .filter((x: any) => x !== null);
 
                                   const file = (exercise.file as string | undefined) || undefined;
-                                  const mediaUrl =
-                                    file && exercise.id
-                                      ? getFilePublicUrl('exercise_videos', exercise.id, file) ||
-                                      undefined
-                                      : undefined;
 
                                   return (
-                                    <div
-                                      key={pe.id || pe.tempId}
-                                      className="relative w-[260px] flex-none"
-                                    >
-                                      {dragOverExercise?.peId === (pe.id ?? pe.tempId) &&
-                                        dragOverExercise?.programId === (p.id ?? p.tempId) && (
-                                          <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
-                                        )}
-                                      <div className="relative">
-                                        <Card
-                                          role="button"
-                                          aria-grabbed={
-                                            draggedExercise?.peId === (pe.id ?? pe.tempId)
-                                              ? 'true'
-                                              : 'false'
-                                          }
-                                          tabIndex={0}
-                                          draggable={!isClient}
-                                          onDragStart={
-                                            !isClient
-                                              ? (e) =>
-                                                handleDragStart(
-                                                  e,
-                                                  pe.id ?? pe.tempId,
-                                                  day,
-                                                  p.id ?? p.tempId
-                                                )
-                                              : undefined
-                                          }
-                                          onDragOver={
-                                            !isClient
-                                              ? (e) =>
-                                                handleDragOver(
-                                                  e,
-                                                  pe.id ?? pe.tempId,
-                                                  day,
-                                                  p.id ?? p.tempId
-                                                )
-                                              : undefined
-                                          }
-                                          onDrop={
-                                            !isClient
-                                              ? (e) =>
-                                                handleDrop(
-                                                  e,
-                                                  pe.id ?? pe.tempId,
-                                                  day,
-                                                  p.id ?? p.tempId
-                                                )
-                                              : undefined
-                                          }
-                                          onDragEnd={!isClient ? handleDragEnd : undefined}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && !isClient) {
-                                              setEditingProgramExercise(pe);
-                                              setShowEditProgramExerciseDialog(true);
-                                            }
-                                          }}
-                                          className={cn(
-                                            'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
-                                            draggedExercise?.peId === (pe.id ?? pe.tempId) &&
-                                            'opacity-50',
-                                            'bg-white rounded-lg border',
-                                            isClient ? 'cursor-default' : 'cursor-move'
-                                          )}
-                                        >
-                                          <CardHeader className="py-1 px-4 h-auto space-y-0.5">
-                                            <div className="flex items-center justify-between gap-2">
-                                              <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="flex-1 line-clamp-2">
-                                                    <span className="flex items-center gap-2">
-                                                      <span className="truncate">
-                                                        {exercise.name ||
-                                                          pe.exercise?.name ||
-                                                          'Ejercicio'}
+                                    <React.Fragment key={pe.id || pe.tempId}>
+                                      {draggingPeKey && String(dragOverDay) === String(day) && dragOverIndex === i && (
+                                        <div key={`ph-${day}-${i}`} className="relative w-[260px] flex-none">
+                                          <div className="h-[300px] w-full rounded-lg border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center text-primary text-xs">Mover aquí</div>
+                                        </div>
+                                      )}
+
+                                      <div
+                                        key={pe.id || pe.tempId}
+                                        className="relative w-[260px] flex-none"
+                                        draggable={!isClient}
+                                        onDragStart={(e) => {
+                                          e.stopPropagation();
+                                          const idKey = pe.id ?? pe.tempId;
+                                          try {
+                                            e.dataTransfer.setData('text/plain', idKey);
+                                            e.dataTransfer.effectAllowed = 'move';
+                                          } catch (err) { }
+                                          setDraggingPeKey(idKey);
+                                          setDragSourceDay(day);
+                                          setDragOverDay(day);
+                                          setDragOverIndex(i);
+
+                                          try {
+                                            const crt = (e.currentTarget as HTMLElement).cloneNode(true) as HTMLElement;
+                                            crt.style.position = 'absolute';
+                                            crt.style.top = '-9999px';
+                                            crt.style.left = '-9999px';
+                                            document.body.appendChild(crt);
+                                            e.dataTransfer.setDragImage(crt, 20, 20);
+                                            setTimeout(() => document.body.removeChild(crt), 0);
+                                          } catch (e) { }
+                                        }}
+                                        onDragEnd={() => {
+                                          clearDragState();
+                                        }}
+                                        onDragEnter={(e) => {
+                                          if (!draggingPeKey) return;
+                                          e.preventDefault();
+                                          // eslint-disable-next-line no-console
+                                          console.log('dragenter card', pe.id ?? pe.tempId, day, i);
+                                          setDragOverDay(day);
+                                          setDragOverIndex(i);
+                                        }}
+                                        onDragLeave={(e) => {
+                                          if (!draggingPeKey) return;
+                                          // eslint-disable-next-line no-console
+                                          console.log('dragleave card', pe.id ?? pe.tempId, day, i);
+                                          // don't clear day here; clear index so placeholder can move to next slot
+                                          setDragOverIndex(null);
+                                        }}
+                                        onDragOver={(e) => {
+                                          if (!draggingPeKey) return;
+                                          e.preventDefault();
+                                          // eslint-disable-next-line no-console
+                                          console.log('dragover card', pe.id ?? pe.tempId, day, i, e.clientX);
+                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                          const middle = rect.left + rect.width / 2;
+                                          const targetIndex = e.clientX < middle ? i : i + 1;
+                                          setDragOverDay(day);
+                                          setDragOverIndex(targetIndex);
+                                        }}
+                                        onDrop={async (e) => {
+                                          if (!draggingPeKey) return;
+                                          e.preventDefault();
+                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                          const middle = rect.left + rect.width / 2;
+                                          const targetIndex = e.clientX < middle ? i : i + 1;
+                                          await handleDropOnProgram(p.id ?? p.tempId, day, targetIndex);
+                                        }}
+                                      >
+
+                                        <div className="relative">
+                                          <Card
+                                            tabIndex={0}
+                                            draggable={!isClient}
+                                            onDragStart={(e) => {
+                                              e.stopPropagation();
+                                              const idKey = pe.id ?? pe.tempId;
+                                              try {
+                                                e.dataTransfer.setData('text/plain', idKey);
+                                                e.dataTransfer.effectAllowed = 'move';
+                                              } catch (err) { }
+                                              // debug
+                                              // eslint-disable-next-line no-console
+                                              console.log('dragstart (card)', idKey);
+                                              setDraggingPeKey(idKey);
+                                              setDragSourceDay(day);
+                                              setDragOverDay(day);
+                                              setDragOverIndex(i);
+                                            }}
+                                            onDragEnd={() => {
+                                              clearDragState();
+                                            }}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' && !isClient) {
+                                                setEditingProgramExercise(pe);
+                                                setShowEditProgramExerciseDialog(true);
+                                              }
+                                            }}
+                                            className={cn(
+                                              'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
+                                              'bg-white rounded-lg border',
+                                              draggingPeKey === (pe.id ?? pe.tempId) ? 'opacity-30' : 'cursor-default',
+                                              !isClient ? 'cursor-grab' : ''
+                                            )}
+                                          >
+                                            <CardHeader className="py-1 px-4 h-auto space-y-0.5">
+                                              <div className="flex items-center justify-between gap-2">
+                                                <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
+                                                  <div className="flex items-center gap-2">
+                                                    {!isClient && (
+                                                      <button
+                                                        draggable={!isClient}
+                                                        onMouseDown={(e) => e.stopPropagation()}
+                                                        onDragStart={(e) => {
+                                                          e.stopPropagation();
+                                                          const idKey = pe.id ?? pe.tempId;
+                                                          try {
+                                                            e.dataTransfer.setData('text/plain', idKey);
+                                                            e.dataTransfer.effectAllowed = 'move';
+                                                          } catch (err) { }
+                                                          // eslint-disable-next-line no-console
+                                                          console.log('dragstart (handle)', idKey);
+                                                          setDraggingPeKey(idKey);
+                                                          setDragSourceDay(day);
+                                                          setDragOverDay(day);
+                                                          setDragOverIndex(i);
+                                                        }}
+                                                        className="mr-1 h-6 w-6 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-grab"
+                                                        aria-label="Arrastrar ejercicio"
+                                                        title="Arrastrar ejercicio"
+                                                      >
+                                                        <span className="select-none">≡</span>
+                                                      </button>
+                                                    )}
+
+                                                    <span className="flex-1 line-clamp-2">
+                                                      <span className="flex items-center gap-2">
+                                                        <span className="truncate">
+                                                          {exercise.name || pe.exercise?.name || 'Ejercicio'}
+                                                        </span>
+                                                        <TooltipProvider delayDuration={150}>
+                                                          <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                              <span className="text-muted-foreground cursor-default" aria-label="Notas del ejercicio">
+                                                                <HelpCircle className="h-4 w-4" />
+                                                              </span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
+                                                              <div className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm" dangerouslySetInnerHTML={{
+                                                                __html: pe.notes && String(pe.notes).trim() ? DOMPurify.sanitize(pe.notes, { ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'ul', 'ol', 'li', 'br', 'p'], ALLOWED_ATTR: [], }) : 'Sin notas',
+                                                              }} />
+                                                            </TooltipContent>
+                                                          </Tooltip>
+                                                        </TooltipProvider>
                                                       </span>
-                                                      <TooltipProvider delayDuration={150}>
-                                                        <Tooltip>
-                                                          <TooltipTrigger asChild>
-                                                            <span
-                                                              className="text-muted-foreground cursor-default"
-                                                              aria-label="Notas del ejercicio"
-                                                            >
-                                                              <HelpCircle className="h-4 w-4" />
-                                                            </span>
-                                                          </TooltipTrigger>
-                                                          <TooltipContent className="bg-[hsl(var(--sidebar-accent))] border shadow-sm text-black rounded px-3 py-1 max-w-xs cursor-default">
-                                                            <div
-                                                              className="max-h-[220px] overflow-auto whitespace-pre-wrap break-words text-sm"
-                                                              dangerouslySetInnerHTML={{
-                                                                __html:
-                                                                  pe.notes &&
-                                                                    String(pe.notes).trim()
-                                                                    ? DOMPurify.sanitize(
-                                                                      pe.notes,
-                                                                      {
-                                                                        ALLOWED_TAGS: [
-                                                                          'b',
-                                                                          'strong',
-                                                                          'i',
-                                                                          'em',
-                                                                          'ul',
-                                                                          'ol',
-                                                                          'li',
-                                                                          'br',
-                                                                          'p',
-                                                                        ],
-                                                                        ALLOWED_ATTR: [],
-                                                                      }
-                                                                    )
-                                                                    : 'Sin notas',
-                                                              }}
-                                                            />
-                                                          </TooltipContent>
-                                                        </Tooltip>
-                                                      </TooltipProvider>
                                                     </span>
-                                                  </span>
-                                                </div>
-                                              </CardTitle>
-                                              {!isClient && (
-                                                <>
-                                                  <ActionButton
-                                                    tooltip="Editar ejercicio"
-                                                    onClick={() => {
-                                                      setEditingProgramExercise(pe);
-                                                      setShowEditProgramExerciseDialog(true);
-                                                    }}
-                                                    aria-label="Editar ejercicio"
-                                                  >
-                                                    <Pencil className="h-4 w-4" />
-                                                  </ActionButton>
-                                                  <ActionButton
-                                                    tooltip="Eliminar ejercicio"
-                                                    onClick={async (e) => {
-                                                      e.stopPropagation();
-                                                      try {
-                                                        if (
-                                                          String(pe.tempId || '').startsWith(
-                                                            'tpe-'
-                                                          )
-                                                        ) {
+                                                  </div>
+                                                </CardTitle>
+                                                {!isClient && (
+                                                  <>
+                                                    <ActionButton
+                                                      tooltip="Editar ejercicio"
+                                                      onClick={() => {
+                                                        setEditingProgramExercise(pe);
+                                                        setShowEditProgramExerciseDialog(true);
+                                                      }}
+                                                      aria-label="Editar ejercicio"
+                                                    >
+                                                      <Pencil className="h-4 w-4" />
+                                                    </ActionButton>
+                                                    <ActionButton
+                                                      tooltip="Eliminar ejercicio"
+                                                      onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                          if (
+                                                            String(pe.tempId || '').startsWith(
+                                                              'tpe-'
+                                                            )
+                                                          ) {
+                                                            setPrograms((prev) =>
+                                                              prev.map((pr) =>
+                                                                pr.tempId === p.tempId
+                                                                  ? {
+                                                                    ...pr,
+                                                                    programExercises: (
+                                                                      pr.programExercises || []
+                                                                    ).filter(
+                                                                      (x: any) =>
+                                                                        x.tempId !== pe.tempId
+                                                                    ),
+                                                                  }
+                                                                  : pr
+                                                              )
+                                                            );
+                                                            await updateProgramExercisesPositions(
+                                                              p.id ?? p.tempId
+                                                            );
+                                                            return;
+                                                          }
                                                           setPrograms((prev) =>
                                                             prev.map((pr) =>
-                                                              pr.tempId === p.tempId
+                                                              (pr.id ?? pr.tempId) ===
+                                                                (p.id ?? p.tempId)
                                                                 ? {
                                                                   ...pr,
                                                                   programExercises: (
                                                                     pr.programExercises || []
                                                                   ).filter(
-                                                                    (x: any) =>
-                                                                      x.tempId !== pe.tempId
+                                                                    (x: any) => x.id !== pe.id
                                                                   ),
                                                                 }
                                                                 : pr
@@ -1377,139 +1002,109 @@ export default function ClientPrograms({ api }: Props) {
                                                           await updateProgramExercisesPositions(
                                                             p.id ?? p.tempId
                                                           );
-                                                          return;
+                                                        } catch (err) {
+                                                          logError(
+                                                            'Error deleting program_exercise',
+                                                            err
+                                                          );
                                                         }
-                                                        setPrograms((prev) =>
-                                                          prev.map((pr) =>
-                                                            (pr.id ?? pr.tempId) ===
-                                                              (p.id ?? p.tempId)
-                                                              ? {
-                                                                ...pr,
-                                                                programExercises: (
-                                                                  pr.programExercises || []
-                                                                ).filter(
-                                                                  (x: any) => x.id !== pe.id
-                                                                ),
-                                                              }
-                                                              : pr
-                                                          )
-                                                        );
-                                                        await updateProgramExercisesPositions(
-                                                          p.id ?? p.tempId
-                                                        );
-                                                      } catch (err) {
-                                                        logError(
-                                                          'Error deleting program_exercise',
-                                                          err
-                                                        );
-                                                      }
-                                                    }}
-                                                    aria-label="Eliminar ejercicio"
-                                                  >
-                                                    <Trash className={iconButtonClass} />
-                                                  </ActionButton>
-                                                </>
-                                              )}
-                                            </div>
+                                                      }}
+                                                      aria-label="Eliminar ejercicio"
+                                                    >
+                                                      <Trash className={iconButtonClass} />
+                                                    </ActionButton>
+                                                  </>
+                                                )}
+                                              </div>
 
-                                            <div className="flex flex-col gap-1 min-h-[40px]">
-                                              {exerciseEquipment.length > 0 && (
-                                                <ExerciseBadgeGroup
-                                                  items={exerciseEquipment}
-                                                  color="blue"
-                                                  maxVisible={2}
-                                                />
-                                              )}
-                                              {exerciseAnatomy.length > 0 && (
-                                                <ExerciseBadgeGroup
-                                                  items={exerciseAnatomy}
-                                                  color="orange"
-                                                  maxVisible={2}
-                                                />
-                                              )}
-                                            </div>
-                                          </CardHeader>
+                                              <div className="flex flex-col gap-1 min-h-[40px]">
+                                                {exerciseEquipment.length > 0 && (
+                                                  <ExerciseBadgeGroup
+                                                    items={exerciseEquipment}
+                                                    color="blue"
+                                                    maxVisible={2}
+                                                  />
+                                                )}
+                                                {exerciseAnatomy.length > 0 && (
+                                                  <ExerciseBadgeGroup
+                                                    items={exerciseAnatomy}
+                                                    color="orange"
+                                                    maxVisible={2}
+                                                  />
+                                                )}
+                                              </div>
+                                            </CardHeader>
 
-                                          <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
-                                            {mediaUrl ? (
-                                              isVideo(file) ? (
-                                                <video
-                                                  src={mediaUrl}
-                                                  draggable={false}
-                                                  onDragStart={(e) => e.stopPropagation()}
-                                                  onMouseDown={(e) => e.stopPropagation()}
-                                                  onPointerDown={(e) => e.stopPropagation()}
+                                            <div className="relative bg-slate-200 overflow-hidden flex-1 cursor-auto">
+                                              <div className="absolute inset-0 w-full h-full">
+                                                <ResolvedMedia
+                                                  bucket="exercise_videos"
+                                                  id={exercise.id}
+                                                  filename={file}
                                                   className="absolute inset-0 w-full h-full object-cover cursor-auto"
                                                   controls
-                                                />
-                                              ) : (
-                                                <img
-                                                  src={mediaUrl}
-                                                  draggable={false}
-                                                  onDragStart={(e) => e.stopPropagation()}
                                                   onMouseDown={(e) => e.stopPropagation()}
                                                   onPointerDown={(e) => e.stopPropagation()}
-                                                  className="absolute inset-0 w-full h-full object-cover cursor-auto"
                                                 />
-                                              )
-                                            ) : (
-                                              <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-100">
-                                                <p className="text-sm text-slate-400">
-                                                  Sin video
-                                                </p>
                                               </div>
-                                            )}
-                                          </div>
+                                            </div>
 
-                                          {(() => {
-                                            const valOrDash = (v: any) =>
-                                              typeof v !== 'undefined' && v !== null && v !== ''
-                                                ? v
-                                                : '-';
-                                            return (
-                                              <div className="px-3 py-1.5 text-xs text-muted-foreground border-t">
-                                                <div className="flex items-center gap-3 whitespace-nowrap">
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-muted-foreground">
-                                                      Series:
-                                                    </span>{' '}
-                                                    <span className="font-medium text-foreground">
-                                                      {valOrDash(pe.sets)}
-                                                    </span>
-                                                  </div>
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground">
-                                                      Reps:
-                                                    </span>{' '}
-                                                    <span className="font-medium text-foreground">
-                                                      {valOrDash(pe.reps)}
-                                                    </span>
-                                                  </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-muted-foreground">
-                                                      kg:
-                                                    </span>{' '}
-                                                    <span className="font-medium text-foreground">
-                                                      {valOrDash(pe.weight)}
-                                                    </span>
-                                                  </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <span className="text-muted-foreground">
-                                                      Secs:
-                                                    </span>{' '}
-                                                    <span className="font-medium text-foreground">
-                                                      {valOrDash(pe.secs)}
-                                                    </span>
+                                            {(() => {
+                                              const valOrDash = (v: any) =>
+                                                typeof v !== 'undefined' && v !== null && v !== ''
+                                                  ? v
+                                                  : '-';
+                                              return (
+                                                <div className="px-3 py-1.5 text-xs text-muted-foreground border-t">
+                                                  <div className="flex items-center gap-3 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-muted-foreground">
+                                                        Series:
+                                                      </span>{' '}
+                                                      <span className="font-medium text-foreground">
+                                                        {valOrDash(pe.sets)}
+                                                      </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-muted-foreground">
+                                                        Reps:
+                                                      </span>{' '}
+                                                      <span className="font-medium text-foreground">
+                                                        {valOrDash(pe.reps)}
+                                                      </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-muted-foreground">
+                                                        kg:
+                                                      </span>{' '}
+                                                      <span className="font-medium text-foreground">
+                                                        {valOrDash(pe.weight)}
+                                                      </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="text-muted-foreground">
+                                                        Secs:
+                                                      </span>{' '}
+                                                      <span className="font-medium text-foreground">
+                                                        {valOrDash(pe.secs)}
+                                                      </span>
+                                                    </div>
                                                   </div>
                                                 </div>
-                                              </div>
-                                            );
-                                          })()}
-                                        </Card>
+                                              );
+                                            })()}
+                                          </Card>
+                                        </div>
                                       </div>
-                                    </div>
+                                    </React.Fragment>
                                   );
                                 })}
+
+                                {draggingPeKey && String(dragOverDay) === String(day) && dragOverIndex === items.length && (
+                                  <div key={`ph-${day}-end`} className="relative w-[260px] flex-none">
+                                    <div className="h-[300px] w-full rounded-lg border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center text-primary text-xs">Mover aquí</div>
+                                  </div>
+                                )}
 
                                 {/* Placeholder card to add a new exercise */}
                                 {!isClient && (
@@ -1517,11 +1112,7 @@ export default function ClientPrograms({ api }: Props) {
                                     key="add-placeholder"
                                     className="relative w-[260px] flex-none"
                                   >
-                                    {dragOverExercise?.peId === '__end__' &&
-                                      dragOverExercise?.day === day &&
-                                      dragOverExercise?.programId === (p.id ?? p.tempId) && (
-                                        <div className="absolute -left-1 top-0 bottom-0 w-[3px] bg-blue-500 pointer-events-none z-50" />
-                                      )}
+
                                     <Card
                                       role="button"
                                       tabIndex={0}
@@ -1533,18 +1124,6 @@ export default function ClientPrograms({ api }: Props) {
                                       onClick={() =>
                                         openAddExercisesDialog(p.id ?? p.tempId, day)
                                       }
-                                      onDragOver={(e) =>
-                                        handleDragOverEnd(e, day, p.id ?? p.tempId)
-                                      }
-                                      onDrop={(e) => handleDropEnd(e, day, p.id ?? p.tempId)}
-                                      onDragLeave={() => {
-                                        if (
-                                          dragOverExercise?.peId === '__end__' &&
-                                          dragOverExercise?.day === day
-                                        ) {
-                                          setDragOverExercise(null);
-                                        }
-                                      }}
                                       className={cn(
                                         'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col cursor-pointer bg-slate-200 rounded-lg border'
                                       )}
@@ -1932,8 +1511,6 @@ export default function ClientPrograms({ api }: Props) {
                                 isVideo(file) ? (
                                   <video
                                     src={mediaUrl}
-                                    draggable={false}
-                                    onDragStart={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     className="w-full h-auto object-cover aspect-video cursor-auto"
@@ -1944,8 +1521,6 @@ export default function ClientPrograms({ api }: Props) {
                                   <img
                                     src={mediaUrl}
                                     alt={ex.name}
-                                    draggable={false}
-                                    onDragStart={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     className="w-full h-auto object-cover aspect-video cursor-auto"

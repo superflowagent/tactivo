@@ -615,18 +615,20 @@ export default function ClienteView() {
               : cliente.id;
 
           try {
-            const storagePath = `${filename}`;
+            // Upload under profile folder so the saved photo_path matches the stored object
+            const storagePath = `${savedUserId}/${filename}`;
             const { error: uploadErr } = await supabase.storage
               .from('profile_photos')
               .upload(storagePath, photoFile);
             if (uploadErr) throw uploadErr;
 
+            const photoPathToStore = storagePath;
             const patchPhotoRes = await fetch(
               `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
               {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
+                body: JSON.stringify({ profile_id: savedUserId, photo_path: photoPathToStore }),
               }
             );
             const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
@@ -638,14 +640,26 @@ export default function ClienteView() {
             }
             const api2 = await import('@/lib/supabase');
             const verified = await api2.fetchProfileByUserId(savedUserId!);
-            if (!verified || verified.photo_path !== filename)
+            if (!verified || verified.photo_path !== photoPathToStore)
               throw new Error('photo_path no persistió para el cliente');
 
-            setPhotoPreview(
-              getFilePublicUrl('profile_photos', null, filename) ||
-              getFilePublicUrl('profile_photos', savedUserId, filename) ||
-              null
-            );
+            // Request server-side signed URL and use as preview to avoid unsigned GETs
+            try {
+              const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+              const signedRes = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ bucket: 'profile_photos', path: photoPathToStore, expires: 60 * 60 }),
+              });
+              const signedJson = await signedRes.json().catch(() => null);
+              if (signedRes.ok && signedJson && signedJson.signedUrl) {
+                setPhotoPreview(signedJson.signedUrl);
+              } else {
+                setPhotoPreview(null);
+              }
+            } catch (e) {
+              setPhotoPreview(null);
+            }
           } catch (e) {
             logError('Error subiendo foto de cliente:', e);
           }
@@ -684,18 +698,20 @@ export default function ClienteView() {
                 : savedUser?.id || null;
 
           try {
-            const storagePath = `${filename}`;
+            // Upload under profile folder so the saved photo_path matches the stored object
+            const storagePath = `${savedUserId}/${filename}`;
             const { error: uploadErr } = await supabase.storage
               .from('profile_photos')
               .upload(storagePath, photoFile);
             if (uploadErr) throw uploadErr;
 
+            const photoPathToStore = storagePath;
             const patchPhotoRes = await fetch(
               `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/update-client`,
               {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ profile_id: savedUserId, photo_path: filename }),
+                body: JSON.stringify({ profile_id: savedUserId, photo_path: photoPathToStore }),
               }
             );
             const patchPhotoJson = await patchPhotoRes.json().catch(() => null);
@@ -705,11 +721,24 @@ export default function ClienteView() {
                 (patchPhotoJson?.error || JSON.stringify(patchPhotoJson))
               );
             }
-            setPhotoPreview(
-              getFilePublicUrl('profile_photos', null, filename) ||
-              getFilePublicUrl('profile_photos', savedUserId, filename) ||
-              null
-            );
+
+            // Request server-side signed URL and use as preview to avoid unsigned GETs
+            try {
+              const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+              const signedRes = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ bucket: 'profile_photos', path: photoPathToStore, expires: 60 * 60 }),
+              });
+              const signedJson = await signedRes.json().catch(() => null);
+              if (signedRes.ok && signedJson && signedJson.signedUrl) {
+                setPhotoPreview(signedJson.signedUrl);
+              } else {
+                setPhotoPreview(null);
+              }
+            } catch (e) {
+              setPhotoPreview(null);
+            }
           } catch (e) {
             logError('Error subiendo foto de cliente:', e);
           }

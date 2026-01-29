@@ -18,9 +18,9 @@
     --sidebar-accent: 214 32% 91%;
     /* hsl(214, 32%, 91%) */
 
-    /* Primary (blue) */
-    --primary: 217 91% 60%;
-    /* hsl(217, 91%, 60%) */
+    /* Primary (medio de --primary-gradient: mezcla de #6366f1 y #a78bfa => #8579f6) */
+    --primary: 246 87% 72%;
+    /* hsl(246, 87%, 72%) */
 
     /* Primary gradient used as a highlight */
     --primary-gradient: linear-gradient(90deg, #6366f1 0%, #a78bfa 100%);

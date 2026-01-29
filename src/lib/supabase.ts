@@ -48,6 +48,28 @@ export const getPublicUrl = (bucket: string, path: string) => {
   }
 };
 
+// Cache of bucket public flags to avoid unnecessary public HEAD requests from the client
+const bucketPublicCache = new Map<string, boolean>();
+
+async function loadBucketPublicFlags() {
+  try {
+    if (!supabaseUrl || !supabaseAnonKey) return;
+    const url = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/bucket`;
+    const res = await fetch(url, { headers: { apikey: supabaseAnonKey } });
+    if (!res.ok) return;
+    const json = await res.json().catch(() => null);
+    if (!Array.isArray(json)) return;
+    for (const b of json) {
+      if (b && b.id) bucketPublicCache.set(b.id, Boolean(b.public));
+    }
+  } catch (e) {
+    // ignore errors in dev
+  }
+}
+
+// Start loading bucket flags in background
+void loadBucketPublicFlags();
+
 /**
  * Conveniencia para obtener la URL pública de un archivo asociado a un "record".
  * Por convención usa un bucket con el mismo nombre que la "collection" y asume
@@ -64,8 +86,10 @@ export const getFilePublicUrl = (
     const b = bucket || collection;
     // Prefer root filename first, then <id>/<filename> for legacy entries
     const candidates = id ? [`${filename}`, `${id}/${filename}`] : [`${filename}`];
-    // Return the first candidate public URL (no network check)
+    // Return the first candidate public URL only if we know the bucket is public
     const candidate = candidates[0];
+    const knownPublic = bucketPublicCache.get(b);
+    if (!knownPublic) return null;
     return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${b}/${encodeURI(
       candidate.replace(/^\/+/, '')
     )}`;

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, getFilePublicUrl } from '@/lib/supabase';
+import ResolvedMedia from '@/components/media/ResolvedMedia';
 import { error as logError } from '@/lib/logger';
 import { Button } from '@/components/ui/button';
 import ActionButton from '@/components/ui/ActionButton';
@@ -701,24 +702,13 @@ export function EjerciciosView() {
                       </div>
                     ) : exercise.file ? (
                       <>
-                        {isVideo(exercise.file) ? (
-                          <video
-                            src={
-                              getFilePublicUrl('exercise_videos', exercise.id, exercise.file) ||
-                              undefined
-                            }
-                            className="w-full h-full object-cover"
-                            controls
-                          />
-                        ) : (
-                          <img
-                            src={
-                              getFilePublicUrl('exercise_videos', exercise.id, exercise.file) ||
-                              undefined
-                            }
-                            className="w-full h-full object-cover"
-                          />
-                        )}
+                        <ResolvedMedia
+                          bucket="exercise_videos"
+                          id={exercise.id}
+                          filename={exercise.file}
+                          className="w-full h-full object-cover"
+                          controls
+                        />
 
                         {/* Eliminado: botón eliminar sobre el video en hover */}
                       </>

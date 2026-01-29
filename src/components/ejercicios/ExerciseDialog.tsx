@@ -153,8 +153,33 @@ export default function ExerciseDialog({
       setSelectedAnatomy(exercise.anatomy || []);
       setSelectedEquipment(exercise.equipment || []);
       if (exercise.file) {
-        setImagePreview(getFilePublicUrl('exercise_videos', exercise.id, exercise.file) || '');
-        setRemoveExistingFile(false);
+        // Try public URL first, otherwise ask server for a signed URL
+        let preview = getFilePublicUrl('exercise_videos', exercise.id, exercise.file) || '';
+        if (!preview) {
+          (async () => {
+            try {
+              const fnUrl = `${import.meta.env.VITE_SUPABASE_URL.replace(/\/$/, '')}/functions/v1/get-signed-url`;
+              const token = await getAuthToken();
+              const res = await fetch(fnUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: token ? `Bearer ${token}` : '' },
+                body: JSON.stringify({ bucket: 'exercise_videos', path: exercise.file, expires: 60 * 60 }),
+              });
+              if (res.ok) {
+                const j = await res.json().catch(() => null);
+                preview = j?.signedUrl || preview;
+              }
+            } catch {
+              // ignore
+            }
+            // Ensure we set preview after trying to fetch signed url
+            setImagePreview(preview || '');
+            setRemoveExistingFile(false);
+          })();
+        } else {
+          setImagePreview(preview || '');
+          setRemoveExistingFile(false);
+        }
       }
     } else {
       resetForm();
@@ -319,12 +344,12 @@ export default function ExerciseDialog({
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
               } catch { }
-              // Upload to root: use a unique filename to avoid overwrite/permission issues
+              // Upload to exercise-prefixed path: use a unique filename to avoid overwrite/permission issues
               const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
-              const uploadPath = `${uniquePrefix}-${safeFilename}`;
+              const uploadPath = `${exerciseId}/${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
@@ -449,12 +474,12 @@ export default function ExerciseDialog({
                   new CustomEvent('exercise-upload-start', { detail: { exerciseId } })
                 );
               } catch { }
-              // Upload to root with a unique filename to avoid overwrite/permission issues
+              // Upload to exercise-prefixed path with a unique filename
               const uniquePrefix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
-              const uploadPath = `${uniquePrefix}-${safeFilename}`;
+              const uploadPath = `${exerciseId}/${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
@@ -497,7 +522,8 @@ export default function ExerciseDialog({
                 } catch { }
                 return;
               }
-              const filename = uploadPath; // store filename at bucket root
+              // Prefer returned path from the upload (may include exerciseId prefix)
+              const filename = uploadPath;
               const resolvedPath =
                 (uploadData && (uploadData.path || uploadData.uploaded?.path)) || filename;
               const { error: updateErr } = await supabase
