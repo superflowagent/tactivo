@@ -305,10 +305,10 @@ export default function ClientPrograms({ api }: Props) {
   };
 
   // Pointer-based drag fallback (for browsers where native DnD is unreliable)
-  const pointerGhostRef = React.useRef<HTMLElement | null>(null);
-  const pointerDraggingRef = React.useRef(false);
-  const pointerMoveListenerRef = React.useRef<(e: PointerEvent) => void | null>(null);
-  const pointerUpListenerRef = React.useRef<(e: PointerEvent) => void | null>(null);
+  const pointerGhostRef = React.useRef<HTMLElement | null>(null) as React.MutableRefObject<HTMLElement | null>;
+  const pointerDraggingRef = React.useRef(false) as React.MutableRefObject<boolean>;
+  const pointerMoveListenerRef = React.useRef<((e: PointerEvent) => void) | null>(null) as React.MutableRefObject<((e: PointerEvent) => void) | null>;
+  const pointerUpListenerRef = React.useRef<((e: PointerEvent) => void) | null>(null) as React.MutableRefObject<((e: PointerEvent) => void) | null>;
 
   const endPointerDrag = async (commit: boolean) => {
     pointerDraggingRef.current = false;
