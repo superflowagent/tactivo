@@ -225,7 +225,16 @@ serve(async (req) => {
             const forwardedProto = req.headers.get('x-forwarded-proto') || 'http';
             let origin = SUPABASE_URL.replace(/\/$/, '');
             if (forwardedHost) {
-              origin = `${forwardedProto}://${forwardedHost}`;
+              // Normalize forwarded host: strip default https port and avoid using internal edge hosts
+              let hostCandidate = forwardedHost;
+              try {
+                if (forwardedProto === 'https') hostCandidate = hostCandidate.replace(/:443$/, '');
+              } catch (e) {}
+              const hc = String(hostCandidate).toLowerCase();
+              // If the forwarded host looks internal (edge runtime, kong, localhost, 127.0.0.1) prefer SUPABASE_URL
+              if (!/edge-runtime|kong|127\\.0\\.0\\.1|localhost/.test(hc)) {
+                origin = `${forwardedProto}://${hostCandidate}`;
+              }
             }
             finalSigned = origin + pathname + parsed.search;
           } catch (e) {
