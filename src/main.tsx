@@ -3,6 +3,15 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 
+// Prevent browser automatic scroll restoration which can cause small jumps on navigation/load
+if (typeof history !== 'undefined' && 'scrollRestoration' in history) {
+  try {
+    history.scrollRestoration = 'manual';
+  } catch {
+    /* some browsers may throw on access; ignore */
+  }
+}
+
 // Dev helper: detect long 'message' event handling by measuring time between event and next macrotask.
 if (process.env.NODE_ENV !== 'production') {
   const isIgnoredMessage = (data: any) => {

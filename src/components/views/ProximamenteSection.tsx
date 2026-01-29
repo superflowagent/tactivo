@@ -15,29 +15,33 @@ export default function ProximamenteSection() {
     return (
         <section aria-labelledby="proximamente" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-                <h2 id="proximamente" className="text-3xl font-extrabold mb-6 text-center">Próximamente</h2>
+                <Reveal className="reveal-from-bottom">
+                    <h2 id="proximamente" className="text-3xl font-extrabold mb-6 text-center">Próximamente</h2>
+                </Reveal>
 
-                <div className="rounded-md pt-0 pb-6 px-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {items.map((it) => {
-                            const Icon = it.icon;
-                            return (
-                                <Reveal key={it.title}>
-                                    <div tabIndex={0} className="flex items-start gap-4 rounded-md border-2 border-muted p-4 bg-primary/5 transition-transform duration-150 ease-in-out transform hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
-                                        <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-md" style={{ background: 'var(--primary-gradient)' }}>
-                                            <Icon className="w-6 h-6 text-white" aria-hidden />
-                                        </div>
+                <Reveal className="reveal-from-bottom">
+                    <div className="rounded-md pt-0 pb-6 px-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {items.map((it) => {
+                                const Icon = it.icon;
+                                return (
+                                    <Reveal key={it.title}>
+                                        <div tabIndex={0} className="flex items-start gap-4 rounded-md border-2 border-muted p-4 bg-primary/5 transition-transform duration-150 ease-in-out transform hover:-translate-y-0.5 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30">
+                                            <div className="flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-md" style={{ background: 'var(--primary-gradient)' }}>
+                                                <Icon className="w-6 h-6 text-white" aria-hidden />
+                                            </div>
 
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-semibold">{it.title}</div>
-                                            <div className="mt-1 text-xs text-muted-foreground">{it.description}</div>
+                                            <div className="min-w-0">
+                                                <div className="text-sm font-semibold">{it.title}</div>
+                                                <div className="mt-1 text-xs text-muted-foreground">{it.description}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </Reveal>
-                            );
-                        })}
+                                    </Reveal>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                </Reveal>
             </div>
         </section>
     );

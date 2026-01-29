@@ -263,6 +263,15 @@
         /* Tailwind red-600 */
       }
     }
+
+    /* Landing navbar: use the purple from --primary-gradient for link hover/focus */
+    @media (hover: hover) and (pointer: fine) {
+
+      .landing-navbar .landing-nav-link:hover,
+      .landing-navbar .landing-nav-link:focus-visible {
+        color: #6366f1;
+      }
+    }
   }
 
   /* Disable hover visuals on touch devices (mobile) - apply broadly to buttons and interactive elements */
@@ -302,6 +311,32 @@
 
   .reveal-visible {
     opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Horizontal reveal variants (used for features previews)
+     - .reveal-from-left: starts shifted left and animates to natural position
+     - .reveal-from-right: starts shifted right and animates to natural position
+  */
+  .reveal-from-left {
+    transform: translateX(-24px);
+  }
+
+  .reveal-from-right {
+    transform: translateX(24px);
+  }
+
+  .reveal-visible.reveal-from-left,
+  .reveal-visible.reveal-from-right {
+    transform: translateX(0);
+  }
+
+  /* Reveal from bottom variant (titles) */
+  .reveal-from-bottom {
+    transform: translateY(28px);
+  }
+
+  .reveal-visible.reveal-from-bottom {
     transform: translateY(0);
   }
 

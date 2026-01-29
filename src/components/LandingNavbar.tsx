@@ -12,7 +12,7 @@ export function LandingNavbar() {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-background/70 backdrop-blur-md border-b border-muted">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-background/70 backdrop-blur-md border-b border-muted landing-navbar">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center relative">
         {/* Mobile menu toggle - left on mobile */}
         <button
@@ -45,7 +45,7 @@ export function LandingNavbar() {
             <a
               key={l.title}
               href={l.href}
-              className="text-neutral-900 hover:text-primary transition-colors"
+              className="landing-nav-link text-neutral-900 transition-colors"
             >
               {l.title}
             </a>
@@ -89,7 +89,7 @@ export function LandingNavbar() {
               <a
                 key={l.title}
                 href={l.href}
-                className="text-neutral-900 hover:text-primary transition-colors"
+                className="landing-nav-link text-neutral-900 transition-colors"
               >
                 {l.title}
               </a>

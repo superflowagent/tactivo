@@ -34,14 +34,25 @@ export function FeaturesSection() {
   return (
     <section aria-labelledby="funcionalidades" className="w-full py-12">
       <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-        <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6 text-center">Funcionalidades</h2>
+        <Reveal className="reveal-from-bottom">
+          <h2 id="funcionalidades" className="text-3xl font-extrabold mb-6 text-center">Funcionalidades</h2>
+        </Reveal>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {features.map((f, idx) => {
             const cardHeightClass = 'min-h-[28rem]';
             const delay = idx * 90; // stagger: 90ms
+
+            // Map titles to reveal direction
+            const revealClass =
+              f.title === 'Agenda autónoma' || f.title === 'Programas de ejercicios'
+                ? 'reveal-from-left'
+                : f.title === 'Clases' || f.title === 'Multidispositivo'
+                  ? 'reveal-from-right'
+                  : '';
+
             return (
-              <Reveal key={f.title} delay={delay}>
+              <Reveal key={f.title} delay={delay} className={revealClass}>
                 <Card tabIndex={0} className={`w-full group cursor-default relative overflow-hidden flex flex-col ${cardHeightClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-primary transform-gpu transition-transform duration-200 ease-out motion-reduce:transform-none motion-reduce:transition-none`}>
                   <div className="relative z-10 flex-1 flex flex-col sm:flex-row items-center w-full h-full">
                     <div className="w-full sm:w-[34%] p-6 flex flex-col justify-center">

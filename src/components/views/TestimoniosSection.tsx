@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import Reveal from '@/components/ui/Reveal';
 
 import AnimatedTestimonials from '@/components/ui/animated-testimonials';
 
@@ -44,56 +45,60 @@ export default function TestimoniosSection() {
     return (
         <section aria-labelledby="testimonios" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-                <h2 id="testimonios" className="text-3xl font-extrabold mb-6 text-center">Testimonios</h2>
+                <Reveal className="reveal-from-bottom">
+                    <h2 id="testimonios" className="text-3xl font-extrabold mb-6 text-center">Testimonios</h2>
+                </Reveal>
 
-                <div className="rounded-md p-0 border-2 border-muted mx-auto max-w-4xl">
-                    <AnimatedTestimonials
-                        hideControls
-                        ref={testimonialsRef}
-                        onIndexChange={setInternalIndex}
-                        onProgress={setInternalProgress}
-                        testimonials={testimonialsList}
-                    />
-                </div>
+                <Reveal className="reveal-from-bottom">
+                    <div className="rounded-md p-0 border-2 border-muted mx-auto max-w-4xl">
+                        <AnimatedTestimonials
+                            hideControls
+                            ref={testimonialsRef}
+                            onIndexChange={setInternalIndex}
+                            onProgress={setInternalProgress}
+                            testimonials={testimonialsList}
+                        />
+                    </div>
 
-                <div className="w-full flex justify-center mt-2 mb-0">
-                    <div className="w-full max-w-4xl">
-                        <div className="h-1 bg-transparent rounded-full overflow-hidden">
-                            <div className="h-full origin-left" style={{ transform: `scaleX(${internalProgress})`, willChange: 'transform', background: 'var(--primary-gradient)' }} aria-hidden />
+                    <div className="w-full flex justify-center mt-2 mb-0">
+                        <div className="w-full max-w-4xl">
+                            <div className="h-1 bg-transparent rounded-full overflow-hidden">
+                                <div className="h-full origin-left" style={{ transform: `scaleX(${internalProgress})`, willChange: 'transform', background: 'var(--primary-gradient)' }} aria-hidden />
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="mt-1 p-2 flex items-center justify-center gap-2 mx-auto max-w-4xl">
-                    <button
-                        onClick={() => testimonialsRef.current?.prev()}
-                        aria-label="Anterior testimonio"
-                        className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/10 hover:bg-muted/20 text-foreground"
-                    >
-                        <ArrowLeft className="w-6 h-6" />
-                    </button>
+                    <div className="mt-1 p-2 flex items-center justify-center gap-2 mx-auto max-w-4xl">
+                        <button
+                            onClick={() => testimonialsRef.current?.prev()}
+                            aria-label="Anterior testimonio"
+                            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/10 hover:bg-muted/20 text-foreground"
+                        >
+                            <ArrowLeft className="w-6 h-6" />
+                        </button>
 
-                    <button
-                        onClick={() => testimonialsRef.current?.next()}
-                        aria-label="Siguiente testimonio"
-                        className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/10 hover:bg-muted/20 text-foreground"
-                    >
-                        <ArrowRight className="w-6 h-6" />
-                    </button>
+                        <button
+                            onClick={() => testimonialsRef.current?.next()}
+                            aria-label="Siguiente testimonio"
+                            className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted/10 hover:bg-muted/20 text-foreground"
+                        >
+                            <ArrowRight className="w-6 h-6" />
+                        </button>
 
-                    <div className="ml-4 flex items-center gap-3">
-                        {testimonialsList.map((_, i) => (
-                            <button
-                                key={i}
-                                onClick={() => testimonialsRef.current?.setIndex(i)}
-                                aria-label={`Ir al testimonio ${i + 1}`}
-                                className={`w-3 h-3 rounded-full transform transition ${i === internalIndex ? 'bg-foreground scale-110' : 'bg-slate-300 scale-100'}`}
-                            />
-                        ))}
+                        <div className="ml-4 flex items-center gap-3">
+                            {testimonialsList.map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => testimonialsRef.current?.setIndex(i)}
+                                    aria-label={`Ir al testimonio ${i + 1}`}
+                                    className={`w-3 h-3 rounded-full transform transition ${i === internalIndex ? 'bg-foreground scale-110' : 'bg-slate-300 scale-100'}`}
+                                />
+                            ))}
+                        </div>
+
+
                     </div>
-
-
-                </div>
+                </Reveal>
             </div>
         </section>
     );

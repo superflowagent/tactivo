@@ -14,6 +14,13 @@ import Reveal from '@/components/ui/Reveal';
 
 export function LandingView() {
   useEffect(() => {
+    // Ensure page starts at top to avoid a small downward jump when the landing mounts
+    if (typeof window !== 'undefined') {
+      requestAnimationFrame(() => {
+        if (window.scrollY !== 0) window.scrollTo(0, 0);
+      });
+    }
+
     loadGtag('AW-17912605308')
       .then(() => {
         if (typeof window !== 'undefined' && typeof window.gtag === 'function') {

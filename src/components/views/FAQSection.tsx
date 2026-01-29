@@ -92,14 +92,20 @@ export function FAQSection() {
     return (
         <section aria-labelledby="preguntas-frecuentes" className="w-full py-12">
             <div className="mx-auto max-w-7xl md:max-w-[85rem] px-6">
-                <h2 id="preguntas-frecuentes" className="text-3xl font-extrabold mb-6 text-center">Preguntas frecuentes</h2>
+                <Reveal className="reveal-from-bottom">
+                    <h2 id="preguntas-frecuentes" className="text-3xl font-extrabold mb-6 text-center">Preguntas frecuentes</h2>
+                </Reveal>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                     {faqs.map((f, idx) => {
                         const isOpen = !!openMap[idx];
                         const delay = idx * 60; // stagger: 60ms
+
+                        // Even indices are left column, odd indices are right column
+                        const revealClass = idx % 2 === 0 ? 'reveal-from-left' : 'reveal-from-right';
+
                         return (
-                            <Reveal key={f.q} delay={delay}>
+                            <Reveal key={f.q} delay={delay} className={revealClass}>
                                 <div className="border-2 border-muted rounded-md bg-muted/5 overflow-hidden">
                                     <button
                                         type="button"
