@@ -360,13 +360,14 @@ export default function ExerciseDialog({
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
-              const uploadPath = `${exerciseId}/${uniquePrefix}-${safeFilename}`;
+              // Prefix with company id so RLS policies that check the first path segment (company id) succeed
+              const uploadPath = `${user.company}/${exerciseId}/${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, { upsert: false }),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, { upsert: false }, { company: user.company, exerciseId }),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
@@ -501,13 +502,14 @@ export default function ExerciseDialog({
               // sanitize filename to remove accents and unsafe characters
               const { sanitizeFilename } = await import('@/lib/stringUtils');
               const safeFilename = sanitizeFilename(filenameOnly);
-              const uploadPath = `${exerciseId}/${uniquePrefix}-${safeFilename}`;
+              // Prefix with company id so RLS policies that check the first path segment (company id) succeed
+              const uploadPath = `${user.company}/${exerciseId}/${uniquePrefix}-${safeFilename}`;
 
               // Add a total upload timeout so we never wait indefinitely (4 minutes)
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, undefined, { company: user.company, exerciseId }),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
