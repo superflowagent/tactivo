@@ -686,7 +686,7 @@ export function ProfesionalDialog({
                     </TooltipProvider>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 min-w-0">
                   <Input
                     id="email"
                     type="email"
@@ -695,7 +695,7 @@ export function ProfesionalDialog({
                     disabled={!!profesional?.id}
                     readOnly={!!profesional?.id}
                     required
-                    className="w-full h-10"
+                    className="w-full h-10 truncate min-w-0"
                   />
 
                   <Button
@@ -703,7 +703,7 @@ export function ProfesionalDialog({
                     variant="outline"
                     onClick={handleSendResetConfirm}
                     disabled={!profesional?.id || !formData.email || sendingReset}
-                    className="w-full justify-center h-10"
+                    className="w-full justify-center h-10 min-w-0 truncate"
                   >
                     <Mail className="mr-2 h-4 w-4" />
                     {sendingReset ? 'Enviando...' : 'Restablecer contraseña'}
@@ -774,7 +774,7 @@ export function ProfesionalDialog({
 
                 {/* Fecha de nacimiento + edad con Notas debajo en toda la fila */}
                 <div className="col-span-2 space-y-2">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 min-w-0">
                     <div className="space-y-2">
                       <Label htmlFor="pro-fecha">Fecha de Nacimiento</Label>
                       <Popover>
@@ -783,7 +783,7 @@ export function ProfesionalDialog({
                             id="pro-fecha"
                             variant="outline"
                             className={cn(
-                              'w-full justify-start text-left font-normal h-10',
+                              'w-full justify-start text-left font-normal h-10 truncate min-w-0',
                               !fechaNacimiento && 'text-muted-foreground'
                             )}
                           >
@@ -835,13 +835,14 @@ export function ProfesionalDialog({
           </form>
 
           <DialogFooter>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               {profesional?.id && (
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={() => setShowDeleteDialog(true)}
                   disabled={loading || deleting}
+                  className="min-w-0"
                 >
                   {deleting ? (
                     <>

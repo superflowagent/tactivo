@@ -311,8 +311,13 @@ export default function ClientPrograms({ api }: Props) {
   const pointerUpListenerRef = React.useRef<((e: PointerEvent) => void) | null>(null) as React.MutableRefObject<((e: PointerEvent) => void) | null>;
 
   const endPointerDrag = async (commit: boolean) => {
+    // Capture current state values before clearing
+    const currentDraggingPeKey = draggingPeKey;
+    const currentDragOverDay = dragOverDay;
+    const currentDragOverIndex = dragOverIndex;
+
     // eslint-disable-next-line no-console
-    console.log('endPointerDrag called', { commit, draggingPeKey, dragSourceDay, dragOverDay, dragOverIndex });
+    console.log('endPointerDrag called', { commit, draggingPeKey: currentDraggingPeKey, dragSourceDay, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
     pointerDraggingRef.current = false;
     // remove ghost
     if (pointerGhostRef.current) {
@@ -333,15 +338,15 @@ export default function ClientPrograms({ api }: Props) {
     }
 
     // If pointer drag ended and we have a valid target, commit it
-    if (commit && draggingPeKey && dragOverDay != null && dragOverIndex != null) {
+    if (commit && currentDraggingPeKey && currentDragOverDay != null && currentDragOverIndex != null) {
       // eslint-disable-next-line no-console
-      console.log('endPointerDrag committing', { draggingPeKey, dragOverDay, dragOverIndex });
-      await handleDropOnProgram(activeProgramId, String(dragOverDay), dragOverIndex).catch((err) => {
+      console.log('endPointerDrag committing', { draggingPeKey: currentDraggingPeKey, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
+      await handleDropOnProgram(activeProgramId, String(currentDragOverDay), currentDragOverIndex).catch((err) => {
         logError('Error committing pointer drag drop', err);
       });
     } else {
       // eslint-disable-next-line no-console
-      console.log('endPointerDrag not committing (no valid target or not commit)', { commit, draggingPeKey, dragOverDay, dragOverIndex });
+      console.log('endPointerDrag not committing (no valid target or not commit)', { commit, draggingPeKey: currentDraggingPeKey, dragOverDay: currentDragOverDay, dragOverIndex: currentDragOverIndex });
     }
 
     clearDragState();
@@ -407,7 +412,7 @@ export default function ClientPrograms({ api }: Props) {
       // detect target element under pointer
       const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
       // eslint-disable-next-line no-console
-      console.log('pointer onMove', { x: ev.clientX, y: ev.clientY, targetClass: (el as any)?.className, srcDay, srcIndex });
+      console.log('pointer onMove', { x: ev.clientX, y: ev.clientY, targetClass: (el as any)?.className });
       if (!el) return;
 
       // find nearest card or row
@@ -440,14 +445,14 @@ export default function ClientPrograms({ api }: Props) {
 
     const onUp = (ev: PointerEvent) => {
       // eslint-disable-next-line no-console
-      console.log('pointer onUp', { clientX: ev.clientX, clientY: ev.clientY, draggingPeKey: draggingPeKey, dragOverDay, dragOverIndex });
+      console.log('pointer onUp (before endPointerDrag)', { clientX: ev.clientX, clientY: ev.clientY, currentDraggingPeKey: draggingPeKey, currentDragOverDay: dragOverDay, currentDragOverIndex: dragOverIndex });
       try { ev.preventDefault(); } catch (e) { }
       endPointerDrag(true);
     };
 
     const onCancel = (ev: PointerEvent) => {
       // eslint-disable-next-line no-console
-      console.log('pointer onCancel', { clientX: (ev as any)?.clientX, clientY: (ev as any)?.clientY, draggingPeKey: draggingPeKey, dragOverDay, dragOverIndex });
+      console.log('pointer onCancel', { clientX: (ev as any)?.clientX, clientY: (ev as any)?.clientY, currentDraggingPeKey: draggingPeKey, currentDragOverDay: dragOverDay, currentDragOverIndex: dragOverIndex });
       try { ev.preventDefault(); } catch (e) { }
       endPointerDrag(false);
     };
