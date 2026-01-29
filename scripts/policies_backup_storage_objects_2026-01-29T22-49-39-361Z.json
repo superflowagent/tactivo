@@ -1,0 +1,20 @@
+[
+  {
+    "polname": "consolidated_storage.objects_UPDATE_cf4cf4ffe35b1036a0d4927abac",
+    "polcmd": "w",
+    "using_expr": "(((bucket_id = 'profile_photos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'company_logos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'exercise_videos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND ((owner = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE (((p.\"user\" = ( SELECT auth.uid() AS uid)) OR (p.id = ( SELECT auth.uid() AS uid))) AND (p.company = (split_part(p.name, '/'::text, 1))::uuid)))))))",
+    "with_check_expr": "(((bucket_id = 'profile_photos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'company_logos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'exercise_videos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND ((owner = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE (((p.\"user\" = ( SELECT auth.uid() AS uid)) OR (p.id = ( SELECT auth.uid() AS uid))) AND (p.company = (split_part(p.name, '/'::text, 1))::uuid)))))))"
+  },
+  {
+    "polname": "consolidated_storage.objects_DELETE_3ceca0b606977792c2fb82a40ec",
+    "polcmd": "d",
+    "using_expr": "(((bucket_id = 'company_logos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'profile_photos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND (owner = ( SELECT auth.uid() AS uid))) OR ((bucket_id = 'exercise_videos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND ((owner = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE (((p.\"user\" = ( SELECT auth.uid() AS uid)) OR (p.id = ( SELECT auth.uid() AS uid))) AND (p.company = (split_part(p.name, '/'::text, 1))::uuid)))))))",
+    "with_check_expr": null
+  },
+  {
+    "polname": "consolidated_storage.objects_ALL_03c99bd834c179d9d6038c108c0d27",
+    "polcmd": "*",
+    "using_expr": null,
+    "with_check_expr": "(((bucket_id = 'company_logos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text)) OR ((bucket_id = 'profile_photos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text)) OR ((bucket_id = 'exercise_videos'::text) AND (( SELECT auth.role() AS role) = 'authenticated'::text) AND ((owner = ( SELECT auth.uid() AS uid)) OR (EXISTS ( SELECT 1\n   FROM profiles p\n  WHERE (((p.\"user\" = ( SELECT auth.uid() AS uid)) OR (p.id = ( SELECT auth.uid() AS uid))) AND (p.company = (split_part(p.name, '/'::text, 1))::uuid)))))))"
+  }
+]
