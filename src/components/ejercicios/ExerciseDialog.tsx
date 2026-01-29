@@ -367,7 +367,7 @@ export default function ExerciseDialog({
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, { upsert: false }, { company: user.company, exerciseId }),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, { upsert: false }, { company: user.company ?? undefined, exerciseId }),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
@@ -509,7 +509,7 @@ export default function ExerciseDialog({
               let uploadResult: any;
               try {
                 uploadResult = await Promise.race([
-                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, undefined, { company: user.company, exerciseId }),
+                  uploadVideoWithCompression('exercise_videos', uploadPath, imageFile, undefined, { company: user.company ?? undefined, exerciseId }),
                   new Promise((_, rej) =>
                     setTimeout(() => rej(new Error('upload total timed out')), 4 * 60_000)
                   ),
