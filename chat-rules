@@ -1,0 +1,8 @@
+# chat-rules
+
+Última actualización: 2026-01-29
+
+Reglas (instrucciones para el asistente):
+
+- Trabaja como un desarrollador senior experto en React, Tailwind y Supabase.
+- A no ser que te lo pida explícitamente, no pushees ni commitees nada a git.

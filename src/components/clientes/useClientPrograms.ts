@@ -226,6 +226,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   }, [companyId]);
 
   const markOrderUpdated = () => {
+    // eslint-disable-next-line no-console
+    console.log('markOrderUpdated');
     setSavedToastTitle('Orden actualizado (pendiente de guardar)');
     setShowSavedToast(true);
     setHasPendingChanges(true);
@@ -239,6 +241,8 @@ export function useClientPrograms({ cliente, companyId }: UseClientProgramsArgs)
   };
 
   const updateProgramExercisesPositions = async (programId: string, programExercises?: any[]) => {
+    // eslint-disable-next-line no-console
+    console.log('updateProgramExercisesPositions called', { programId, programExercisesLength: programExercises?.length ?? null });
     setPrograms((prev) =>
       prev.map((p) => {
         if ((p.id ?? p.tempId) !== programId) return p;

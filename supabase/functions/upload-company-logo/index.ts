@@ -119,7 +119,7 @@ serve(async (req: Request) => {
       if (String(content_type).toLowerCase().startsWith('video/')) {
         return jsonResponse({ error: 'videos must be uploaded to the exercise_videos bucket' }, 400);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Verify caller belongs to the company (unless admin-secret used)
     if (callerUserId) {
