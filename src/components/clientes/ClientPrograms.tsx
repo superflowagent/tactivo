@@ -304,6 +304,161 @@ export default function ClientPrograms({ api }: Props) {
     setDragOverIndex(null);
   };
 
+  // Pointer-based drag fallback (for browsers where native DnD is unreliable)
+  const pointerGhostRef = React.useRef<HTMLElement | null>(null);
+  const pointerDraggingRef = React.useRef(false);
+  const pointerMoveListenerRef = React.useRef<(e: PointerEvent) => void | null>(null);
+  const pointerUpListenerRef = React.useRef<(e: PointerEvent) => void | null>(null);
+
+  const endPointerDrag = async (commit: boolean) => {
+    pointerDraggingRef.current = false;
+    // remove ghost
+    if (pointerGhostRef.current) {
+      try {
+        document.body.removeChild(pointerGhostRef.current);
+      } catch (e) {}
+      pointerGhostRef.current = null;
+    }
+
+    // remove listeners
+    if (pointerMoveListenerRef.current) {
+      window.removeEventListener('pointermove', pointerMoveListenerRef.current);
+      pointerMoveListenerRef.current = null;
+    }
+    if (pointerUpListenerRef.current) {
+      window.removeEventListener('pointerup', pointerUpListenerRef.current);
+      pointerUpListenerRef.current = null;
+    }
+
+    if (commit && draggingPeKey && dragOverDay != null && dragOverIndex != null) {
+      await handleDropOnProgram(activeProgramId, String(dragOverDay), dragOverIndex).catch((err) => {
+        logError('Error committing pointer drag drop', err);
+      });
+    }
+
+    clearDragState();
+  };
+
+  const startPointerDrag = (idKey: string, srcDay: string, srcIndex: number, e: React.PointerEvent) => {
+    if (isClient) return;
+    e.preventDefault();
+    // ensure focus goes away
+    try {
+      (e.target as HTMLElement)?.blur();
+    } catch (err) {}
+
+    setDraggingPeKey(idKey);
+    setDragSourceDay(srcDay);
+    setDragOverDay(srcDay);
+    setDragOverIndex(srcIndex);
+
+    // Create ghost - find the card using the data attribute to avoid fragile class selectors
+    const src = (e.currentTarget as HTMLElement).closest('[data-pe-key]') as HTMLElement | null;
+    let ghost: HTMLElement | null = null;
+    try {
+      const node = src ? (src.cloneNode(true) as HTMLElement) : document.createElement('div');
+      ghost = document.createElement('div');
+      ghost.style.position = 'fixed';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.zIndex = '9999';
+      ghost.style.left = e.clientX + 8 + 'px';
+      ghost.style.top = e.clientY + 8 + 'px';
+      ghost.style.width = '260px';
+      ghost.style.opacity = '0.85';
+      ghost.style.boxShadow = '0 8px 24px rgba(0,0,0,0.15)';
+      ghost.style.borderRadius = '8px';
+      if (node && node instanceof HTMLElement) {
+        // add contents - prefer the inner card element if present
+        const content = node.querySelector('div[class*="card"], .relative > div') || node;
+        ghost.appendChild((content.cloneNode(true) as HTMLElement));
+      } else {
+        ghost.textContent = 'Dragging';
+        ghost.style.background = '#fff';
+        ghost.style.border = '1px solid #ddd';
+        ghost.style.padding = '8px';
+      }
+      document.body.appendChild(ghost);
+      pointerGhostRef.current = ghost;
+    } catch (err) {
+      // ignore
+    }
+
+    pointerDraggingRef.current = true;
+
+    const onMove = (ev: PointerEvent) => {
+      if (!pointerDraggingRef.current) return;
+      if (pointerGhostRef.current) {
+        pointerGhostRef.current.style.left = ev.clientX + 8 + 'px';
+        pointerGhostRef.current.style.top = ev.clientY + 8 + 'px';
+      }
+
+      // detect target element under pointer
+      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null;
+      if (!el) return;
+
+      // find nearest card or row
+      const cardEl = el.closest('[data-pe-key]') as HTMLElement | null;
+      if (cardEl) {
+        const dayAttr = cardEl.getAttribute('data-day');
+        const idxAttr = cardEl.getAttribute('data-index');
+        const day = dayAttr ?? srcDay;
+        const idx = idxAttr ? Number(idxAttr) : srcIndex;
+        setDragOverDay(day);
+        setDragOverIndex(idx);
+        return;
+      }
+
+      const rowEl = el.closest('[data-day]') as HTMLElement | null;
+      if (rowEl) {
+        const day = rowEl.getAttribute('data-day') || srcDay;
+        setDragOverDay(day);
+        setDragOverIndex(Number.MAX_SAFE_INTEGER);
+        return;
+      }
+
+      // otherwise clear index
+      setDragOverIndex(null);
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      ev.preventDefault();
+      endPointerDrag(true);
+    };
+
+    pointerMoveListenerRef.current = onMove;
+    pointerUpListenerRef.current = onUp;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once: true });
+  };
+
+  // Debug: when dragging, attach global listeners to inspect where events are firing
+  React.useEffect(() => {
+    if (!draggingPeKey) return;
+
+    const onDocDragOver = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('doc dragover', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
+    };
+    const onDocDragEnter = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('doc dragenter', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
+    };
+    const onDocDrop = (e: DragEvent) => {
+      // eslint-disable-next-line no-console
+      console.log('doc drop', { target: (e.target as HTMLElement)?.className, x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener('dragover', onDocDragOver, true);
+    window.addEventListener('dragenter', onDocDragEnter, true);
+    window.addEventListener('drop', onDocDrop, true);
+
+    return () => {
+      window.removeEventListener('dragover', onDocDragOver, true);
+      window.removeEventListener('dragenter', onDocDragEnter, true);
+      window.removeEventListener('drop', onDocDrop, true);
+    };
+  }, [draggingPeKey]);
+
   const handleDropOnProgram = async (programKey: string, toDay: string, toIndex: number) => {
     // debug
     // eslint-disable-next-line no-console
@@ -792,7 +947,15 @@ export default function ClientPrograms({ api }: Props) {
                                       <div
                                         key={pe.id || pe.tempId}
                                         className="relative w-[260px] flex-none"
+                                        data-pe-key={pe.id ?? pe.tempId}
+                                        data-day={day}
+                                        data-index={i}
                                         draggable={!isClient}
+                                        onPointerDown={(e) => {
+                                          if ((e as React.PointerEvent).button === 0) {
+                                            startPointerDrag(pe.id ?? pe.tempId, day, i, e as React.PointerEvent);
+                                          }
+                                        }}
                                         onDragStart={(e) => {
                                           e.stopPropagation();
                                           const idKey = pe.id ?? pe.tempId;
@@ -897,6 +1060,11 @@ export default function ClientPrograms({ api }: Props) {
                                                       <button
                                                         draggable={!isClient}
                                                         onMouseDown={(e) => e.stopPropagation()}
+                                                        onPointerDown={(e) => {
+                                                          e.stopPropagation();
+                                                          // Start pointer-based drag immediately
+                                                          startPointerDrag(pe.id ?? pe.tempId, day, i, e as React.PointerEvent);
+                                                        }}
                                                         onDragStart={(e) => {
                                                           e.stopPropagation();
                                                           const idKey = pe.id ?? pe.tempId;
@@ -911,7 +1079,7 @@ export default function ClientPrograms({ api }: Props) {
                                                           setDragOverDay(day);
                                                           setDragOverIndex(i);
                                                         }}
-                                                        className="mr-1 h-6 w-6 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-grab"
+                                                        className="mr-1 h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-grab"
                                                         aria-label="Arrastrar ejercicio"
                                                         title="Arrastrar ejercicio"
                                                       >
