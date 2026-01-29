@@ -2503,71 +2503,70 @@ $$ LANGUAGE plpgsql;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_authenticated_uploads_exercise_videos') THEN
-    CREATE POLICY allow_authenticated_uploads_exercise_videos
+  -- Relaxed INSERT policy: allow any authenticated user to insert into exercise_videos.
+  -- This reduces friction for client uploads while keeping update/delete checks scoped.
+  DROP POLICY IF EXISTS allow_authenticated_uploads_exercise_videos ON storage.objects;
+  CREATE POLICY allow_authenticated_uploads_exercise_videos
     ON storage.objects
     FOR INSERT
     WITH CHECK (
-      bucket_id = 'exercise_videos'
-      AND auth.role() = 'authenticated'
-      AND (
-        owner = auth.uid()::uuid
-        OR EXISTS (
-          SELECT 1 FROM public.profiles p
-          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
-            AND p.company = split_part(name, '/', 1)::uuid
-        )
-      )
+      (auth.role() = 'service_role'::text)
+      OR (bucket_id = 'exercise_videos' AND auth.role() = 'authenticated'::text)
     );
-  END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_update_exercise_videos_by_owner_or_company') THEN
-    CREATE POLICY allow_update_exercise_videos_by_owner_or_company
+  -- Ensure updates are allowed to the object's owner or company members
+  DROP POLICY IF EXISTS allow_update_exercise_videos_by_owner_or_company ON storage.objects;
+  CREATE POLICY allow_update_exercise_videos_by_owner_or_company
     ON storage.objects
     FOR UPDATE
     USING (
-      bucket_id = 'exercise_videos'
-      AND auth.role() = 'authenticated'
-      AND (
-        owner = auth.uid()::uuid
-        OR EXISTS (
-          SELECT 1 FROM public.profiles p
-          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
-            AND p.company = split_part(name, '/', 1)::uuid
+      (auth.role() = 'service_role'::text)
+      OR (
+        bucket_id = 'exercise_videos'
+        AND (
+          owner = auth.uid()::uuid
+          OR EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE ((p.user = auth.uid()::uuid) OR (p.id = auth.uid()::uuid))
+              AND p.company = split_part(name, '/', 1)::uuid
+          )
         )
       )
     )
     WITH CHECK (
-      bucket_id = 'exercise_videos'
-      AND auth.role() = 'authenticated'
-      AND (
-        owner = auth.uid()::uuid
-        OR EXISTS (
-          SELECT 1 FROM public.profiles p
-          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
-            AND p.company = split_part(name, '/', 1)::uuid
+      (auth.role() = 'service_role'::text)
+      OR (
+        bucket_id = 'exercise_videos'
+        AND (
+          owner = auth.uid()::uuid
+          OR EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE ((p.user = auth.uid()::uuid) OR (p.id = auth.uid()::uuid))
+              AND p.company = split_part(name, '/', 1)::uuid
+          )
         )
       )
     );
-  END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_policy p WHERE p.polname = 'allow_delete_exercise_videos_by_owner_or_company') THEN
-    CREATE POLICY allow_delete_exercise_videos_by_owner_or_company
+  -- Ensure deletes are allowed to the object's owner or company members
+  DROP POLICY IF EXISTS allow_delete_exercise_videos_by_owner_or_company ON storage.objects;
+  CREATE POLICY allow_delete_exercise_videos_by_owner_or_company
     ON storage.objects
     FOR DELETE
     USING (
-      bucket_id = 'exercise_videos'
-      AND auth.role() = 'authenticated'
-      AND (
-        owner = auth.uid()::uuid
-        OR EXISTS (
-          SELECT 1 FROM public.profiles p
-          WHERE (p.user = auth.uid()::uuid OR p.id = auth.uid()::uuid)
-            AND p.company = split_part(name, '/', 1)::uuid
+      (auth.role() = 'service_role'::text)
+      OR (
+        bucket_id = 'exercise_videos'
+        AND (
+          owner = auth.uid()::uuid
+          OR EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE ((p.user = auth.uid()::uuid) OR (p.id = auth.uid()::uuid))
+              AND p.company = split_part(name, '/', 1)::uuid
+          )
         )
       )
     );
-  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
