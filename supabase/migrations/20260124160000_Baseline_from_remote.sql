@@ -1669,9 +1669,9 @@ CREATE POLICY "Company members can delete" ON "public"."program_exercises" FOR D
 
 
 DROP POLICY IF EXISTS "Company members can delete" ON public."programs";
-CREATE POLICY "Company members can delete" ON "public"."programs" FOR DELETE USING ((EXISTS ( SELECT 1
+CREATE POLICY "Company members can delete" ON "public"."programs" FOR DELETE USING ((("auth"."role"() = 'service_role'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user" = "auth"."uid"()) AND ("p"."company" = "programs"."company") AND (("p"."role" = 'professional'::"text") OR ("p"."role" = 'admin'::"text"))))));
+  WHERE (("p"."user" = "auth"."uid"()) AND ("p"."company" = "programs"."company") AND (("p"."role" = 'professional'::"text") OR ("p"."role" = 'admin'::"text")))))));
 
 
 
@@ -1707,9 +1707,9 @@ CREATE POLICY "Company members can insert" ON "public"."program_exercises" FOR I
 
 
 DROP POLICY IF EXISTS "Company members can insert" ON public."programs";
-CREATE POLICY "Company members can insert" ON "public"."programs" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+CREATE POLICY "Company members can insert" ON "public"."programs" FOR INSERT WITH CHECK ((("auth"."role"() = 'service_role'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user" = "auth"."uid"()) AND ("p"."company" = "programs"."company") AND (("p"."role" = 'professional'::"text") OR ("p"."role" = 'admin'::"text"))))));
+  WHERE ((("p"."id" = "auth"."uid"()::uuid) OR ("p"."user" = "auth"."uid"())) AND ("p"."company" = "programs"."company") AND (("p"."role" = 'professional'::"text") OR ("p"."role" = 'admin'::"text")))))));
 
 
 
@@ -1743,9 +1743,9 @@ CREATE POLICY "Company members can select" ON "public"."program_exercises" FOR S
 
 
 DROP POLICY IF EXISTS "Company members can select" ON public."programs";
-CREATE POLICY "Company members can select" ON "public"."programs" FOR SELECT USING ((EXISTS ( SELECT 1
+CREATE POLICY "Company members can select" ON "public"."programs" FOR SELECT USING ((("auth"."role"() = 'service_role'::"text") OR (EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user" = "auth"."uid"()) AND ("p"."company" = "programs"."company")))));
+  WHERE ((("p"."id" = "auth"."uid"()::uuid) OR ("p"."user" = "auth"."uid"())) AND ("p"."company" = "programs"."company"))))));
 
 
 
@@ -2571,6 +2571,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Ensure required storage buckets exist (attempt via storage functions if available). If your Supabase instance
+-- does not expose server-side storage functions, use the HTTP API example below to create buckets.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'create_bucket' AND n.nspname = 'storage'
+  ) THEN
+    BEGIN
+      PERFORM storage.create_bucket('profile_photos', '{"name":"Profile photos","public":false}'::json);
+    EXCEPTION WHEN others THEN RAISE NOTICE 'profile_photos bucket creation skipped: %', SQLERRM; END;
+
+    BEGIN
+      PERFORM storage.create_bucket('company_logos', '{"name":"Company logos","public":false}'::json);
+    EXCEPTION WHEN others THEN RAISE NOTICE 'company_logos bucket creation skipped: %', SQLERRM; END;
+
+    BEGIN
+      PERFORM storage.create_bucket('exercise_videos', '{"name":"Exercise videos","public":false}'::json);
+    EXCEPTION WHEN others THEN RAISE NOTICE 'exercise_videos bucket creation skipped: %', SQLERRM; END;
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Normalize storage path conventions (operator-run guidance)
+--  - profile photos:    profile_id/<filename>
+--  - company logos:     company_id/<filename>
+--  - exercise videos:   exercise_id/<filename>
+--
+-- Operator SQL examples (run only after validating objects in Storage):
+-- UPDATE public.profiles
+-- SET photo_path = id || '/' || photo_path
+-- WHERE photo_path IS NOT NULL AND photo_path <> '' AND photo_path NOT LIKE '%/%';
+--
+-- UPDATE public.companies
+-- SET logo_path = id || '/' || logo_path
+-- WHERE logo_path IS NOT NULL AND logo_path <> '' AND logo_path NOT LIKE '%/%';
+--
+-- UPDATE public.exercises
+-- SET file = id || '/' || file
+-- WHERE file IS NOT NULL AND file <> '' AND file NOT LIKE '%/%';
+--
+-- These statements are intentionally operator-run only to avoid data loss.
+
+-- Storage bucket notes: the project expects buckets "profile_photos","company_logos","exercise_videos".
+-- Example to create via HTTP API:
+--  curl -X POST "http://localhost:54321/storage/v1/bucket" \
+--    -H "apikey: <SERVICE_ROLE_KEY>" -H "Authorization: Bearer <SERVICE_ROLE_KEY>" \
+--    -H "Content-Type: application/json" -d '{"id":"profile_photos","name":"Profile photos","public":false}'
+
 -- Non-destructive adjustments: ensure functions have explicit search_path and tighten RLS for profiles
 BEGIN;
 
@@ -2829,7 +2878,7 @@ END$$;
 DO $$
 DECLARE
   g RECORD;
-  pol_rec RECORD;
+  pol_rec text;
   i int;
   combined_using text;
   combined_check text;
