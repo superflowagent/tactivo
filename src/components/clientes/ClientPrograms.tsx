@@ -285,79 +285,7 @@ export default function ClientPrograms({ api }: Props) {
     });
   }, [exercisesForCompany, exerciseSearchTerm, selectedFilterAnatomy, selectedFilterEquipment]);
 
-
-
-
-
-  // Drag & drop state & helpers
-  const [draggingPeKey, setDraggingPeKey] = useState<string | null>(null);
-  const [dragSourceDay, setDragSourceDay] = useState<string | null>(null);
-  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
   const [savingProgram, setSavingProgram] = useState(false);
-
-  const clearDragState = () => {
-    setDraggingPeKey(null);
-    setDragSourceDay(null);
-    setDragOverDay(null);
-    setDragOverIndex(null);
-  };
-
-  const handleDropOnProgram = async (
-    programKey: string,
-    toDay: string,
-    toIndex: number,
-    draggedKey?: string
-  ) => {
-    // debug
-    // eslint-disable-next-line no-console
-    const activeDraggingKey = draggedKey ?? draggingPeKey;
-    console.log('handleDropOnProgram', { programKey, toDay, toIndex, activeDraggingKey });
-    const program = programs.find((p) => (p.id ?? p.tempId) === programKey);
-    if (!program || !activeDraggingKey) return;
-
-    const all = [...(program.programExercises || [])];
-    const dragged = all.find((it: any) => (it.id ?? it.tempId) === activeDraggingKey);
-    if (!dragged) return;
-
-    // Remove dragged
-    const without = all.filter((it: any) => (it.id ?? it.tempId) !== activeDraggingKey);
-
-    // Items for the target day, ordered
-    const itemsInDay = without
-      .filter((it: any) => String(it.day ?? 'A') === String(toDay))
-      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-    // Insert at toIndex
-    const idx = Math.max(0, Math.min(toIndex, itemsInDay.length));
-    const newItemsInDay = [...itemsInDay.slice(0, idx), { ...dragged, day: toDay }, ...itemsInDay.slice(idx)];
-    // Reassign positions for all days
-    const otherDays = Array.from(new Set((without || []).map((it: any) => String(it.day ?? 'A'))));
-
-    const rebuilt: any[] = [];
-    otherDays.forEach((d) => {
-      if (String(d) === String(toDay)) {
-        newItemsInDay.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i, day: toDay }));
-      } else {
-        const items = without
-          .filter((it: any) => String(it.day ?? 'A') === String(d))
-          .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-        items.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i }));
-      }
-    });
-
-    // If the target day didn't exist in otherDays (e.g., moving into an empty day), ensure it's added
-    if (!otherDays.some((d) => String(d) === String(toDay))) {
-      newItemsInDay.forEach((it: any, i: number) => rebuilt.push({ ...it, position: i, day: toDay }));
-    }
-
-    await updateProgramExercisesPositions(programKey, rebuilt).catch((err) => {
-      logError('Error updating local positions after drop', err);
-    });
-
-    clearDragState();
-  };
 
   // Helpers to render placeholders: we'll compute a display array in the render loop for each day.
 
@@ -722,39 +650,6 @@ export default function ClientPrograms({ api }: Props) {
                               {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
                               <div
                                 className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0"
-                                onDragEnter={(e) => {
-                                  if (draggingPeKey) {
-                                    e.preventDefault();
-                                    // eslint-disable-next-line no-console
-                                    console.log('dragenter row', day);
-                                    setDragOverDay(day);
-                                    setDragOverIndex(items.length);
-                                  }
-                                }}
-                                onDragLeave={(e) => {
-                                  if (draggingPeKey) {
-                                    // eslint-disable-next-line no-console
-                                    console.log('dragleave row', day);
-                                    setDragOverIndex(null);
-                                  }
-                                }}
-                                onDragOver={(e) => {
-                                  if (draggingPeKey) {
-                                    e.preventDefault();
-                                    // eslint-disable-next-line no-console
-                                    console.log('dragover row', day, e.clientX);
-                                    setDragOverDay(day);
-                                    setDragOverIndex(items.length);
-                                  }
-                                }}
-                                onDrop={async (e) => {
-                                  e.preventDefault();
-                                  const idx = dragOverIndex ?? items.length;
-                                  const dataId = e.dataTransfer?.getData?.('text/plain') || '';
-                                  // eslint-disable-next-line no-console
-                                  console.log('onDrop row', { day, idx, dataId, dragOverDay, dragOverIndex, draggingPeKey });
-                                  await handleDropOnProgram(p.id ?? p.tempId, day, idx, dataId || undefined);
-                                }}
                               >
                                 {items.map((pe: any, i: number) => {
                                   const exercise = pe.exercise || {};
@@ -791,99 +686,17 @@ export default function ClientPrograms({ api }: Props) {
 
                                   return (
                                     <React.Fragment key={pe.id || pe.tempId}>
-                                      {draggingPeKey && String(dragOverDay) === String(day) && dragOverIndex === i && (
-                                        <div key={`ph-${day}-${i}`} className="relative w-[260px] flex-none">
-                                          <div className="h-[300px] w-full rounded-lg border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center text-primary text-xs">Mover aquí</div>
-                                        </div>
-                                      )}
-
                                       <div
                                         key={pe.id || pe.tempId}
                                         className="relative w-[260px] flex-none"
                                         data-pe-key={pe.id ?? pe.tempId}
                                         data-day={day}
                                         data-index={i}
-                                        draggable={!isClient}
-                                        onDragStart={(e) => {
-                                          e.stopPropagation();
-                                          const idKey = pe.id ?? pe.tempId;
-                                          // eslint-disable-next-line no-console
-                                          console.log('onDragStart div', { idKey, day, i });
-                                          try {
-                                            e.dataTransfer!.setData('text/plain', idKey);
-                                            e.dataTransfer!.effectAllowed = 'move';
-                                          } catch (err) { }
-                                          setDraggingPeKey(idKey);
-                                          setDragSourceDay(day);
-                                          setDragOverDay(day);
-                                          setDragOverIndex(i);
-                                        }}
-                                        onDragEnd={() => {
-                                          // eslint-disable-next-line no-console
-                                          console.log('onDragEnd div');
-                                          clearDragState();
-                                        }}
-                                        onDragEnter={(e) => {
-                                          if (!draggingPeKey) return;
-                                          e.preventDefault();
-                                          // eslint-disable-next-line no-console
-                                          console.log('dragenter card', pe.id ?? pe.tempId, day, i);
-                                          setDragOverDay(day);
-                                          setDragOverIndex(i);
-                                        }}
-                                        onDragLeave={(e) => {
-                                          if (!draggingPeKey) return;
-                                          // eslint-disable-next-line no-console
-                                          console.log('dragleave card', pe.id ?? pe.tempId, day, i);
-                                          // don't clear day here; clear index so placeholder can move to next slot
-                                          setDragOverIndex(null);
-                                        }}
-                                        onDragOver={(e) => {
-                                          if (!draggingPeKey) return;
-                                          e.preventDefault();
-                                          // eslint-disable-next-line no-console
-                                          console.log('dragover card', pe.id ?? pe.tempId, day, i, e.clientX);
-                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                          const middle = rect.left + rect.width / 2;
-                                          const targetIndex = e.clientX < middle ? i : i + 1;
-                                          setDragOverDay(day);
-                                          setDragOverIndex(targetIndex);
-                                        }}
-                                        onDrop={async (e) => {
-                                          e.preventDefault();
-                                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                          const middle = rect.left + rect.width / 2;
-                                          const targetIndex = e.clientX < middle ? i : i + 1;
-                                          const dataId = e.dataTransfer?.getData?.('text/plain') || '';
-                                          // eslint-disable-next-line no-console
-                                          console.log('onDrop card', { peId: pe.id ?? pe.tempId, day, i, targetIndex, dataId, dragOverIndex, dragOverDay, draggingPeKey });
-                                          await handleDropOnProgram(p.id ?? p.tempId, day, targetIndex, dataId || undefined);
-                                        }}
                                       >
 
                                         <div className="relative">
                                           <Card
                                             tabIndex={0}
-                                            draggable={!isClient}
-                                            onDragStart={(e) => {
-                                              e.stopPropagation();
-                                              const idKey = pe.id ?? pe.tempId;
-                                              // eslint-disable-next-line no-console
-                                              console.log('onDragStart Card', { idKey, day, i });
-                                              try {
-                                                e.dataTransfer!.setData('text/plain', idKey);
-                                                e.dataTransfer!.effectAllowed = 'move';
-                                              } catch (err) { }
-                                              setDraggingPeKey(idKey);
-                                              setDragSourceDay(day);
-                                              setDragOverDay(day);
-                                              setDragOverIndex(i);
-                                            }}
-                                            onDragEnd={() => {
-                                              // eslint-disable-next-line no-console
-                                              console.log('onDragEnd Card');
-                                              clearDragState();
-                                            }}
                                             onKeyDown={(e) => {
                                               if (e.key === 'Enter' && !isClient) {
                                                 setEditingProgramExercise(pe);
@@ -893,39 +706,13 @@ export default function ClientPrograms({ api }: Props) {
                                             className={cn(
                                               'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
                                               'bg-white rounded-lg border',
-                                              draggingPeKey === (pe.id ?? pe.tempId) ? 'opacity-30' : 'cursor-default',
-                                              !isClient ? 'cursor-grab' : ''
+                                              'cursor-default'
                                             )}
                                           >
                                             <CardHeader className="py-1 px-4 h-auto space-y-0.5">
                                               <div className="flex items-center justify-between gap-2">
                                                 <CardTitle className="text-sm font-semibold line-clamp-2 flex-1">
                                                   <div className="flex items-center gap-2">
-                                                    {!isClient && (
-                                                      <button
-                                                        draggable={!isClient}
-                                                        onMouseDown={(e) => e.stopPropagation()}
-                                                        onDragStart={(e) => {
-                                                          e.stopPropagation();
-                                                          const idKey = pe.id ?? pe.tempId;
-                                                          try {
-                                                            e.dataTransfer!.setData('text/plain', idKey);
-                                                            e.dataTransfer!.effectAllowed = 'move';
-                                                          } catch (err) { }
-                                                          // eslint-disable-next-line no-console
-                                                          console.log('dragstart (handle)', idKey);
-                                                          setDraggingPeKey(idKey);
-                                                          setDragSourceDay(day);
-                                                          setDragOverDay(day);
-                                                          setDragOverIndex(i);
-                                                        }}
-                                                        className="mr-1 h-8 w-8 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-grab"
-                                                        aria-label="Arrastrar ejercicio"
-                                                        title="Arrastrar ejercicio"
-                                                      >
-                                                        <span className="select-none">≡</span>
-                                                      </button>
-                                                    )}
 
                                                     <span className="flex-1 line-clamp-2">
                                                       <span className="flex items-center gap-2">
@@ -1108,12 +895,6 @@ export default function ClientPrograms({ api }: Props) {
                                   );
                                 })}
 
-                                {draggingPeKey && String(dragOverDay) === String(day) && dragOverIndex === items.length && (
-                                  <div key={`ph-${day}-end`} className="relative w-[260px] flex-none">
-                                    <div className="h-[300px] w-full rounded-lg border-2 border-dashed border-primary bg-primary/5 flex items-center justify-center text-primary text-xs">Mover aquí</div>
-                                  </div>
-                                )}
-
                                 {/* Placeholder card to add a new exercise */}
                                 {!isClient && (
                                   <div
@@ -1146,8 +927,6 @@ export default function ClientPrograms({ api }: Props) {
                                   </div>
                                 )}
                               </div>
-
-                              {/* Removed the empty drop zone - functionality now handled by placeholder card */}
                             </div>
                           </div>
                         );
@@ -1452,18 +1231,6 @@ export default function ClientPrograms({ api }: Props) {
                           (ex.equipment || []).some((x: any) => String(x?.id ?? x ?? '') === eq.id)
                         );
                         const file = (ex.file as string | undefined) || undefined;
-                        const isVideo = (file?: string) => {
-                          if (!file) return false;
-                          const lower = file.toLowerCase();
-                          return (
-                            lower.endsWith('.mp4') ||
-                            lower.endsWith('.mov') ||
-                            lower.endsWith('.webm')
-                          );
-                        };
-                        const mediaUrl = file
-                          ? getFilePublicUrl('exercise_videos', ex.id, file) || null
-                          : null;
 
                         return (
                           <Card
@@ -1515,25 +1282,18 @@ export default function ClientPrograms({ api }: Props) {
                                     <p className="text-sm text-slate-400">Subiendo...</p>
                                   </div>
                                 </div>
-                              ) : mediaUrl ? (
-                                isVideo(file) ? (
-                                  <video
-                                    src={mediaUrl}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    onPointerDown={(e) => e.stopPropagation()}
+                              ) : file ? (
+                                <div className="relative w-full h-full">
+                                  <ResolvedMedia
+                                    bucket="exercise_videos"
+                                    id={ex.id}
+                                    filename={file}
                                     className="w-full h-auto object-cover aspect-video cursor-auto"
                                     controls
-                                    playsInline
-                                  />
-                                ) : (
-                                  <img
-                                    src={mediaUrl}
-                                    alt={ex.name}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    className="w-full h-auto object-cover aspect-video cursor-auto"
                                   />
-                                )
+                                </div>
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-slate-100">
                                   <p className="text-sm text-slate-400">Sin video</p>
