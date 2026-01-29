@@ -24,7 +24,7 @@ COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
 CREATE OR REPLACE FUNCTION "public"."accept_invite"("p_token" "text") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
     p record;
@@ -105,7 +105,7 @@ ALTER TABLE "public"."profiles" OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."accept_invite"("p_token" "uuid") RETURNS SETOF "public"."profiles"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   v_profile public.profiles%ROWTYPE;
@@ -143,7 +143,7 @@ ALTER FUNCTION "public"."accept_invite"("p_token" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."accept_invite_debug"("p_token" "text") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
     res jsonb;
@@ -169,7 +169,7 @@ ALTER FUNCTION "public"."accept_invite_debug"("p_token" "text") OWNER TO "postgr
 
 
 CREATE OR REPLACE FUNCTION "public"."accept_invite_http"("p_token" "text") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 BEGIN
     -- Cast incoming token to uuid and delegate to uuid overload to avoid operator mismatches
@@ -182,7 +182,7 @@ ALTER FUNCTION "public"."accept_invite_http"("p_token" "text") OWNER TO "postgre
 
 
 CREATE OR REPLACE FUNCTION "public"."accept_invite_verbose"("p_token" "text") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
     p record;
@@ -252,7 +252,7 @@ ALTER FUNCTION "public"."accept_invite_verbose"("p_token" "text") OWNER TO "post
 
 
 CREATE OR REPLACE FUNCTION "public"."adjust_class_credits_on_events_change"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   raw_client text := NULL;
@@ -366,7 +366,7 @@ ALTER FUNCTION "public"."adjust_class_credits_on_events_change"() OWNER TO "post
 
 
 CREATE OR REPLACE FUNCTION "public"."as_uuid_array"("_val" "anyelement") RETURNS "uuid"[]
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   _t text := pg_typeof(_val)::text;
@@ -402,7 +402,7 @@ ALTER FUNCTION "public"."as_uuid_array"("_val" "anyelement") OWNER TO "postgres"
 
 
 CREATE OR REPLACE FUNCTION "public"."create_auth_user_for_profile"() RETURNS "trigger"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   existing_id uuid;
@@ -446,7 +446,7 @@ ALTER FUNCTION "public"."create_auth_user_for_profile"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."dbg_accept_invite_sim"("p_token" "uuid", "p_caller" "uuid") RETURNS "jsonb"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
     p record;
@@ -477,7 +477,7 @@ ALTER FUNCTION "public"."dbg_accept_invite_sim"("p_token" "uuid", "p_caller" "uu
 
 
 CREATE OR REPLACE FUNCTION "public"."debug_get_caller_info"() RETURNS TABLE("caller_uid" "text", "caller_company" "uuid")
-    LANGUAGE "sql" STABLE SECURITY DEFINER
+    LANGUAGE "sql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT auth.uid()::text AS caller_uid,
     (SELECT company FROM public.profiles WHERE user::text = auth.uid()::text LIMIT 1) AS caller_company;
@@ -488,7 +488,7 @@ ALTER FUNCTION "public"."debug_get_caller_info"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."debug_list_pg_triggers_profiles"() RETURNS "jsonb"
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT jsonb_agg(row_to_json(q)) FROM (
     SELECT t.tgname, p.proname as function_name, n.nspname as function_schema, t.tgenabled
@@ -504,7 +504,7 @@ ALTER FUNCTION "public"."debug_list_pg_triggers_profiles"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."debug_list_profiles_triggers"() RETURNS "jsonb"
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT jsonb_agg(row_to_json(t)) FROM information_schema.triggers t WHERE t.event_object_table = 'profiles';
 $$;
@@ -514,7 +514,7 @@ ALTER FUNCTION "public"."debug_list_profiles_triggers"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."delete_event_json"("p_payload" "jsonb") RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   p_id uuid := (p_payload->>'id')::uuid;
@@ -580,7 +580,7 @@ COMMENT ON COLUMN public.companies.self_schedule IS 'Permite que los clientes se
 
 
 CREATE OR REPLACE FUNCTION "public"."get_company_by_id"("p_company" "uuid") RETURNS SETOF "public"."companies"
-    LANGUAGE "sql" STABLE SECURITY DEFINER
+    LANGUAGE "sql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT c.*
   FROM public.companies c
@@ -593,7 +593,7 @@ ALTER FUNCTION "public"."get_company_by_id"("p_company" "uuid") OWNER TO "postgr
 
 
 CREATE OR REPLACE FUNCTION "public"."get_event_attendee_profiles"("p_event" "uuid") RETURNS TABLE("id" "uuid", "user" "uuid", "name" "text", "last_name" "text", "photo_path" "text", "sport" "text", "class_credits" integer)
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT p.id, p."user", p.name, p.last_name, p.photo_path, p.sport, p.class_credits
   FROM public.events e
@@ -607,7 +607,7 @@ ALTER FUNCTION "public"."get_event_attendee_profiles"("p_event" "uuid") OWNER TO
 
 
 CREATE OR REPLACE FUNCTION "public"."get_events_for_company"("p_company" "uuid") RETURNS TABLE("id" "uuid", "company" "uuid", "datetime" "text", "duration" integer, "type" "text", "client" "uuid"[], "professional" "uuid"[], "notes" "text", "cost" numeric, "paid" boolean)
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT
     e.id,
@@ -631,7 +631,7 @@ ALTER FUNCTION "public"."get_events_for_company"("p_company" "uuid") OWNER TO "p
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profile_by_user"("p_user" "uuid") RETURNS "public"."profiles"
-    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   rec public.profiles%ROWTYPE;
@@ -657,7 +657,7 @@ ALTER FUNCTION "public"."get_profile_by_user"("p_user" "uuid") OWNER TO "postgre
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profiles_by_ids_for_clients"("p_ids" "uuid"[]) RETURNS TABLE("id" "uuid", "user" "uuid", "name" "text", "last_name" "text", "photo_path" "text", "sport" "text", "class_credits" integer, "dni" "text", "phone" "text", "email" "text")
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT id, "user", name, last_name, photo_path, sport, class_credits, dni, phone, email
   FROM public.profiles
@@ -672,7 +672,7 @@ ALTER FUNCTION "public"."get_profiles_by_ids_for_clients"("p_ids" "uuid"[]) OWNE
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profiles_by_ids_for_clients"("p_ids" "uuid"[], "p_company" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("id" "uuid", "user" "uuid", "name" "text", "last_name" "text", "photo_path" "text", "sport" "text", "class_credits" integer)
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT id, "user", name, last_name, photo_path, sport, class_credits
   FROM public.profiles
@@ -688,7 +688,7 @@ ALTER FUNCTION "public"."get_profiles_by_ids_for_clients"("p_ids" "uuid"[], "p_c
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profiles_by_ids_for_professionals"("p_ids" "uuid"[]) RETURNS TABLE("id" "uuid", "user_id" "uuid", "name" "text", "last_name" "text", "email" "text", "phone" "text", "photo_path" "text", "role" "text", "company" "uuid", "class_credits" integer)
-    LANGUAGE "sql" STABLE SECURITY DEFINER
+    LANGUAGE "sql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT p.id, p.user AS user_id, p.name, p.last_name, p.email, p.phone, p.photo_path, p.role, p.company, p.class_credits
   FROM public.profiles p
@@ -707,7 +707,7 @@ ALTER FUNCTION "public"."get_profiles_by_ids_for_professionals"("p_ids" "uuid"[]
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profiles_by_ids_for_professionals"("p_ids" "uuid"[], "p_company" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("id" "uuid", "user" "uuid", "name" "text", "last_name" "text", "photo_path" "text", "sport" "text", "class_credits" integer, "dni" "text", "phone" "text", "email" "text")
-    LANGUAGE "sql" SECURITY DEFINER
+    LANGUAGE "sql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT id, "user", name, last_name, photo_path, sport, class_credits, dni, phone, email
   FROM public.profiles
@@ -790,7 +790,7 @@ ALTER FUNCTION "public"."get_profiles_by_role_for_professionals"("p_role" "text"
 
 
 CREATE OR REPLACE FUNCTION "public"."get_profiles_for_professionals"() RETURNS TABLE("id" "uuid", "user_id" "uuid", "name" "text", "last_name" "text", "email" "text", "phone" "text", "photo_path" "text", "role" "text", "company" "uuid", "class_credits" integer)
-    LANGUAGE "sql" STABLE SECURITY DEFINER
+    LANGUAGE "sql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT p.id, p.user AS user_id, p.name, p.last_name, p.email, p.phone, p.photo_path, p.role, p.company, p.class_credits
   FROM public.profiles p
@@ -808,7 +808,7 @@ ALTER FUNCTION "public"."get_profiles_for_professionals"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."insert_event_json"("p_payload" "jsonb") RETURNS TABLE("id" "uuid")
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   v_type text := p_payload->>'type';
@@ -958,7 +958,7 @@ ALTER FUNCTION "public"."is_profile_admin_of"("company_id" "uuid") OWNER TO "pos
 
 
 CREATE OR REPLACE FUNCTION "public"."is_profile_member_of"("company_id" "uuid") RETURNS boolean
-    LANGUAGE "sql" STABLE SECURITY DEFINER
+    LANGUAGE "sql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
   SELECT EXISTS (
     SELECT 1 FROM public.profiles p
@@ -971,7 +971,7 @@ ALTER FUNCTION "public"."is_profile_member_of"("company_id" "uuid") OWNER TO "po
 
 
 CREATE OR REPLACE FUNCTION "public"."is_same_company"("p_company" "uuid") RETURNS boolean
-    LANGUAGE "plpgsql" STABLE SECURITY DEFINER
+    LANGUAGE "plpgsql" STABLE SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 BEGIN
   RETURN EXISTS(SELECT 1 FROM public.profiles WHERE (id = auth.uid() OR "user" = auth.uid()) AND company = p_company);
@@ -1025,7 +1025,7 @@ COMMENT ON FUNCTION "public"."unlink_deleted_equipment_from_exercises"() IS 'Rem
 
 
 CREATE OR REPLACE FUNCTION "public"."update_event_json"("p_payload" "jsonb") RETURNS "void"
-    LANGUAGE "plpgsql" SECURITY DEFINER
+    LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
     AS $$
 DECLARE
   v_id uuid := NULLIF(p_payload->>'id','')::uuid;
@@ -1804,7 +1804,7 @@ CREATE POLICY "Delete own profile" ON "public"."profiles" FOR DELETE USING ((("a
 
 
 DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public."profiles";
-CREATE POLICY "Enable insert for authenticated users only" ON "public"."profiles" FOR INSERT TO "authenticated" WITH CHECK (true);
+CREATE POLICY "Enable insert for authenticated users only" ON "public"."profiles" FOR INSERT TO "authenticated" WITH CHECK (("user" = auth.uid()) OR ("user" IS NULL));
 
 
 
@@ -2570,3 +2570,50 @@ BEGIN
   END IF;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Non-destructive adjustments: ensure functions have explicit search_path and tighten RLS for profiles
+BEGIN;
+
+-- Ensure explicit search_path for SECURITY DEFINER functions (idempotent)
+ALTER FUNCTION public.accept_invite(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.accept_invite(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.accept_invite_debug(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.accept_invite_http(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.accept_invite_verbose(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.adjust_class_credits_on_events_change() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.as_uuid_array(anyelement) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.create_auth_user_for_profile() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.dbg_accept_invite_sim(uuid, uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.debug_get_caller_info() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.debug_list_pg_triggers_profiles() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.debug_list_profiles_triggers() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.delete_event_json(jsonb) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.fn_set_program_exercise_notes() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_company_by_id(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_event_attendee_profiles(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_events_for_company(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profile_by_user(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_ids_for_clients(uuid[]) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_ids_for_clients(uuid[], uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_ids_for_professionals(uuid[]) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_ids_for_professionals(uuid[], uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_role_for_clients(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_role_for_clients(text, uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_role_for_professionals(text) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_by_role_for_professionals(text, uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.get_profiles_for_professionals() SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.is_profile_member_of(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.is_same_company(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.insert_event_json(jsonb) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.is_member_of_company(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.is_professional_of_company(uuid) SET search_path = 'public, pg_temp';
+ALTER FUNCTION public.is_profile_admin_of(uuid) SET search_path = 'public, pg_temp';
+
+-- Tighten profiles INSERT RLS (idempotent)
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON public.profiles;
+CREATE POLICY "Enable insert for authenticated users only" ON public.profiles
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (("user" = auth.uid()) OR ("user" IS NULL));
+
+COMMIT;
