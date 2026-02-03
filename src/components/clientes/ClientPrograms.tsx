@@ -384,7 +384,7 @@ export default function ClientPrograms({ api }: Props) {
     if (ph.parentNode) ph.parentNode.removeChild(ph);
   };
 
-  const scheduleHighlight = (el: HTMLElement | null, peKey?: string, day?: string, clientX?: number | 'end') => {
+  const scheduleHighlight = (el: HTMLElement | null, peKey?: string, day?: string, clientX?: number | 'end', clientY?: number) => {
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
@@ -419,6 +419,56 @@ export default function ClientPrograms({ api }: Props) {
       }
 
       // if clientX is 'end', we want after last
+        // prefer elementFromPoint when available to detect the exact gap without looping all items
+      if (typeof clientX === 'number' && typeof clientY === 'number') {
+        const under = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+        const card = under?.closest?.('[data-pe-key]') as HTMLElement | null;
+        if (card && parentRow.contains(card) && card.dataset.peKey !== draggingRef.current?.peKey) {
+          // if cursor over a card, decide gap relative to that card using prev/next
+          const rect = card.getBoundingClientRect();
+          const before = clientX < rect.left + rect.width / 2;
+          let centerX = 0;
+          if (before) {
+            // midpoint between previous and this
+            let prev = card.previousElementSibling as HTMLElement | null;
+            while (prev && !prev.dataset?.peKey) prev = prev.previousElementSibling as HTMLElement | null;
+            if (prev) {
+              const prevRect = prev.getBoundingClientRect();
+              centerX = (prevRect.right + rect.left) / 2;
+            } else {
+              centerX = rect.left - Math.max(12, rect.width * 0.25);
+            }
+            const height = Math.max(40, rect.height - 8);
+            const left = centerX - parentRect.left;
+            const top = rect.top - parentRect.top + 4;
+            ph.style.height = `${height}px`;
+            ph.style.left = `${left - 1}px`;
+            ph.style.top = `${top}px`;
+            dragOverRef.current = { peKey: card.dataset.peKey, day, el: card, position: 'before' } as any;
+            return;
+          } else {
+            // after this card
+            let next = card.nextElementSibling as HTMLElement | null;
+            while (next && !next.dataset?.peKey) next = next.nextElementSibling as HTMLElement | null;
+            if (next) {
+              const nextRect = next.getBoundingClientRect();
+              centerX = (rect.right + nextRect.left) / 2;
+            } else {
+              centerX = rect.right + Math.max(12, rect.width * 0.25);
+            }
+            const height = Math.max(40, rect.height - 8);
+            const left = centerX - parentRect.left;
+            const top = rect.top - parentRect.top + 4;
+            ph.style.height = `${height}px`;
+            ph.style.left = `${left - 1}px`;
+            ph.style.top = `${top}px`;
+            dragOverRef.current = { peKey: card.dataset.peKey, day, el: card, position: 'after' } as any;
+            return;
+          }
+        }
+      }
+
+      // if clientX equals 'end' or couldn't determine by elementFromPoint, fallback to previous algorithm
       if (clientX === 'end') {
         const lastRect = visible[visible.length - 1].getBoundingClientRect();
         const centerX = lastRect.right + 12;
@@ -432,7 +482,7 @@ export default function ClientPrograms({ api }: Props) {
         return;
       }
 
-      // find the first card whose center is to the right of clientX
+      // fallback loop: find the first card whose center is to the right of clientX
       let inserted = false;
       for (let i = 0; i < visible.length; i++) {
         const curr = visible[i];
@@ -482,7 +532,7 @@ export default function ClientPrograms({ api }: Props) {
     if (src.day !== targetDay) return; // only allow within same day
     const el = e.currentTarget as HTMLElement;
     // Avoid synchronous layout reads here — delegate positioning to scheduleHighlight (which runs in rAF)
-    scheduleHighlight(el, targetPeKey, targetDay, e.clientX);
+    scheduleHighlight(el, targetPeKey, targetDay, e.clientX, e.clientY);
     try {
       e.dataTransfer.dropEffect = 'move';
     } catch (err) {}
@@ -527,9 +577,36 @@ export default function ClientPrograms({ api }: Props) {
     }
 
     const moved = items.splice(srcIdx, 1)[0];
-    const pos = (dragOverRef.current as any)?.position;
-    const insertIdx = pos === 'after' ? targetIdx + 1 : targetIdx;
-    items.splice(insertIdx, 0, moved);
+
+    // Prefer the placeholder info stored in dragOverRef if available
+    const dr = dragOverRef.current as any;
+    if (dr && dr.peKey) {
+      const targetIdx2 = items.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
+      const insertIdx2 = dr.position === 'after' ? targetIdx2 + 1 : targetIdx2;
+      if (targetIdx2 === -1) {
+        // fallback to targetIdx
+        const pos = dr?.position === 'after' ? targetIdx + 1 : targetIdx;
+        items.splice(pos, 0, moved);
+      } else {
+        items.splice(insertIdx2, 0, moved);
+      }
+    } else {
+      // Fallback: determine side using target element rect (rare but safe)
+      try {
+        const targetEl = (e.target as HTMLElement)?.closest?.('[data-pe-key]') as HTMLElement | null;
+        if (targetEl) {
+          const rect = targetEl.getBoundingClientRect();
+          const side = (e.clientX ?? rect.left + rect.width / 2) < rect.left + rect.width / 2 ? 'before' : 'after';
+          const insertIdx = side === 'after' ? targetIdx + 1 : targetIdx;
+          items.splice(insertIdx, 0, moved);
+        } else {
+          // as a final fallback, append
+          items.push(moved);
+        }
+      } catch (err) {
+        items.push(moved);
+      }
+    }
 
     const merged = (p.programExercises || []).map((pe: any) => {
       const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
@@ -556,7 +633,7 @@ export default function ClientPrograms({ api }: Props) {
     // if already highlighted same container at end, skip
     if (dragOverRef.current?.el === el && dragOverRef.current?.position === 'end') return;
     // pass clientX so we can compute insertion point relative to row items
-    scheduleHighlight(el, undefined, targetDay, e.clientX);
+    scheduleHighlight(el, undefined, targetDay, e.clientX, e.clientY);
     try {
       e.dataTransfer.dropEffect = 'move';
     } catch (err) {}
@@ -601,10 +678,34 @@ export default function ClientPrograms({ api }: Props) {
     if (dr && dr.peKey) {
       const targetIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
       const insertIdx = dr.position === 'after' ? targetIdx + 1 : targetIdx;
-      items.splice(insertIdx, 0, moved);
-    } else {
-      // fallback: append
+      if (targetIdx === -1) {
+        // fallback to append
+        items.push(moved);
+      } else {
+        items.splice(insertIdx, 0, moved);
+      }
+    } else if (dr && dr.position === 'end') {
       items.push(moved);
+    } else {
+      // Fallback: try to use e.clientX to find nearest spot within the same container
+      try {
+        const parentRow = (e.currentTarget as HTMLElement) || null;
+        const cards = Array.from(parentRow?.querySelectorAll('[data-pe-key]') || []) as HTMLElement[];
+        const visible = cards.filter((c) => c.dataset.peKey !== draggingRef.current?.peKey);
+        let inserted = false;
+        for (let i = 0; i < visible.length; i++) {
+          const currRect = visible[i].getBoundingClientRect();
+          const center = currRect.left + currRect.width / 2;
+          if ((e.clientX ?? 0) < center) {
+            items.splice(i, 0, moved);
+            inserted = true;
+            break;
+          }
+        }
+        if (!inserted) items.push(moved);
+      } catch (err) {
+        items.push(moved);
+      }
     }
 
     const merged = (p.programExercises || []).map((pe: any) => {
