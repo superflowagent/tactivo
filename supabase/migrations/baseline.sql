@@ -400,6 +400,25 @@ $$;
 
 ALTER FUNCTION "public"."as_uuid_array"("_val" "anyelement") OWNER TO "postgres";
 
+-- Overload: accept uuid[] directly to avoid resolution errors when called with uuid[] arguments
+CREATE OR REPLACE FUNCTION public.as_uuid_array(_val uuid[]) RETURNS uuid[]
+    LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+    AS $$
+BEGIN
+  IF _val IS NULL THEN
+    RETURN ARRAY[]::uuid[];
+  ELSE
+    RETURN _val;
+  END IF;
+END;
+$$;
+
+ALTER FUNCTION public.as_uuid_array(_val uuid[]) OWNER TO postgres;
+
+GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO anon;
+GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO authenticated;
+GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO service_role;
+
 
 CREATE OR REPLACE FUNCTION "public"."create_auth_user_for_profile"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
