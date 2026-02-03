@@ -313,7 +313,7 @@ export default function ClientPrograms({ api }: Props) {
 
   // Performance: use refs + DOM class toggles + rAF to avoid re-rendering on every dragover event
   const draggingRef = React.useRef<{ peKey: string; day: string; el?: HTMLElement } | null>(null);
-  const dragOverRef = React.useRef<{ peKey?: string; day?: string; el?: HTMLElement } | null>(null);
+  const dragOverRef = React.useRef<{ peKey?: string; day?: string; el?: HTMLElement; position?: 'end' | 'before' | 'after' } | null>(null);
   const rafRef = React.useRef<number | null>(null);
 
   const clearDragOverHighlight = () => {
@@ -384,7 +384,7 @@ export default function ClientPrograms({ api }: Props) {
     if (ph.parentNode) ph.parentNode.removeChild(ph);
   };
 
-  const scheduleHighlight = (el: HTMLElement | null, peKey?: string, day?: string, side?: 'before' | 'after' | 'end') => {
+  const scheduleHighlight = (el: HTMLElement | null, peKey?: string, day?: string, clientX?: number | 'end') => {
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
@@ -402,62 +402,75 @@ export default function ClientPrograms({ api }: Props) {
       if (!parentRow) return;
       const ph = createFloatingPlaceholder(parentRow);
 
-      if (el.dataset && el.dataset.peKey) {
-        const rect = el.getBoundingClientRect();
-        const parentRect = parentRow.getBoundingClientRect();
+      // Compute insertion position using all visible sibling cards (excluding dragged)
+      const cards = Array.from(parentRow.querySelectorAll('[data-pe-key]')) as HTMLElement[];
+      const draggedKey = draggingRef.current?.peKey;
+      const visible = cards.filter((c) => (c.dataset.peKey !== draggedKey));
+      const parentRect = parentRow.getBoundingClientRect();
 
-        // Decide insertion point centered between neighbors
-        let centerX = 0;
-        if (side === 'before') {
-          // midpoint between previous card right and this card left
-          let prev = el.previousElementSibling as HTMLElement | null;
-          while (prev && !prev.dataset?.peKey) prev = prev.previousElementSibling as HTMLElement | null;
+      if (visible.length === 0) {
+        // empty row -> place at start
+        const left = 8;
+        ph.style.height = `${Math.max(40, parentRect.height - 8)}px`;
+        ph.style.left = `${left}px`;
+        ph.style.top = `4px`;
+        dragOverRef.current = { peKey: undefined, day, el: parentRow, position: 'end' } as any;
+        return;
+      }
+
+      // if clientX is 'end', we want after last
+      if (clientX === 'end') {
+        const lastRect = visible[visible.length - 1].getBoundingClientRect();
+        const centerX = lastRect.right + 12;
+        const left = centerX - parentRect.left;
+        const top = lastRect.top - parentRect.top + 4;
+        const height = Math.max(40, lastRect.height - 8);
+        ph.style.height = `${height}px`;
+        ph.style.left = `${left - 1}px`;
+        ph.style.top = `${top}px`;
+        dragOverRef.current = { peKey: undefined, day, el: parentRow, position: 'end' } as any;
+        return;
+      }
+
+      // find the first card whose center is to the right of clientX
+      let inserted = false;
+      for (let i = 0; i < visible.length; i++) {
+        const curr = visible[i];
+        const currRect = curr.getBoundingClientRect();
+        const currCenter = currRect.left + currRect.width / 2;
+        if (typeof clientX === 'number' && clientX < currCenter) {
+          // insert before curr
+          const prev = i > 0 ? visible[i - 1] : null;
+          let centerX = 0;
           if (prev) {
             const prevRect = prev.getBoundingClientRect();
-            centerX = (prevRect.right + rect.left) / 2;
+            centerX = (prevRect.right + currRect.left) / 2;
           } else {
-            // before first: place slightly left of this card
-            centerX = rect.left - 12;
+            centerX = currRect.left - Math.max(12, currRect.width * 0.25);
           }
-        } else {
-          // 'after'
-          let next = el.nextElementSibling as HTMLElement | null;
-          while (next && !next.dataset?.peKey) next = next.nextElementSibling as HTMLElement | null;
-          if (next) {
-            const nextRect = next.getBoundingClientRect();
-            centerX = (rect.right + nextRect.left) / 2;
-          } else {
-            // after last: place slightly right of this card
-            centerX = rect.right + 12;
-          }
-        }
-
-        const height = Math.max(40, rect.height - 8);
-        const left = centerX - parentRect.left;
-        const top = rect.top - parentRect.top + 4;
-        ph.style.height = `${height}px`;
-        ph.style.left = `${left - 1}px`; // -1 to center a 2px bar
-        ph.style.top = `${top}px`;
-        dragOverRef.current = { peKey, day, el, position: side === 'before' ? 'before' : 'after' } as any;
-      } else {
-        // container: place at end, centered after last or at start
-        const last = parentRow.querySelector('[data-pe-key]:last-of-type') as HTMLElement | null;
-        const parentRect = parentRow.getBoundingClientRect();
-        if (last) {
-          const lastRect = last.getBoundingClientRect();
-          const centerX = lastRect.right + 12;
+          const height = Math.max(40, currRect.height - 8);
           const left = centerX - parentRect.left;
-          const top = lastRect.top - parentRect.top + 4;
-          const height = Math.max(40, lastRect.height - 8);
+          const top = currRect.top - parentRect.top + 4;
           ph.style.height = `${height}px`;
           ph.style.left = `${left - 1}px`;
           ph.style.top = `${top}px`;
-        } else {
-          ph.style.height = `${Math.max(40, parentRect.height - 8)}px`;
-          ph.style.left = `8px`;
-          ph.style.top = `4px`;
+          dragOverRef.current = { peKey: curr.dataset.peKey, day, el: curr, position: 'before' } as any;
+          inserted = true;
+          break;
         }
-        dragOverRef.current = { peKey, day, el, position: 'end' } as any;
+      }
+
+      if (!inserted) {
+        // insert after last
+        const lastRect = visible[visible.length - 1].getBoundingClientRect();
+        const centerX = lastRect.right + Math.max(12, lastRect.width * 0.25);
+        const left = centerX - parentRect.left;
+        const top = lastRect.top - parentRect.top + 4;
+        const height = Math.max(40, lastRect.height - 8);
+        ph.style.height = `${height}px`;
+        ph.style.left = `${left - 1}px`;
+        ph.style.top = `${top}px`;
+        dragOverRef.current = { peKey: visible[visible.length - 1].dataset.peKey, day, el: visible[visible.length - 1], position: 'after' } as any;
       }
     });
   };
@@ -468,14 +481,8 @@ export default function ClientPrograms({ api }: Props) {
     if (!src) return;
     if (src.day !== targetDay) return; // only allow within same day
     const el = e.currentTarget as HTMLElement;
-    // If same target and same side, do nothing
-    const prev = dragOverRef.current as any;
-    // compute side quickly
-    const rect = el.getBoundingClientRect();
-    const mid = rect.left + rect.width / 2;
-    const side = e.clientX < mid ? 'before' : 'after';
-    if (prev?.peKey === targetPeKey && prev?.position === side) return;
-    scheduleHighlight(el, targetPeKey, targetDay, side);
+    // Avoid synchronous layout reads here — delegate positioning to scheduleHighlight (which runs in rAF)
+    scheduleHighlight(el, targetPeKey, targetDay, e.clientX);
     try {
       e.dataTransfer.dropEffect = 'move';
     } catch (err) {}
@@ -546,9 +553,10 @@ export default function ClientPrograms({ api }: Props) {
       return; // card handler will run
     }
 
-    // if already highlighted same container, skip
+    // if already highlighted same container at end, skip
     if (dragOverRef.current?.el === el && dragOverRef.current?.position === 'end') return;
-    scheduleHighlight(el, undefined, targetDay, 'end');
+    // pass clientX so we can compute insertion point relative to row items
+    scheduleHighlight(el, undefined, targetDay, e.clientX);
     try {
       e.dataTransfer.dropEffect = 'move';
     } catch (err) {}
@@ -587,8 +595,17 @@ export default function ClientPrograms({ api }: Props) {
     }
 
     const moved = items.splice(srcIdx, 1)[0];
-    // if placeholder had been placed at end, we already want to append
-    items.push(moved);
+
+    // Decide insertion index based on the floating placeholder info (dragOverRef)
+    const dr = dragOverRef.current as any;
+    if (dr && dr.peKey) {
+      const targetIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
+      const insertIdx = dr.position === 'after' ? targetIdx + 1 : targetIdx;
+      items.splice(insertIdx, 0, moved);
+    } else {
+      // fallback: append
+      items.push(moved);
+    }
 
     const merged = (p.programExercises || []).map((pe: any) => {
       const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
