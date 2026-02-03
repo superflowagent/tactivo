@@ -419,6 +419,29 @@ GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO anon;
 GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO authenticated;
 GRANT ALL ON FUNCTION public.as_uuid_array(_val uuid[]) TO service_role;
 
+-- Overload: accept anyarray so arrays of other element types (text[], varchar[], etc.) are handled
+CREATE OR REPLACE FUNCTION public.as_uuid_array(_val anyarray) RETURNS uuid[]
+    LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp
+    AS $$
+BEGIN
+  IF _val IS NULL THEN
+    RETURN ARRAY[]::uuid[];
+  END IF;
+
+  BEGIN
+    RETURN (SELECT coalesce(array_agg(x::uuid), ARRAY[]::uuid[]) FROM unnest(_val) AS x);
+  EXCEPTION WHEN invalid_text_representation THEN
+    RETURN ARRAY[]::uuid[];
+  END;
+END;
+$$;
+
+ALTER FUNCTION public.as_uuid_array(_val anyarray) OWNER TO postgres;
+
+GRANT ALL ON FUNCTION public.as_uuid_array(_val anyarray) TO anon;
+GRANT ALL ON FUNCTION public.as_uuid_array(_val anyarray) TO authenticated;
+GRANT ALL ON FUNCTION public.as_uuid_array(_val anyarray) TO service_role;
+
 
 CREATE OR REPLACE FUNCTION "public"."create_auth_user_for_profile"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER SET search_path = public, pg_temp
