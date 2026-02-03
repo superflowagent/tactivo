@@ -364,6 +364,12 @@ export default function ClientPrograms({ api }: Props) {
     cachedRects.current = new WeakMap();
     lastPointerPos.current = { x: 0, y: 0, target: null };
     lastUpdateTime.current = 0;
+    try {
+      const { setDragging } = require('@/lib/dragState');
+      setDragging(false);
+    } catch (err) {
+      // noop
+    }
   };
 
   // Floating drop placeholder to avoid layout reflow
@@ -587,7 +593,7 @@ export default function ClientPrograms({ api }: Props) {
     e.preventDefault();
     const src = draggingRef.current;
     if (!src) return;
-    if (src.day !== targetDay) return; // only allow within same day
+    // allow cross-day drags — schedule highlight for the target day
     const el = e.currentTarget as HTMLElement;
     // Avoid synchronous layout reads here — delegate positioning to scheduleHighlight (which runs in rAF)
     scheduleHighlight(el, targetPeKey, targetDay, e.clientX, e.clientY);
@@ -596,7 +602,7 @@ export default function ClientPrograms({ api }: Props) {
     } catch (err) { }
   };
 
-  const onDropOnItem = (
+  const onDropOnItem = async (
     e: React.DragEvent,
     programKey: string,
     targetPeKey: string,
@@ -612,7 +618,7 @@ export default function ClientPrograms({ api }: Props) {
     }
     const srcKey = src?.peKey;
     const srcDay = src?.day;
-    if (!srcKey || srcDay !== targetDay) {
+    if (!srcKey) {
       onDragEnd();
       return;
     }
@@ -623,41 +629,65 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
-    const items = (p.programExercises || [])
-      .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
-      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-    const srcIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
-    const targetIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === targetPeKey);
-    if (srcIdx === -1 || targetIdx === -1) {
+    // Take a snapshot of all exercises and remove the moved one
+    const all = (p.programExercises || []).slice();
+    const movedIndex = all.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
+    if (movedIndex === -1) {
       onDragEnd();
       return;
     }
 
-    const moved = items.splice(srcIdx, 1)[0];
+    const moved = { ...all.splice(movedIndex, 1)[0] };
 
-    // Use placeholder info to insert. If missing, append at end as safe fallback.
+    // Build the target day's list and insert the moved element at desired index
+    const targetItems = all
+      .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
     const dr = dragOverRef.current as any;
     if (dr && dr.peKey) {
-      const targetIdx2 = items.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
-      const insertIdx2 = dr.position === 'after' ? targetIdx2 + 1 : targetIdx2;
-      if (targetIdx2 === -1) {
-        items.push(moved);
-      } else {
-        items.splice(insertIdx2, 0, moved);
-      }
+      const idx = targetItems.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
+      const insertIdx = dr.position === 'after' ? idx + 1 : idx;
+      if (idx === -1) targetItems.push(moved);
+      else targetItems.splice(insertIdx, 0, moved);
     } else if (dr && dr.position === 'end') {
-      items.push(moved);
+      targetItems.push(moved);
     } else {
-      items.push(moved);
+      targetItems.push(moved);
     }
 
-    const merged = (p.programExercises || []).map((pe: any) => {
-      const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
-      return match ? { ...pe, position: items.indexOf(match) } : pe;
+    // Update moved day and positions for target day
+    moved.day = targetDay;
+    targetItems.forEach((pe: any, i: number) => (pe.position = i));
+
+    // Update source day's positions (if moved was from another day)
+    const sourceDay = String(srcDay ?? 'A');
+    const sourceItems = all
+      .filter((pe: any) => String(pe.day ?? 'A') === sourceDay)
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+    sourceItems.forEach((pe: any, i: number) => (pe.position = i));
+
+    // Merge changes back into programExercises array
+    const merged = (all || []).map((pe: any) => {
+      if (String(pe.day ?? 'A') === String(targetDay)) {
+        const u = targetItems.find((t: any) => (t.id ?? t.tempId) === (pe.id ?? pe.tempId));
+        return u ? { ...pe, ...u } : pe;
+      }
+      if (String(pe.day ?? 'A') === sourceDay) {
+        const u = sourceItems.find((t: any) => (t.id ?? t.tempId) === (pe.id ?? pe.tempId));
+        return u ? { ...pe, ...u } : pe;
+      }
+      return pe;
     });
 
-    updateProgramExercisesPositions(programKey, merged);
+    // Ensure moved is present
+    if (!merged.some((pe: any) => (pe.id ?? pe.tempId) === (moved.id ?? moved.tempId))) merged.push(moved);
+
+    setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === programKey ? { ...pr, programExercises: merged } : pr)));
+
+    // Normalize & mark pending changes
+    await updateProgramExercisesPositions(programKey);
+
     onDragEnd();
   };
 
@@ -665,7 +695,7 @@ export default function ClientPrograms({ api }: Props) {
     e.preventDefault();
     const src = draggingRef.current;
     if (!src) return;
-    if (src.day !== targetDay) return;
+    // allow cross-day drags — schedule highlight for the target day
     const el = e.currentTarget as HTMLElement;
 
     // If pointer is over a card, let card handler decide (avoid overriding)
@@ -683,7 +713,7 @@ export default function ClientPrograms({ api }: Props) {
     } catch (err) { }
   };
 
-  const onDropOnContainerEnd = (e: React.DragEvent, programKey: string, targetDay: string) => {
+  const onDropOnContainerEnd = async (e: React.DragEvent, programKey: string, targetDay: string) => {
     e.preventDefault();
     let src: any;
     try {
@@ -693,8 +723,7 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
     const srcKey = src?.peKey;
-    const srcDay = src?.day;
-    if (!srcKey || srcDay !== targetDay) {
+    if (!srcKey) {
       onDragEnd();
       return;
     }
@@ -705,59 +734,50 @@ export default function ClientPrograms({ api }: Props) {
       return;
     }
 
-    const items = (p.programExercises || [])
-      .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
-      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-
-    const srcIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
-    if (srcIdx === -1) {
+    // remove moved element from its current day in the global list
+    const all = (p.programExercises || []).slice();
+    const movedIndex = all.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
+    if (movedIndex === -1) {
       onDragEnd();
       return;
     }
 
-    const moved = items.splice(srcIdx, 1)[0];
+    const moved = { ...all.splice(movedIndex, 1)[0] };
+    moved.day = targetDay;
 
-    // Decide insertion index based on the floating placeholder info (dragOverRef)
+    // Decide insertion based on placeholder info (append at end if none)
     const dr = dragOverRef.current as any;
     if (dr && dr.peKey) {
-      const targetIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
-      const insertIdx = dr.position === 'after' ? targetIdx + 1 : targetIdx;
-      if (targetIdx === -1) {
-        // fallback to append
-        items.push(moved);
-      } else {
-        items.splice(insertIdx, 0, moved);
-      }
-    } else if (dr && dr.position === 'end') {
-      items.push(moved);
-    } else {
-      // Fallback: try to use e.clientX to find nearest spot within the same container
-      try {
-        const parentRow = (e.currentTarget as HTMLElement) || null;
-        const cards = Array.from(parentRow?.querySelectorAll('[data-pe-key]') || []) as HTMLElement[];
-        const visible = cards.filter((c) => c.dataset.peKey !== draggingRef.current?.peKey);
-        let inserted = false;
-        for (let i = 0; i < visible.length; i++) {
-          const currRect = visible[i].getBoundingClientRect();
-          const center = currRect.left + currRect.width / 2;
-          if ((e.clientX ?? 0) < center) {
-            items.splice(i, 0, moved);
-            inserted = true;
-            break;
-          }
+      const targetItems = all
+        .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
+        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+      const idx = targetItems.findIndex((it: any) => (it.id ?? it.tempId) === dr.peKey);
+      const insertIdx = dr.position === 'after' ? idx + 1 : idx;
+      if (idx === -1) targetItems.push(moved);
+      else targetItems.splice(insertIdx, 0, moved);
+
+      // update positions
+      targetItems.forEach((pe: any, i: number) => (pe.position = i));
+
+      // merge back
+      const merged = all.map((pe: any) => {
+        if (String(pe.day ?? 'A') === String(targetDay)) {
+          const u = targetItems.find((t: any) => (t.id ?? t.tempId) === (pe.id ?? pe.tempId));
+          return u ? { ...pe, ...u } : pe;
         }
-        if (!inserted) items.push(moved);
-      } catch (err) {
-        items.push(moved);
-      }
+        return pe;
+      });
+      if (!merged.some((pe: any) => (pe.id ?? pe.tempId) === (moved.id ?? moved.tempId))) merged.push(moved);
+      setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === programKey ? { ...pr, programExercises: merged } : pr)));
+    } else {
+      // append
+      all.push(moved);
+      setPrograms((prev) => prev.map((pr) => ((pr.id ?? pr.tempId) === programKey ? { ...pr, programExercises: all } : pr)));
     }
 
-    const merged = (p.programExercises || []).map((pe: any) => {
-      const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
-      return match ? { ...pe, position: items.indexOf(match) } : pe;
-    });
+    // finalize
+    await updateProgramExercisesPositions(programKey);
 
-    updateProgramExercisesPositions(programKey, merged);
     onDragEnd();
   };
 
