@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { isDragging } from '@/lib/dragState';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -36,6 +37,9 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
     if (!container || !measure) return;
 
     const compute = () => {
+      // If a drag operation is in progress, skip heavy measurements and keep current visibleCount
+      if (isDragging()) return;
+
       const containerWidth = container.clientWidth;
       const style = getComputedStyle(container);
       const gapValue = style.gap || style.columnGap || '4px';
@@ -90,9 +94,16 @@ export function ExerciseBadgeGroup({ items, color, maxVisible = 2 }: ExerciseBad
     const onWin = () => compute();
     window.addEventListener('resize', onWin);
 
+    // When dragging ends elsewhere, recompute once to update counts
+    const onDraggingChanged = (e: any) => {
+      if (e?.detail?.dragging === false) compute();
+    };
+    window.addEventListener('tactivo:dragging-changed', onDraggingChanged as EventListener);
+
     return () => {
       ro.disconnect();
       window.removeEventListener('resize', onWin);
+      window.removeEventListener('tactivo:dragging-changed', onDraggingChanged as EventListener);
     };
   }, [items, maxVisible]);
 

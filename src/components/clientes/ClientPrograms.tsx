@@ -1151,7 +1151,7 @@ export default function ClientPrograms({ api }: Props) {
                                               }
                                             }}
                                             className={cn(
-                                              'overflow-hidden hover:shadow-lg transition-shadow h-[300px] w-full flex flex-col min-w-0',
+                                              'overflow-hidden h-[300px] w-full flex flex-col min-w-0',
                                               'bg-white rounded-lg border',
                                               'cursor-default'
                                             )}
