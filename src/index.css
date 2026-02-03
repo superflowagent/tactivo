@@ -189,6 +189,84 @@
   @media (max-width: 640px) {
     .section-search {
       max-width: none;
+
+      /* Default behavior for section search inputs on mobile: don't force ellipsis
+         Allow wrapping/visible overflow so text is not truncated unnecessarily. */
+      overflow: visible !important;
+      white-space: normal !important;
+      text-overflow: clip !important;
+      min-width: 0;
+
+      /* Also ensure placeholder doesn't get ellipsis applied by other rules */
+      .section-search::placeholder {
+        white-space: normal !important;
+        text-overflow: clip !important;
+        overflow: visible !important;
+      }
+    }
+
+    /* Mobile-only: truncate placeholder/text in profesionales search to avoid overflow */
+    .pro-section-search {
+      /* allow shrinking inside flex containers */
+      min-width: 0;
+
+      /* Truncate visible text and placeholder via ellipsis only for profesionales */
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .pro-section-search::placeholder {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Clientes: fixed width based on placeholder, clear button as emoji overlay */
+    .clientes-search-wrap {
+      display: inline-flex;
+      align-items: center;
+      position: relative;
+      height: 2.5rem;
+      /* match input h-10 */
+    }
+
+    .clientes-section-search {
+      display: inline-flex;
+      align-items: center;
+      padding-right: 1.75rem;
+      /* reserve space for clear emoji */
+      box-sizing: border-box;
+      height: 2.5rem;
+      /* enforce original input height */
+      line-height: 1;
+    }
+
+    .clientes-clear-btn {
+      position: absolute;
+      right: 0.375rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      line-height: 1;
+      font-size: 1rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .measure-span {
+      position: absolute;
+      visibility: hidden;
+      white-space: pre;
+      font: inherit;
+      padding: 0 0.75rem;
+      height: auto;
+      display: inline-block;
     }
   }
 

@@ -1,8 +1,42 @@
 # chat-rules
+Última actualización: 2026-02-03
 
-Última actualización: 2026-01-29
 
-Reglas (instrucciones para el asistente):
+🎯 Principios Fundamentales
+Estas reglas son de obligado cumplimiento para cada respuesta y modificación de código:
 
-- Trabaja como un desarrollador senior experto en React, Tailwind y Supabase.
-- A no ser que te lo pida explícitamente, no pushees ni commitees nada a git.
+KISS & YAGNI sobre todo:
+Elimina abstracciones prematuras (interfaces únicas, patrones innecesarios).
+Borra código "por si acaso" o lógica de fallback que no se haya solicitado.
+Si una lógica puede ser más simple, refactoriza inmediatamente sin preguntar.
+
+Limpieza Proactiva:
+Si durante la ejecución de una tarea detectas código sucio, desactualizado o redundante en otras funciones del proyecto, límpialo como parte de la tarea. También puedes editar otros archivos (o eliminarlos) como parte de este principio fundamental. Aplica la mejor solución (y la más óptima) según tu juicio.
+
+Arquitectura React:
+Prioriza componentes funcionales pequeños y hooks personalizados.
+Usa utilidades de Tailwind (evita CSS arbitrario si existe una clase estándar).
+
+Control de Git:
+Prohibido realizar git commit o git push a menos que se indique explícitamente.
+
+
+🛠 Directrices de Código
+Legibilidad > Inteligencia: El código debe ser obvio. Evita "one-liners" complejos si sacrifican la claridad.
+Dry vs. Wet: Crea componentes reutilizables solo si la duplicación ocurre más de dos veces o si la lógica es compleja.
+
+
+💽 Supabase (backend y base de datos)
+Usa siempre las mejores prácticas de seguridad (RLS) y tipado estricto de Typescript para las consultas. 
+Evita el uso de funciones a no ser que sea estrictamente necesario. Siempre que sea posible, quiero que el usuario interactue directamente con la base de datos sin requerir de edge functions intermediarias. 
+Si añadir demasiadas restricciones complica la tarea, aplica unas restricciones/permisos más básicas (aunque se pierda en seguridad).
+Utiliza el CLI de Supabase (tanto el de local como el de remoto) siempre que lo necesites, sin pedirme permiso.
+Tienes en el archivo .env.local todos los environment variables que necesitas. Úsalos siempre que quieras sin pedirme aprobación.
+Cuando la tarea afecte al esquema, permisos, buckets, o configuración de Supabase, incluye esos cambios en el archivo de migración "baseline" (en /supabase/migrations) en lugar de crear nuevos archivos de migración. Esto lo quiero así con el objetivo de no necesitar múltiples archivos de migración. Esa migración (la baseline) se aplicará automáticamente a remoto con un github action tras cada commit que yo hago.
+
+
+🗣 Estilo de Comunicación y Ejecución
+Acción Directa: No expliques qué vas a hacer; simplemente actúa.
+Revisión de Overengineering: Antes de entregar, revisa si has añadido complejidad innecesaria. Si la hay, elimínala antes de responder. Si detectas overengineering en código relacionado con tu tarea, proponme simplificarlo en tu respuesta.
+Si tienes dudas o necesitas aclaraciones que mejorarán el output de la tarea encomendada, pregunta las veces que sean necesarias antes de proceder.
+Detección de Errores: Si mi instrucción rompe alguno de estos principios o es técnicamente subóptima, advierte primero y propón la alternativa correcta.

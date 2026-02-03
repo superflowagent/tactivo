@@ -99,8 +99,7 @@ export default function ClientPrograms({ api }: Props) {
   // UI: list vs opened program view
   const [viewingProgramId, setViewingProgramId] = useState<string | null>(null);
 
-  // Drag & drop removed from Programas to simplify the component and avoid UX complexity.
-  // If we need to reintroduce reordering, implement it with an explicit "Ordenar" mode.
+  // Simple drag & drop reordering (within same day). Reordering is preview-only and marked as pending—press 'Guardar' to persist positions.
 
   // Derive lookup lists for anatomy/equipment from loaded exercises to avoid undefined pickers
   const anatomyForPicker = React.useMemo(() => {
@@ -311,6 +310,294 @@ export default function ClientPrograms({ api }: Props) {
     'p-2 bg-white rounded-lg border flex items-center justify-between gap-2 transition-shadow duration-150 hover:shadow-lg';
   void exerciseCardClass;
   const iconButtonClass = 'h-4 w-4';
+
+  // Performance: use refs + DOM class toggles + rAF to avoid re-rendering on every dragover event
+  const draggingRef = React.useRef<{ peKey: string; day: string; el?: HTMLElement } | null>(null);
+  const dragOverRef = React.useRef<{ peKey?: string; day?: string; el?: HTMLElement } | null>(null);
+  const rafRef = React.useRef<number | null>(null);
+
+  const clearDragOverHighlight = () => {
+    const prev = dragOverRef.current;
+    if (prev?.el) {
+      prev.el.classList.remove('ring-2', 'ring-blue-400');
+    }
+    dragOverRef.current = null;
+  };
+
+  const onDragStart = (e: React.DragEvent, peKey: string, day: string) => {
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', JSON.stringify({ peKey, day }));
+    } catch (err) {
+      // ignore
+    }
+    // store reference to dragged element and add visual class without triggering React render
+    const el = e.currentTarget as HTMLElement;
+    el.classList.add('opacity-60');
+    draggingRef.current = { peKey, day, el };
+  };
+
+  const onDragEnd = () => {
+    // remove dragged visual
+    if (draggingRef.current?.el) {
+      draggingRef.current.el.classList.remove('opacity-60');
+    }
+    draggingRef.current = null;
+    // clear any highlights
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    clearDragOverHighlight();
+    removeDropPlaceholder();
+  };
+
+  // Floating drop placeholder to avoid layout reflow
+  const dropPlaceholderRef = React.useRef<HTMLElement | null>(null);
+
+  const createFloatingPlaceholder = (parent: HTMLElement) => {
+    let ph = dropPlaceholderRef.current;
+    if (!ph) {
+      ph = document.createElement('div');
+      ph.style.position = 'absolute';
+      ph.style.width = '2px';
+      ph.style.borderRadius = '2px';
+      ph.style.background = 'var(--primary-gradient)';
+      ph.style.pointerEvents = 'none';
+      ph.style.transition = 'transform 120ms ease, opacity 120ms ease';
+      ph.style.opacity = '0.95';
+      ph.style.zIndex = '40';
+      dropPlaceholderRef.current = ph;
+    }
+    // ensure parent is positioned
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+    if (ph.parentNode !== parent) {
+      if (ph.parentNode) ph.parentNode.removeChild(ph);
+      parent.appendChild(ph);
+    }
+    return ph;
+  };
+
+  const removeDropPlaceholder = () => {
+    const ph = dropPlaceholderRef.current;
+    if (!ph) return;
+    if (ph.parentNode) ph.parentNode.removeChild(ph);
+  };
+
+  const scheduleHighlight = (el: HTMLElement | null, peKey?: string, day?: string, side?: 'before' | 'after' | 'end') => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      // remove previous ring highlight
+      clearDragOverHighlight();
+      removeDropPlaceholder();
+
+      if (!el) {
+        dragOverRef.current = null;
+        return;
+      }
+
+      // Determine parent row (the flex container)
+      const parentRow = el.dataset && el.dataset.peKey ? (el.parentElement as HTMLElement) : (el as HTMLElement);
+      if (!parentRow) return;
+      const ph = createFloatingPlaceholder(parentRow);
+
+      if (el.dataset && el.dataset.peKey) {
+        const rect = el.getBoundingClientRect();
+        const parentRect = parentRow.getBoundingClientRect();
+
+        // Decide insertion point centered between neighbors
+        let centerX = 0;
+        if (side === 'before') {
+          // midpoint between previous card right and this card left
+          let prev = el.previousElementSibling as HTMLElement | null;
+          while (prev && !prev.dataset?.peKey) prev = prev.previousElementSibling as HTMLElement | null;
+          if (prev) {
+            const prevRect = prev.getBoundingClientRect();
+            centerX = (prevRect.right + rect.left) / 2;
+          } else {
+            // before first: place slightly left of this card
+            centerX = rect.left - 12;
+          }
+        } else {
+          // 'after'
+          let next = el.nextElementSibling as HTMLElement | null;
+          while (next && !next.dataset?.peKey) next = next.nextElementSibling as HTMLElement | null;
+          if (next) {
+            const nextRect = next.getBoundingClientRect();
+            centerX = (rect.right + nextRect.left) / 2;
+          } else {
+            // after last: place slightly right of this card
+            centerX = rect.right + 12;
+          }
+        }
+
+        const height = Math.max(40, rect.height - 8);
+        const left = centerX - parentRect.left;
+        const top = rect.top - parentRect.top + 4;
+        ph.style.height = `${height}px`;
+        ph.style.left = `${left - 1}px`; // -1 to center a 2px bar
+        ph.style.top = `${top}px`;
+        dragOverRef.current = { peKey, day, el, position: side === 'before' ? 'before' : 'after' } as any;
+      } else {
+        // container: place at end, centered after last or at start
+        const last = parentRow.querySelector('[data-pe-key]:last-of-type') as HTMLElement | null;
+        const parentRect = parentRow.getBoundingClientRect();
+        if (last) {
+          const lastRect = last.getBoundingClientRect();
+          const centerX = lastRect.right + 12;
+          const left = centerX - parentRect.left;
+          const top = lastRect.top - parentRect.top + 4;
+          const height = Math.max(40, lastRect.height - 8);
+          ph.style.height = `${height}px`;
+          ph.style.left = `${left - 1}px`;
+          ph.style.top = `${top}px`;
+        } else {
+          ph.style.height = `${Math.max(40, parentRect.height - 8)}px`;
+          ph.style.left = `8px`;
+          ph.style.top = `4px`;
+        }
+        dragOverRef.current = { peKey, day, el, position: 'end' } as any;
+      }
+    });
+  };
+
+  const onDragOverItem = (e: React.DragEvent, targetPeKey: string, targetDay: string) => {
+    e.preventDefault();
+    const src = draggingRef.current;
+    if (!src) return;
+    if (src.day !== targetDay) return; // only allow within same day
+    const el = e.currentTarget as HTMLElement;
+    // If same target and same side, do nothing
+    const prev = dragOverRef.current as any;
+    // compute side quickly
+    const rect = el.getBoundingClientRect();
+    const mid = rect.left + rect.width / 2;
+    const side = e.clientX < mid ? 'before' : 'after';
+    if (prev?.peKey === targetPeKey && prev?.position === side) return;
+    scheduleHighlight(el, targetPeKey, targetDay, side);
+    try {
+      e.dataTransfer.dropEffect = 'move';
+    } catch (err) {}
+  };
+
+  const onDropOnItem = (
+    e: React.DragEvent,
+    programKey: string,
+    targetPeKey: string,
+    targetDay: string
+  ) => {
+    e.preventDefault();
+    let src: any;
+    try {
+      src = JSON.parse(e.dataTransfer.getData('text/plain') || '');
+    } catch (err) {
+      onDragEnd();
+      return;
+    }
+    const srcKey = src?.peKey;
+    const srcDay = src?.day;
+    if (!srcKey || srcDay !== targetDay) {
+      onDragEnd();
+      return;
+    }
+
+    const p = programs.find((x) => (x.id ?? x.tempId) === programKey);
+    if (!p) {
+      onDragEnd();
+      return;
+    }
+
+    const items = (p.programExercises || [])
+      .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+    const srcIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
+    const targetIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === targetPeKey);
+    if (srcIdx === -1 || targetIdx === -1) {
+      onDragEnd();
+      return;
+    }
+
+    const moved = items.splice(srcIdx, 1)[0];
+    const pos = (dragOverRef.current as any)?.position;
+    const insertIdx = pos === 'after' ? targetIdx + 1 : targetIdx;
+    items.splice(insertIdx, 0, moved);
+
+    const merged = (p.programExercises || []).map((pe: any) => {
+      const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
+      return match ? { ...pe, position: items.indexOf(match) } : pe;
+    });
+
+    updateProgramExercisesPositions(programKey, merged);
+    onDragEnd();
+  };
+
+  const onDragOverContainer = (e: React.DragEvent, targetDay: string) => {
+    e.preventDefault();
+    const src = draggingRef.current;
+    if (!src) return;
+    if (src.day !== targetDay) return;
+    const el = e.currentTarget as HTMLElement;
+
+    // If pointer is over a card, let card handler decide (avoid overriding)
+    const under = (e.target as HTMLElement)?.closest?.('[data-pe-key]') as HTMLElement | null;
+    if (under) {
+      return; // card handler will run
+    }
+
+    // if already highlighted same container, skip
+    if (dragOverRef.current?.el === el && dragOverRef.current?.position === 'end') return;
+    scheduleHighlight(el, undefined, targetDay, 'end');
+    try {
+      e.dataTransfer.dropEffect = 'move';
+    } catch (err) {}
+  };
+
+  const onDropOnContainerEnd = (e: React.DragEvent, programKey: string, targetDay: string) => {
+    e.preventDefault();
+    let src: any;
+    try {
+      src = JSON.parse(e.dataTransfer.getData('text/plain') || '');
+    } catch (err) {
+      onDragEnd();
+      return;
+    }
+    const srcKey = src?.peKey;
+    const srcDay = src?.day;
+    if (!srcKey || srcDay !== targetDay) {
+      onDragEnd();
+      return;
+    }
+
+    const p = programs.find((x) => (x.id ?? x.tempId) === programKey);
+    if (!p) {
+      onDragEnd();
+      return;
+    }
+
+    const items = (p.programExercises || [])
+      .filter((pe: any) => String(pe.day ?? 'A') === String(targetDay))
+      .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+    const srcIdx = items.findIndex((it: any) => (it.id ?? it.tempId) === srcKey);
+    if (srcIdx === -1) {
+      onDragEnd();
+      return;
+    }
+
+    const moved = items.splice(srcIdx, 1)[0];
+    // if placeholder had been placed at end, we already want to append
+    items.push(moved);
+
+    const merged = (p.programExercises || []).map((pe: any) => {
+      const match = items.find((ni: any) => (ni.id ?? ni.tempId) === (pe.id ?? pe.tempId));
+      return match ? { ...pe, position: items.indexOf(match) } : pe;
+    });
+
+    updateProgramExercisesPositions(programKey, merged);
+    onDragEnd();
+  };
 
   // Helpers
   const addNewDayToProgram = (programKey: string) => {
@@ -649,7 +936,9 @@ export default function ClientPrograms({ api }: Props) {
                             <div className="space-y-2 min-h-[40px]">
                               {/* Horizontal row with scroll; items are fixed-width and won't shrink */}
                               <div
-                                className="flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0"
+                                onDragOver={(e) => onDragOverContainer(e, day)}
+                                onDrop={(e) => onDropOnContainerEnd(e, p.id ?? p.tempId, day)}
+                                className="relative flex flex-row gap-4 overflow-x-auto overflow-y-hidden pb-2 px-2 w-full max-w-full min-w-0"
                               >
                                 {items.map((pe: any, i: number) => {
                                   const exercise = pe.exercise || {};
@@ -688,6 +977,11 @@ export default function ClientPrograms({ api }: Props) {
                                     <React.Fragment key={pe.id || pe.tempId}>
                                       <div
                                         key={pe.id || pe.tempId}
+                                        draggable={!isClient}
+                                        onDragStart={(e) => onDragStart(e, pe.id ?? pe.tempId, day)}
+                                        onDragEnd={() => onDragEnd()}
+                                        onDragOver={(e) => onDragOverItem(e, pe.id ?? pe.tempId, day)}
+                                        onDrop={(e) => onDropOnItem(e, p.id ?? p.tempId, pe.id ?? pe.tempId, day)}
                                         className="relative w-[260px] flex-none"
                                         data-pe-key={pe.id ?? pe.tempId}
                                         data-day={day}

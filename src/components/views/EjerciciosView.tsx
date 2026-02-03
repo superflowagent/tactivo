@@ -467,16 +467,35 @@ export function EjerciciosView() {
         </div>
 
         {(searchTerm || selectedAnatomy.length > 0 || selectedEquipment.length > 0) && (
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedAnatomy([]);
-              setSelectedEquipment([]);
-            }}
-          >
-            Limpiar
-          </Button>
+          <>
+            {/* Mobile: show "Limpiar filtros" */}
+            <div className="sm:hidden">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedAnatomy([]);
+                  setSelectedEquipment([]);
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            </div>
+
+            {/* Desktop: keep existing "Limpiar" */}
+            <div className="hidden sm:block">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedAnatomy([]);
+                  setSelectedEquipment([]);
+                }}
+              >
+                Limpiar
+              </Button>
+            </div>
+          </>
         )}
         <div className="flex-1" />
 

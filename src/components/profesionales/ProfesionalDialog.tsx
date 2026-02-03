@@ -147,6 +147,16 @@ export function ProfesionalDialog({
   const [deleting, setDeleting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  // Determine if the authenticated user is viewing their own professional profile.
+  // Profiles may store the auth user id in different columns depending on schema/load
+  const isSelfProfile = Boolean(
+    authUser &&
+    profesional &&
+    (String(authUser.id) === String(profesional.id) ||
+      String(authUser.id) === String((profesional as any).user) ||
+      String(authUser.id) === String((profesional as any).user_id))
+  );
+
   const handleSendResetConfirm = async () => {
     if (!formData.email) {
       alert('El profesional no tiene email');
@@ -836,7 +846,8 @@ export function ProfesionalDialog({
 
           <DialogFooter>
             <div className="flex items-center gap-2 min-w-0">
-              {profesional?.id && (
+              {/* Hide delete if authenticated user is a professional viewing their own profile */}
+              {profesional?.id && !(authUser?.role === 'professional' && isSelfProfile) && (
                 <Button
                   type="button"
                   variant="destructive"

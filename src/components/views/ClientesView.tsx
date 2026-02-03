@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, UserPlus, Trash } from 'lucide-react';
+import { ArrowUpDown, UserPlus, Trash, X } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -42,6 +42,33 @@ export function ClientesView() {
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<string | null>(null);
+
+  // Refs and measurement to compute a mobile-only fixed width based on placeholder
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const placeholderMeasureRef = useRef<HTMLSpanElement | null>(null);
+  const [inputWidth, setInputWidth] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (typeof window === 'undefined') return;
+      const isMobile = window.matchMedia('(max-width: 640px)').matches;
+      if (!isMobile) {
+        setInputWidth(null);
+        return;
+      }
+      const span = placeholderMeasureRef.current;
+      if (!span) return;
+      const placeholder = (document.getElementById('clientes-search') as HTMLInputElement)?.placeholder || 'Buscar clientes...';
+      span.textContent = placeholder;
+      // add padding compensation so placeholder is fully visible
+      const width = Math.ceil(span.offsetWidth) + 32;
+      setInputWidth(width);
+    };
+
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   // Cargar clientes desde `profiles` (Supabase)
   useEffect(() => {
@@ -169,19 +196,40 @@ export function ClientesView() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <div className="flex items-center gap-4">
-        <Input
-          id="clientes-search"
-          name="clientesSearch"
-          placeholder="Buscar clientes..."
-          className="section-search"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {searchQuery && (
-          <Button variant="outline" onClick={() => setSearchQuery('')}>
-            Limpiar filtros
-          </Button>
-        )}
+        <div className="clientes-search-wrap">
+          <Input
+            id="clientes-search"
+            name="clientesSearch"
+            placeholder="Buscar clientes..."
+            className="section-search clientes-section-search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            ref={inputRef}
+            style={
+              inputWidth
+                ? ({ width: `${inputWidth}px`, flex: '0 0 auto' } as React.CSSProperties)
+                : ({ flex: '1 1 auto' } as React.CSSProperties)
+            }
+          />
+
+          {searchQuery ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchQuery('');
+                inputRef.current?.focus();
+              }}
+              aria-label="Limpiar filtros"
+              className="clientes-clear-btn"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          ) : null}
+
+          {/* Hidden element used to measure placeholder width */}
+          <span ref={placeholderMeasureRef} className="measure-span" aria-hidden="true" />
+        </div>
+
         <div className="flex-1" />
         <Button onClick={handleAdd}>
           <UserPlus className="mr-0 h-4 w-4" />

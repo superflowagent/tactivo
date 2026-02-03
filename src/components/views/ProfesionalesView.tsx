@@ -260,7 +260,7 @@ export function ProfesionalesView() {
           id="pro-search"
           name="proSearch"
           placeholder="Buscar profesionales..."
-          className="section-search"
+          className="section-search pro-section-search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
