@@ -338,6 +338,13 @@ export default function ClientPrograms({ api }: Props) {
     const el = e.currentTarget as HTMLElement;
     el.classList.add('opacity-60');
     draggingRef.current = { peKey, day, el };
+    try {
+      // notify others to throttle heavy measures
+      const { setDragging } = require('@/lib/dragState');
+      setDragging(true);
+    } catch (err) {
+      // noop
+    }
   };
 
   const onDragEnd = () => {
@@ -401,59 +408,22 @@ export default function ClientPrograms({ api }: Props) {
     if (ph.parentNode) ph.parentNode.removeChild(ph);
   };
 
-  // Ensure placeholder is visible and animate its entrance (keeps translateX intact)
+  // Ensure placeholder is visible and animate its entrance
   const showPlaceholderAnimated = (ph: HTMLElement) => {
     try {
       ph.style.zIndex = '9999';
       ph.style.opacity = '1';
       ph.style.transformOrigin = 'center';
-      // start slightly scaled and animate to full width while preserving translateX
-      const current = ph.style.transform || '';
-      // apply scaleX(0.6) while keeping translateX if present
-      ph.style.transform = current.includes('translateX') ? current.replace(/scaleX\([^)]*\)/, 'scaleX(0.6)') : `${current} scaleX(0.6)`;
+      // start slightly scaled and animate to full width
+      ph.style.transform = 'scaleX(0.6)';
       // give it a subtle glow for visibility
       ph.style.boxShadow = '0 0 10px rgba(99,102,241,0.12)';
       requestAnimationFrame(() => {
-        const now = ph.style.transform || '';
-        ph.style.transform = now.includes('translateX') ? now.replace(/scaleX\([^)]*\)/, 'scaleX(1)') : `${now} scaleX(1)`;
+        ph.style.transform = 'scaleX(1)';
       });
     } catch (err) {
       // noop
     }
-  };
-
-  // Set placeholder position via transform to avoid layout thrashing; animate only when changed
-  const setPlaceholderPosition = (
-    ph: HTMLElement,
-    leftPx: number,
-    topPx: number,
-    heightPx: number,
-    animated = true
-  ) => {
-    const last = (ph as any).__lastPos as { x: number; y: number; h: number } | undefined;
-    const x = Math.round(leftPx - 1);
-    const y = Math.round(topPx);
-    const h = Math.round(heightPx);
-    if (last && last.x === x && last.y === y && last.h === h) return;
-
-    ph.style.height = `${h}px`;
-    ph.style.top = `${y}px`;
-
-    // use translateX to move placeholder (cheap)
-    const target = `translateX(${x}px) scaleX(1)`;
-    if (!animated) {
-      ph.style.transform = target;
-      (ph as any).__lastPos = { x, y, h };
-      return;
-    }
-
-    // animate from a smaller scale
-    const start = `translateX(${x}px) scaleX(0.6)`;
-    ph.style.transform = start;
-    requestAnimationFrame(() => {
-      ph.style.transform = target;
-      (ph as any).__lastPos = { x, y, h };
-    });
   };
 
   // Helper: get cached rect or compute and cache (expire after 100ms)
@@ -537,7 +507,8 @@ export default function ClientPrograms({ api }: Props) {
             const left = centerX - parentRect.left;
             const top = rect.top - parentRect.top + 4;
             ph.style.height = `${height}px`;
-            setPlaceholderPosition(ph, left, top, height, true);
+            ph.style.left = `${left - 1}px`;
+            ph.style.top = `${top}px`;
             showPlaceholderAnimated(ph);
             dragOverRef.current = { peKey: card.dataset.peKey, day, el: card, position: 'after' } as any;
             return;
@@ -550,7 +521,8 @@ export default function ClientPrograms({ api }: Props) {
       const last = parentRow.querySelector('[data-pe-key]:last-of-type') as HTMLElement | null;
       if (!first) {
         ph.style.height = `${Math.max(40, parentRect.height - 8)}px`;
-        setPlaceholderPosition(ph, 8, 4, Math.max(40, parentRect.height - 8), true);
+        ph.style.left = `8px`;
+        ph.style.top = `4px`;
         showPlaceholderAnimated(ph);
         dragOverRef.current = { peKey: undefined, day, el: parentRow, position: 'end' } as any;
         return;
@@ -603,7 +575,8 @@ export default function ClientPrograms({ api }: Props) {
         const top = lastRect.top - parentRect.top + 4;
         const height = Math.max(40, lastRect.height - 8);
         ph.style.height = `${height}px`;
-        setPlaceholderPosition(ph, left, top, height, true);
+        ph.style.left = `${left - 1}px`;
+        ph.style.top = `${top}px`;
         showPlaceholderAnimated(ph);
         dragOverRef.current = { peKey: last.dataset.peKey, day, el: last, position: 'after' } as any;
       }
